@@ -18,15 +18,16 @@ pipeline {
                     echo "Changed files:\n${changedFiles}"
 
                     def services = [
-                        'media-service',
-                        'product-service',
-                        'cart-service',
-                        'order-service',
-                        'customer-service',
-                        'rating-service',
-                        'inventory-service',
-                        'backoffice-bff',
-                        'storefront-bff'
+                        // Business Services (Backend - Java/Spring)
+                        'cart', 'customer', 'delivery', 'inventory', 'location', 
+                        'media', 'order', 'payment', 'payment-paypal', 'product', 
+                        'promotion', 'rating', 'recommendation', 'search', 'tax',
+                        
+                        // BFF & Gateways
+                        'backoffice-bff', 'storefront-bff', 'identity',
+                        
+                        // Frontend (Next.js)
+                        'backoffice', 'storefront'
                     ]
 
                     def affected = services.findAll { svc ->
@@ -44,7 +45,7 @@ pipeline {
             }
         }
 
-        stage('Security Scan') {
+       stage('Security Scan') {
     steps {
         echo "--- Đang tải và thực thi GitLeaks ---"
         script {
