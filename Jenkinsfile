@@ -45,22 +45,27 @@ pipeline {
         }
 
         stage('Security Scan') {
-            agent {
-                docker { 
-                    image 'zricethezav/gitleaks:v8.18.4'
-                    args '--entrypoint=' 
-                }
-            }
-            steps {
-                echo "--- Đang quét Secret bằng GitLeaks ---"
-                sh 'gitleaks detect --source=. --config=gitleaks.toml --report-path=gitleaks-report.json --exit-code=1'
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
-                }
-            }
-        } 
+    steps {
+        echo "--- Đang tải và thực thi GitLeaks ---"
+        script {
+            // Tải và cài đặt GitLeaks binary trực tiếp trên Jenkins workspace
+            sh '''
+                curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
+                tar -xzf gitleaks.tar.gz
+                chmod +x gitleaks
+            '''
+            
+            // Thực thi quét secret, bỏ qua lỗi exit code nếu cần thiết lập Quality Gate riêng
+            sh './gitleaks detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code=1'
+        }
+    }
+    post {
+        always {
+            // Lưu trữ file báo cáo quét bảo mật sau mỗi lần chạy
+            archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
+        }
+    }
+}
 
         stage('Test Phase') {
             when {
