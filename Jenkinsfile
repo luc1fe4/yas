@@ -18,16 +18,15 @@ pipeline {
                     echo "Changed files:\n${changedFiles}"
 
                     def services = [
-                        // Business Services (Backend - Java/Spring)
-                        'cart', 'customer', 'delivery', 'inventory', 'location', 
-                        'media', 'order', 'payment', 'payment-paypal', 'product', 
-                        'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        
-                        // BFF & Gateways
-                        'backoffice-bff', 'storefront-bff', 'identity',
-                        
-                        // Frontend (Next.js)
-                        'backoffice', 'storefront'
+                        'media-service',
+                        'product-service',
+                        'cart-service',
+                        'order-service',
+                        'customer-service',
+                        'rating-service',
+                        'inventory-service',
+                        'backoffice-bff',
+                        'storefront-bff'
                     ]
 
                     def affected = services.findAll { svc ->
@@ -99,7 +98,6 @@ pipeline {
                 }
             }
         }
-──
         stage('Coverage Quality Gate') {
             when {
                 expression { CHANGED_SERVICES != 'none' && CHANGED_SERVICES != '' }
