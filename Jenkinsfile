@@ -45,24 +45,28 @@ pipeline {
             }
         }
 
-        stage('Check Secrets (Gitleaks)') {
-            steps {
-                sh '''
-                    gitleaks detect \
-                        --source="." \
-                        --report-format=json \
-                        --report-path=gitleaks-report.json \
-                        --exit-code=1 \
-                        -v
-                '''
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'gitleaks-report.json',
-                                     allowEmptyArchive: true
-                }
-            }
+       stage('Security Scan') {
+    steps {
+        echo "--- Đang tải và thực thi GitLeaks ---"
+        script {
+            // Tải và cài đặt GitLeaks binary trực tiếp trên Jenkins workspace
+            sh '''
+                curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
+                tar -xzf gitleaks.tar.gz
+                chmod +x gitleaks
+            '''
+            
+            // Thực thi quét secret, bỏ qua lỗi exit code nếu cần thiết lập Quality Gate riêng
+            sh './gitleaks detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code=1'
         }
+    }
+    post {
+        always {
+            // Lưu trữ file báo cáo quét bảo mật sau mỗi lần chạy
+            archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
+        }
+    }
+}
 
         stage('Test Phase') {
             when {
@@ -99,7 +103,6 @@ pipeline {
                 }
             }
         }
-──
         stage('Coverage Quality Gate') {
             when {
                 expression { CHANGED_SERVICES != 'none' && CHANGED_SERVICES != '' }
