@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    tools {
+        jdk 'jdk21'
+    }
+
     environment {
         CHANGED_SERVICES = ''
     }
@@ -10,6 +14,8 @@ pipeline {
         stage('Detect Changed Services') {
             steps {
                 script {
+                    sh 'git fetch origin main'
+
                     def changedFiles = sh(
                         script: "git diff --name-only origin/main...HEAD",
                         returnStdout: true
