@@ -16,7 +16,7 @@ pipeline {
                     sh 'git fetch origin main'
 
                     def changedFiles = sh(
-                        script: "git diff --name-only origin/main...HEAD",
+                        script: "git diff --name-only FETCH_HEAD...HEAD",
                         returnStdout: true
                     ).trim()
 
