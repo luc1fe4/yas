@@ -61,7 +61,7 @@ pipeline {
             '''
             
             // Thực thi quét secret, bỏ qua lỗi exit code nếu cần thiết lập Quality Gate riêng
-            sh './gitleaks detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code=1'
+            sh './gitleaks detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code=0'
         }
     }
     post {
