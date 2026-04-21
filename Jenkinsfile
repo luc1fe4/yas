@@ -14,33 +14,81 @@ pipeline {
         stage('Detect Changed Services') {
             steps {
                 script {
-                    sh 'git fetch origin main'
+                    sh 'git fetch --no-tags origin main'
 
-                    def changedFiles = sh(
-                        script: "git diff --name-only FETCH_HEAD...HEAD",
-                        returnStdout: true
-                    ).trim()
-
-                    echo "Changed files:\n${changedFiles}"
-
-                    def services = [
-                        'cart', 'customer', 'delivery', 'inventory', 'location', 
-                        'media', 'order', 'payment', 'payment-paypal', 'product', 
-                        'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        'backoffice-bff', 'storefront-bff', 'identity',
-                        'backoffice', 'storefront'
+                    // Danh sách buildable services theo Maven modules ở parent pom
+                    def allBuildableServices = [
+                        'backoffice-bff', 'cart', 'customer', 'delivery', 'inventory',
+                        'location', 'media', 'order', 'payment-paypal', 'payment',
+                        'product', 'promotion', 'rating', 'search', 'storefront-bff',
+                        'tax', 'webhook', 'sampledata', 'recommendation'
                     ]
 
-                    def affected = services.findAll { svc ->
-                        changedFiles.contains("${svc}/")
+                    // Các thay đổi nền tảng buộc build toàn bộ services
+                    def buildAllTriggers = [
+                        'pom.xml',
+                        'common-library/',
+                        'Jenkinsfile'
+                    ]
+
+                    def detectedByScript = ''
+
+                    // Kết hợp script detect changed services của team (Nguyen Quoc Loc)
+                    if (fileExists('scripts/detect-changed-services.sh')) {
+                        sh 'chmod +x scripts/detect-changed-services.sh || true'
+                        detectedByScript = sh(
+                            script: 'bash scripts/detect-changed-services.sh',
+                            returnStdout: true
+                        ).trim()
+                        echo "Detect script output: ${detectedByScript}"
                     }
 
-                    if (affected.isEmpty()) {
-                        echo "No service changes detected. Skipping build/test."
-                        // Sửa lỗi memory leak bằng cách gán vào env
-                        env.CHANGED_SERVICES = 'none'
+                    if (detectedByScript) {
+                        if (detectedByScript == 'none') {
+                            env.CHANGED_SERVICES = 'none'
+                        } else if (detectedByScript == 'all') {
+                            env.CHANGED_SERVICES = allBuildableServices.join(',')
+                        } else {
+                            def parsed = detectedByScript
+                                .split(/[\n,\s]+/)
+                                .collect { it.trim() }
+                                .findAll { it && allBuildableServices.contains(it) }
+                                .unique()
+
+                            env.CHANGED_SERVICES = parsed ? parsed.join(',') : 'none'
+                        }
                     } else {
-                        env.CHANGED_SERVICES = affected.join(',')
+                        def changedFilesRaw = sh(
+                            script: "git diff --name-only FETCH_HEAD...HEAD",
+                            returnStdout: true
+                        ).trim()
+
+                        def changedFiles = changedFilesRaw
+                            ? changedFilesRaw.split('\n').collect { it.trim() }.findAll { it }
+                            : []
+
+                        echo "Changed files:\n${changedFiles.join('\n')}"
+
+                        def shouldBuildAll = changedFiles.any { file ->
+                            buildAllTriggers.any { trigger ->
+                                file == trigger || file.startsWith(trigger)
+                            }
+                        }
+
+                        if (shouldBuildAll) {
+                            env.CHANGED_SERVICES = allBuildableServices.join(',')
+                        } else {
+                            def affected = allBuildableServices.findAll { svc ->
+                                changedFiles.any { it.startsWith("${svc}/") }
+                            }
+
+                            env.CHANGED_SERVICES = affected ? affected.join(',') : 'none'
+                        }
+                    }
+
+                    if (env.CHANGED_SERVICES == 'none') {
+                        echo "No service changes detected. Skipping build/test."
+                    } else {
                         echo "Services to build/test: ${env.CHANGED_SERVICES}"
                     }
                 }
@@ -76,11 +124,21 @@ pipeline {
             }
             steps {
                 script {
-                    def services = env.CHANGED_SERVICES.split(',')
+                    def services = env.CHANGED_SERVICES.split(',').collect { it.trim() }.findAll { it }
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
-                        dir("${svc}") {
-                            sh '../mvnw test jacoco:report' // Sửa ./mvnw thành ../mvnw vì nó nằm ở thư mục ngoài
+                        if (fileExists("${svc}/mvnw")) {
+                            dir("${svc}") {
+                                sh 'chmod +x mvnw || true'
+                                sh './mvnw -B -ntp test jacoco:report'
+                            }
+                        } else if (fileExists("${svc}/gradlew")) {
+                            dir("${svc}") {
+                                sh 'chmod +x gradlew || true'
+                                sh './gradlew test jacocoTestReport'
+                            }
+                        } else {
+                            echo "Skipping tests for ${svc}: no Maven/Gradle wrapper found."
                         }
                     }
                 }
@@ -88,7 +146,7 @@ pipeline {
             post {
                 always {
                     script {
-                        def services = env.CHANGED_SERVICES.split(',')
+                        def services = env.CHANGED_SERVICES.split(',').collect { it.trim() }.findAll { it }
                         services.each { svc ->
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
@@ -112,7 +170,7 @@ pipeline {
             }
             steps {
                 script {
-                    def services = env.CHANGED_SERVICES.split(',')
+                    def services = env.CHANGED_SERVICES.split(',').collect { it.trim() }.findAll { it }
                     services.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
                         
@@ -151,11 +209,22 @@ pipeline {
             }
             steps {
                 script {
-                    def services = env.CHANGED_SERVICES.split(',')
+                    def services = env.CHANGED_SERVICES.split(',').collect { it.trim() }.findAll { it }
                     services.each { svc ->
                         echo "Building: ${svc}"
-                        dir("${svc}") {
-                            sh '../mvnw clean package -DskipTests' // Sửa ./mvnw thành ../mvnw
+
+                        if (fileExists("${svc}/mvnw")) {
+                            dir("${svc}") {
+                                sh 'chmod +x mvnw || true'
+                                sh './mvnw -B -ntp clean package -DskipTests'
+                            }
+                        } else if (fileExists("${svc}/gradlew")) {
+                            dir("${svc}") {
+                                sh 'chmod +x gradlew || true'
+                                sh './gradlew clean build -x test'
+                            }
+                        } else {
+                            error("Cannot build ${svc}: no Maven/Gradle wrapper found")
                         }
                     }
                 }
@@ -163,10 +232,11 @@ pipeline {
             post {
                 success {
                     script {
-                        def services = env.CHANGED_SERVICES.split(',')
+                        def services = env.CHANGED_SERVICES.split(',').collect { it.trim() }.findAll { it }
                         services.each { svc ->
-                            archiveArtifacts artifacts: "${svc}/target/*.jar",
-                                             allowEmptyArchive: true
+                            archiveArtifacts artifacts: "${svc}/target/*.jar,${svc}/target/*.war,${svc}/build/libs/*.jar,${svc}/build/libs/*.war",
+                                             allowEmptyArchive: true,
+                                             fingerprint: true
                         }
                     }
                 }
