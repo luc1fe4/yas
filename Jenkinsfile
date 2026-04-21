@@ -10,8 +10,11 @@ pipeline {
         stage('Detect Changed Services') {
             steps {
                 script {
+                    def targetBranch = env.CHANGE_TARGET ?: 'main'
+                    sh "git fetch --no-tags origin +refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch}"
+
                     def changedFiles = sh(
-                        script: "git diff --name-only origin/main...HEAD",
+                        script: "git diff --name-only refs/remotes/origin/${targetBranch}...HEAD",
                         returnStdout: true
                     ).trim()
 
@@ -36,10 +39,10 @@ pipeline {
 
                     if (affected.isEmpty()) {
                         echo "No service changes detected. Skipping build/test."
-                        CHANGED_SERVICES = 'none'
+                        env.CHANGED_SERVICES = 'none'
                     } else {
-                        CHANGED_SERVICES = affected.join(',')
-                        echo "Services to build/test: ${CHANGED_SERVICES}"
+                        env.CHANGED_SERVICES = affected.join(',')
+                        echo "Services to build/test: ${env.CHANGED_SERVICES}"
                     }
                 }
             }
@@ -70,11 +73,11 @@ pipeline {
 
         stage('Test Phase') {
             when {
-                expression { CHANGED_SERVICES != 'none' && CHANGED_SERVICES != '' }
+                expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != '' }
             }
             steps {
                 script {
-                    def services = CHANGED_SERVICES.split(',')
+                    def services = env.CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
@@ -86,7 +89,7 @@ pipeline {
             post {
                 always {
                     script {
-                        def services = CHANGED_SERVICES.split(',')
+                        def services = env.CHANGED_SERVICES.split(',')
                         services.each { svc ->
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
@@ -105,11 +108,11 @@ pipeline {
         }
         stage('Coverage Quality Gate') {
             when {
-                expression { CHANGED_SERVICES != 'none' && CHANGED_SERVICES != '' }
+                expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != '' }
             }
             steps {
                 script {
-                    def services = CHANGED_SERVICES.split(',')
+                    def services = env.CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
@@ -137,11 +140,11 @@ pipeline {
 
         stage('Build Phase') {
             when {
-                expression { CHANGED_SERVICES != 'none' && CHANGED_SERVICES != '' }
+                expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != '' }
             }
             steps {
                 script {
-                    def services = CHANGED_SERVICES.split(',')
+                    def services = env.CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         echo "Building: ${svc}"
                         dir("${svc}") {
@@ -153,7 +156,7 @@ pipeline {
             post {
                 success {
                     script {
-                        def services = CHANGED_SERVICES.split(',')
+                        def services = env.CHANGED_SERVICES.split(',')
                         services.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar",
                                              allowEmptyArchive: true
