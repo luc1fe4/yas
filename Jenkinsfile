@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        CHANGED_SERVICES = ''
+        CHANGED_SERVICES = 'none'
     }
 
     stages {
@@ -37,12 +37,13 @@ pipeline {
                         changedFiles.contains("${svc}/")
                     }
 
-                    if (affected.isEmpty()) {
+                    def selectedServices = affected ? affected.join(',') : 'none'
+                    env.CHANGED_SERVICES = selectedServices
+
+                    if (selectedServices == 'none') {
                         echo "No service changes detected. Skipping build/test."
-                        env.CHANGED_SERVICES = 'none'
                     } else {
-                        env.CHANGED_SERVICES = affected.join(',')
-                        echo "Services to build/test: ${env.CHANGED_SERVICES}"
+                        echo "Services to build/test: ${selectedServices}"
                     }
                 }
             }
@@ -73,7 +74,7 @@ pipeline {
 
         stage('Test Phase') {
             when {
-                expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != '' }
+                expression { (env.CHANGED_SERVICES ?: 'none') != 'none' }
             }
             steps {
                 script {
@@ -108,7 +109,7 @@ pipeline {
         }
         stage('Coverage Quality Gate') {
             when {
-                expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != '' }
+                expression { (env.CHANGED_SERVICES ?: 'none') != 'none' }
             }
             steps {
                 script {
@@ -140,7 +141,7 @@ pipeline {
 
         stage('Build Phase') {
             when {
-                expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != '' }
+                expression { (env.CHANGED_SERVICES ?: 'none') != 'none' }
             }
             steps {
                 script {
