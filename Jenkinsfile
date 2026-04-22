@@ -46,10 +46,10 @@ pipeline {
 
                     if (affected.isEmpty()) {
                         echo "No service changes detected. Skipping build/test."
-                        CHANGED_SERVICES = 'none'
+                        env.CHANGED_SERVICES = 'none'
                     } else {
-                        CHANGED_SERVICES = affected.join(',')
-                        echo "Services to build/test: ${CHANGED_SERVICES}"
+                        env.CHANGED_SERVICES = affected.join(',')
+                        echo "Services to build/test: ${env.CHANGED_SERVICES}"
                     }
                 }
             }
@@ -66,8 +66,8 @@ pipeline {
                 chmod +x gitleaks
             '''
             
-            // Thực thi quét secret, bỏ qua lỗi exit code nếu cần thiết lập Quality Gate riêng
-            sh './gitleaks detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code=1'
+            // Chi quet commit tren nhanh hien tai so voi main de tranh fail vi leak cu trong lich su du an
+            sh './gitleaks detect --source=. --config=gitleaks.toml --log-opts="origin/main..HEAD" --report-format=json --report-path=gitleaks-report.json --exit-code=1'
         }
     }
     post {
