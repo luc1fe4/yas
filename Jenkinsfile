@@ -88,7 +88,7 @@ pipeline {
                     def firstSvc = services[0]
                     dir("${firstSvc}") {
                         sh 'chmod +x mvnw'
-                        sh './mvnw -f ../pom.xml install -pl common-library -am -DskipTests -q'
+                        sh './mvnw -f ../pom.xml install -pl common-library -am -DskipTests -q -Drevision=1.0-SNAPSHOT'
                     }
 
                     // Step 2: Run verify for each changed service
@@ -97,7 +97,7 @@ pipeline {
                         dir("${svc}") {
                             sh 'chmod +x mvnw'
                             // verify: unit tests -> jacoco:report -> jacoco:check (coverage >= 70%)
-                            sh './mvnw verify -DskipITs'
+                            sh './mvnw verify -DskipITs -Drevision=1.0-SNAPSHOT'
                         }
                     }
                 }
