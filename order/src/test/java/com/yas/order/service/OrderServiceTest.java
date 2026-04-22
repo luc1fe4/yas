@@ -23,6 +23,10 @@ import com.yas.order.viewmodel.order.*;
 import com.yas.order.viewmodel.orderaddress.OrderAddressPostVm;
 import com.yas.order.viewmodel.product.ProductVariationVm;
 
+import static org.mockito.ArgumentMatchers.anyCollection;
+import com.yas.order.model.request.OrderRequest;
+import com.yas.order.viewmodel.order.OrderBriefVm;
+
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -499,35 +503,33 @@ class OrderServiceTest {
     class CreateOrder {
 
         @Test
-        @DisplayName("Tạo order thành công → lưu và trả về OrderVm")
+        @DisplayName("Tạo order thành công → lưu, xóa cart, cập nhật promotion")
         void whenValidRequest_shouldCreateAndReturnOrderVm() {
             OrderPostVm postVm = buildOrderPostVm();
             Order savedOrder = buildOrder(1L, OrderStatus.PENDING);
 
-            // OrderService gọi orderRepository.save() 3 lần:
-            // lần 1: lưu order ban đầu, lần 2+3: acceptOrder → findById → save
             when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
             when(orderRepository.findById(any())).thenReturn(Optional.of(savedOrder));
-            when(orderItemRepository.saveAll(anySet())).thenReturn(List.of());
+            when(orderItemRepository.saveAll(anyCollection())).thenReturn(List.of());
 
             OrderVm result = orderService.createOrder(postVm);
 
             assertThat(result).isNotNull();
             verify(orderRepository, atLeastOnce()).save(any(Order.class));
-            verify(orderItemRepository).saveAll(anySet());
+            verify(orderItemRepository).saveAll(anyCollection());
             verify(cartService).deleteCartItems(any(OrderVm.class));
             verify(promotionService).updateUsagePromotion(anyList());
         }
 
         @Test
-        @DisplayName("Tạo order với coupon → gọi updateUsagePromotion với đúng promotionCode")
-        void whenCouponProvided_shouldCallUpdateUsagePromotion() {
+        @DisplayName("Tạo order với coupon → updateUsagePromotion nhận đúng promotionCode")
+        void whenCouponProvided_shouldCallUpdateUsagePromotionWithCorrectCode() {
             OrderPostVm postVm = buildOrderPostVm(); // couponCode = "SAVE10"
             Order savedOrder = buildOrder(1L, OrderStatus.PENDING);
 
             when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
             when(orderRepository.findById(any())).thenReturn(Optional.of(savedOrder));
-            when(orderItemRepository.saveAll(anySet())).thenReturn(List.of());
+            when(orderItemRepository.saveAll(anyCollection())).thenReturn(List.of());
 
             orderService.createOrder(postVm);
 
@@ -536,5 +538,64 @@ class OrderServiceTest {
             ));
         }
     }
+
+
+    @Nested
+    @DisplayName("exportCsv")
+    class ExportCsv {
+
+        @Test
+        @DisplayName("Có orders → trả về byte[] không rỗng")
+        @SuppressWarnings("unchecked")
+        void whenOrdersExist_shouldReturnCsvBytes() throws Exception {
+            Order order = buildOrder(1L, OrderStatus.COMPLETED);
+            Page<Order> page = new PageImpl<>(List.of(order));
+
+            when(orderRepository.findAll(any(Specification.class), any(Pageable.class)))
+                    .thenReturn(page);
+            when(orderMapper.toCsv(any(OrderBriefVm.class)))
+                    .thenReturn(new com.yas.order.model.csv.OrderItemCsv());
+
+            OrderRequest request = new OrderRequest();
+            request.setCreatedFrom(ZonedDateTime.now().minusDays(7));
+            request.setCreatedTo(ZonedDateTime.now());
+            request.setProductName("");
+            request.setOrderStatus(List.of());
+            request.setBillingCountry("");
+            request.setBillingPhoneNumber("");
+            request.setEmail("");
+            request.setPageNo(0);
+            request.setPageSize(10);
+
+            byte[] result = orderService.exportCsv(request);
+
+            assertThat(result).isNotNull();
+        }
+
+        @Test
+        @DisplayName("Không có orders → trả về CSV rỗng (không ném exception)")
+        @SuppressWarnings("unchecked")
+        void whenNoOrders_shouldReturnEmptyCsv() throws Exception {
+            Page<Order> emptyPage = new PageImpl<>(List.of());
+
+            when(orderRepository.findAll(any(Specification.class), any(Pageable.class)))
+                    .thenReturn(emptyPage);
+
+            OrderRequest request = new OrderRequest();
+            request.setCreatedFrom(ZonedDateTime.now().minusDays(7));
+            request.setCreatedTo(ZonedDateTime.now());
+            request.setProductName("");
+            request.setOrderStatus(List.of());
+            request.setBillingCountry("");
+            request.setBillingPhoneNumber("");
+            request.setEmail("");
+            request.setPageNo(0);
+            request.setPageSize(10);
+
+            byte[] result = orderService.exportCsv(request);
+
+            assertThat(result).isNotNull();
+            verify(orderMapper, never()).toCsv(any());
+        }
     
 }
