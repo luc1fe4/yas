@@ -27,6 +27,10 @@ pipeline {
 
                     echo "Changed files:\n${changedFiles}"
 
+                    def changedFileList = changedFiles
+                        ? changedFiles.readLines().collect { it.trim() }.findAll { it }
+                        : []
+
                     def services = [
                         // Business Services (Backend - Java/Spring)
                         'cart', 'customer', 'delivery', 'inventory', 'location', 
@@ -41,7 +45,7 @@ pipeline {
                     ]
 
                     def affected = services.findAll { svc ->
-                        changedFiles.contains("${svc}/")
+                        changedFileList.any { filePath -> filePath.startsWith("${svc}/") }
                     }
 
                     env.CHANGED_SERVICES = affected.isEmpty() ? 'none' : affected.join(',')
