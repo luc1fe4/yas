@@ -504,51 +504,35 @@ class OrderServiceTest {
             OrderPostVm postVm = buildOrderPostVm();
             Order savedOrder = buildOrder(1L, OrderStatus.PENDING);
 
-            when(orderMapper.toModel(any(OrderRequest.class))).thenReturn(savedOrder);
-            when(orderRepository.save(any())).thenReturn(savedOrder);
-            when(orderItemRepository.saveAll(anyList())).thenReturn(List.of());
+            // OrderService gọi orderRepository.save() 3 lần:
+            // lần 1: lưu order ban đầu, lần 2+3: acceptOrder → findById → save
+            when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
+            when(orderRepository.findById(any())).thenReturn(Optional.of(savedOrder));
+            when(orderItemRepository.saveAll(anySet())).thenReturn(List.of());
 
             OrderVm result = orderService.createOrder(postVm);
 
             assertThat(result).isNotNull();
-            verify(orderRepository).save(any(Order.class));
-
-            // CartItemService xóa từng productId riêng lẻ, không nhận List
-            List<Long> productIds = postVm.orderItemPostVms()
-                    .stream()
-                    .map(OrderItemPostVm::productId)
-                    .toList();
-            for (Long productId : productIds) {
-                verify(cartItemService).deleteCartItem(productId);
-            }
+            verify(orderRepository, atLeastOnce()).save(any(Order.class));
+            verify(orderItemRepository).saveAll(anySet());
+            verify(cartService).deleteCartItems(any(OrderVm.class));
+            verify(promotionService).updateUsagePromotion(anyList());
         }
 
         @Test
-        @DisplayName("Tạo order với promotion → gọi verifyPromotion với couponCode đúng")
-        void whenCouponProvided_shouldApplyPromotion() {
-            OrderPostVm postVm = buildOrderPostVm(); // giả sử couponCode = "SAVE10"
+        @DisplayName("Tạo order với coupon → gọi updateUsagePromotion với đúng promotionCode")
+        void whenCouponProvided_shouldCallUpdateUsagePromotion() {
+            OrderPostVm postVm = buildOrderPostVm(); // couponCode = "SAVE10"
             Order savedOrder = buildOrder(1L, OrderStatus.PENDING);
 
-            PromotionVerifyResultDto verifyResult = new PromotionVerifyResultDto(
-                    true,
-                    1L,
-                    "SAVE10",
-                    DiscountType.PERCENTAGE,
-                    10.0
-            );
-
-            when(orderMapper.toModel(any())).thenReturn(savedOrder);
-            when(orderRepository.save(any())).thenReturn(savedOrder);
-
-            // verifyPromotion nhận PromotionVerifyVm chứa couponCode + productIds + orderPrice
-            when(promotionService.verifyPromotion(any(PromotionVerifyVm.class)))
-                    .thenReturn(verifyResult);
+            when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
+            when(orderRepository.findById(any())).thenReturn(Optional.of(savedOrder));
+            when(orderItemRepository.saveAll(anySet())).thenReturn(List.of());
 
             orderService.createOrder(postVm);
 
-            // Verify đúng signature của PromotionService
-            verify(promotionService).verifyPromotion(argThat(vm ->
-                    "SAVE10".equals(vm.couponCode())
+            verify(promotionService).updateUsagePromotion(argThat(list ->
+                    !list.isEmpty() && "SAVE10".equals(list.get(0).promotionCode())
             ));
         }
     }
