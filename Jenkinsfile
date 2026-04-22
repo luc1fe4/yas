@@ -73,6 +73,11 @@ pipeline {
             }
             steps {
                 script {
+                    // Install common-library vào local Maven repo trước
+                    dir('common-library') {
+                        sh './mvnw install -DskipTests'
+                    }
+
                     def services = env.CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
