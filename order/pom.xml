@@ -79,9 +79,32 @@
                     <!-- JUnit XML output tại: target/surefire-reports/*.xml -->
                     <reportFormat>xml</reportFormat>
                     <failIfNoTests>false</failIfNoTests>
+                    <!-- Thêm — đảm bảo pick up đúng pattern -->
+                    <includes>
+                        <include>**/*Test.java</include>
+                        <include>**/*Tests.java</include>
+                        <include>**/*Spec.java</include>
+                    </includes>
+                    <!-- Bật lại nếu bị skip do -DskipTests -->
+                    <skipTests>false</skipTests>
                 </configuration>
             </plugin>
-
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>
+                        @{argLine}
+                        -javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar
+                    </argLine>
+                    <reportFormat>xml</reportFormat>
+                    <failIfNoTests>false</failIfNoTests>
+                    <includes>
+                        <include>**/*Test.java</include>
+                        <include>**/*Tests.java</include>
+                    </includes>
+                </configuration>
+            </plugin>
             <!-- JaCoCo: đo coverage -->
             <plugin>
                 <groupId>org.jacoco</groupId>
@@ -96,7 +119,7 @@
                     <!-- 2. Sinh report XML + HTML sau test -->
                     <execution>
                         <id>report</id>
-                        <phase>test</phase>
+                        <phase>verify</phase>
                         <goals><goal>report</goal></goals>
                         <configuration>
                             <outputDirectory>${project.build.directory}/site/jacoco</outputDirectory>
@@ -108,6 +131,16 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <compilerArgs>
+                        <arg>-Xlint:unchecked</arg>
+                        <arg>-Xlint:deprecation</arg>
+                    </compilerArgs>
+                </configuration>
             </plugin>
         </plugins>
     </build>

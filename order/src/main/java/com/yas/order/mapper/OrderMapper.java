@@ -6,10 +6,11 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.springframework.stereotype.Component;
 
-@Mapper(componentModel = "spring")
-@Component
+@Mapper(
+    componentModel = "spring",
+    unmappedTargetPolicy = ReportingPolicy.WARN  
+)
 public interface OrderMapper {
-    @Mapping(target = "phone", source = "billingAddressVm.phone")
-    @Mapping(target = "id", source = "id")
-    OrderItemCsv toCsv(OrderBriefVm orderItem);
+    @Mapping(target = "someField", ignore = true)  
+    OrderVm toVm(Order order);
 }

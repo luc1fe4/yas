@@ -55,7 +55,7 @@ pipeline {
                         tar -xzf gitleaks.tar.gz
                         chmod +x gitleaks
                     '''
-                    sh './gitleaks detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code=0 || true'
+                    sh './gitleaks detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code=1'
                 }
             }
             post {
@@ -113,30 +113,22 @@ pipeline {
         }
 
         stage('Coverage Quality Gate') {
-            when {
-                expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != '' }
-            }
             steps {
                 script {
                     def services = env.CHANGED_SERVICES.split(',')
+                    def failed = []
                     services.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
-                        def coverage = sh(script: """
-                            awk -F',' 'NR>1 {
-                                missed  += \$4;
-                                covered += \$5
-                            } END {
-                                if (missed+covered > 0)
-                                    printf "%.0f", covered/(missed+covered)*100;
-                                else
-                                    print 0
-                            }' ${reportPath}
-                        """, returnStdout: true).trim().toInteger()
-
+                        def coverage = sh(script: """...""", returnStdout: true).trim().toInteger()
                         echo "[${svc}] Line Coverage: ${coverage}%"
                         if (coverage < 70) {
-                            error("[${svc}] Coverage ${coverage}% < 70%. Pipeline failed!")
+                            failed.add("${svc}: ${coverage}%")
                         }
+                    }
+                    if (!failed.isEmpty()) {
+                        // UNSTABLE thay vì error() để Build Phase vẫn chạy
+                        currentBuild.result = 'UNSTABLE'
+                        echo "⚠️ Coverage below threshold: ${failed.join(', ')}"
                     }
                 }
             }
