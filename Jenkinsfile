@@ -84,7 +84,9 @@ pipeline {
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
-                            sh './mvnw test jacoco:report'
+                            // verify: runs tests → jacoco:report → jacoco:check (line coverage >= 70%)
+                            // -DskipITs: skip integration tests (only unit tests)
+                            sh './mvnw verify -DskipITs'
                         }
                     }
                 }
