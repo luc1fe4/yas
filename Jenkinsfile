@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        CHANGED_SERVICES = ''
+        CHANGED_SERVICES = 'none'
     }
 
     stages {
@@ -44,11 +44,10 @@ pipeline {
                         changedFiles.contains("${svc}/")
                     }
 
-                    if (affected.isEmpty()) {
+                    env.CHANGED_SERVICES = affected.isEmpty() ? 'none' : affected.join(',')
+                    if (env.CHANGED_SERVICES == 'none') {
                         echo "No service changes detected. Skipping build/test."
-                        env.CHANGED_SERVICES = 'none'
                     } else {
-                        env.CHANGED_SERVICES = affected.join(',')
                         echo "Services to build/test: ${env.CHANGED_SERVICES}"
                     }
                 }
@@ -80,11 +79,11 @@ pipeline {
 
         stage('Test Phase') {
             when {
-                expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != '' }
+                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
             }
             steps {
                 script {
-                    def services = env.CHANGED_SERVICES.split(',')
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
@@ -96,7 +95,7 @@ pipeline {
             post {
                 always {
                     script {
-                        def services = env.CHANGED_SERVICES.split(',')
+                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
@@ -115,11 +114,11 @@ pipeline {
         }
         stage('Coverage Quality Gate') {
             when {
-                expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != '' }
+                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
             }
             steps {
                 script {
-                    def services = env.CHANGED_SERVICES.split(',')
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
@@ -147,11 +146,11 @@ pipeline {
 
         stage('Build Phase') {
             when {
-                expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != '' }
+                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
             }
             steps {
                 script {
-                    def services = env.CHANGED_SERVICES.split(',')
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         echo "Building: ${svc}"
                         dir("${svc}") {
@@ -163,7 +162,7 @@ pipeline {
             post {
                 success {
                     script {
-                        def services = env.CHANGED_SERVICES.split(',')
+                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar",
                                              allowEmptyArchive: true
