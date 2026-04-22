@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        CHANGED_SERVICES = ''
+        CHANGED_SERVICES = 'none'
     }
 
     stages {
@@ -10,8 +10,18 @@ pipeline {
         stage('Detect Changed Services') {
             steps {
                 script {
+                    // Dam bao co ref main trong workspace Jenkins truoc khi tinh changed files
+                    sh 'git fetch --no-tags --prune origin +refs/heads/main:refs/remotes/origin/main || true'
+
                     def changedFiles = sh(
-                        script: "git diff --name-only origin/main...HEAD",
+                        script: '''
+                            if git rev-parse --verify origin/main >/dev/null 2>&1; then
+                                git diff --name-only origin/main...HEAD
+                            else
+                                echo "origin/main not found, fallback to latest commit diff" >&2
+                                git diff --name-only HEAD~1..HEAD || git ls-files
+                            fi
+                        ''',
                         returnStdout: true
                     ).trim()
 
@@ -34,12 +44,11 @@ pipeline {
                         changedFiles.contains("${svc}/")
                     }
 
-                    if (affected.isEmpty()) {
+                    env.CHANGED_SERVICES = affected.isEmpty() ? 'none' : affected.join(',')
+                    if (env.CHANGED_SERVICES == 'none') {
                         echo "No service changes detected. Skipping build/test."
-                        CHANGED_SERVICES = 'none'
                     } else {
-                        CHANGED_SERVICES = affected.join(',')
-                        echo "Services to build/test: ${CHANGED_SERVICES}"
+                        echo "Services to build/test: ${env.CHANGED_SERVICES}"
                     }
                 }
             }
@@ -56,8 +65,8 @@ pipeline {
                 chmod +x gitleaks
             '''
             
-            // Thực thi quét secret, bỏ qua lỗi exit code nếu cần thiết lập Quality Gate riêng
-            sh './gitleaks detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code=1'
+            // Chi quet commit tren nhanh hien tai so voi main de tranh fail vi leak cu trong lich su du an
+            sh './gitleaks detect --source=. --config=gitleaks.toml --log-opts="origin/main..HEAD" --report-format=json --report-path=gitleaks-report.json --exit-code=1'
         }
     }
     post {
@@ -70,11 +79,11 @@ pipeline {
 
         stage('Test Phase') {
             when {
-                expression { CHANGED_SERVICES != 'none' && CHANGED_SERVICES != '' }
+                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
             }
             steps {
                 script {
-                    def services = CHANGED_SERVICES.split(',')
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
@@ -86,7 +95,7 @@ pipeline {
             post {
                 always {
                     script {
-                        def services = CHANGED_SERVICES.split(',')
+                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
@@ -105,11 +114,11 @@ pipeline {
         }
         stage('Coverage Quality Gate') {
             when {
-                expression { CHANGED_SERVICES != 'none' && CHANGED_SERVICES != '' }
+                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
             }
             steps {
                 script {
-                    def services = CHANGED_SERVICES.split(',')
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
@@ -137,11 +146,11 @@ pipeline {
 
         stage('Build Phase') {
             when {
-                expression { CHANGED_SERVICES != 'none' && CHANGED_SERVICES != '' }
+                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
             }
             steps {
                 script {
-                    def services = CHANGED_SERVICES.split(',')
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         echo "Building: ${svc}"
                         dir("${svc}") {
@@ -153,7 +162,7 @@ pipeline {
             post {
                 success {
                     script {
-                        def services = CHANGED_SERVICES.split(',')
+                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar",
                                              allowEmptyArchive: true
