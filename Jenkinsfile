@@ -82,18 +82,21 @@ pipeline {
                 script {
                     def services = CHANGED_SERVICES.split(',')
 
-                    // Step 1: Install common-library using the first service's mvnw
-                    // Root dir has no mvnw; we use the service's mvnw with -f pointing to root pom
+                    // Step 1: Install common-library using first service's mvnw
+                    // mvnw must run from INSIDE its own dir (needs .mvn/wrapper/ relative to CWD)
+                    // Use -f ../pom.xml to point to root pom for multi-module resolution
                     def firstSvc = services[0]
-                    sh "chmod +x ${firstSvc}/mvnw"
-                    sh "${firstSvc}/mvnw -f pom.xml install -pl common-library -am -DskipTests -q"
+                    dir("${firstSvc}") {
+                        sh 'chmod +x mvnw'
+                        sh './mvnw -f ../pom.xml install -pl common-library -am -DskipTests -q'
+                    }
 
                     // Step 2: Run verify for each changed service
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
                             sh 'chmod +x mvnw'
-                            // verify: runs tests -> jacoco:report -> jacoco:check (line coverage >= 70%)
+                            // verify: unit tests -> jacoco:report -> jacoco:check (coverage >= 70%)
                             sh './mvnw verify -DskipITs'
                         }
                     }
