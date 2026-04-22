@@ -44,7 +44,8 @@
         <maven.compiler.target>21</maven.compiler.target>
         <yas.version>1.0-SNAPSHOT</yas.version>
         <revision>1.0-SNAPSHOT</revision>
-
+        <mapstruct.version>1.5.5.Final</mapstruct.version>
+        
         <sonar.organization>nashtech-garage</sonar.organization>
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
         <sonar.projectKey>nashtech-garage_yas-yas-parent</sonar.projectKey>
