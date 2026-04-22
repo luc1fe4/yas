@@ -10,8 +10,18 @@ pipeline {
         stage('Detect Changed Services') {
             steps {
                 script {
+                    // Dam bao co ref main trong workspace Jenkins truoc khi tinh changed files
+                    sh 'git fetch --no-tags --prune origin +refs/heads/main:refs/remotes/origin/main || true'
+
                     def changedFiles = sh(
-                        script: "git diff --name-only origin/main...HEAD",
+                        script: '''
+                            if git rev-parse --verify origin/main >/dev/null 2>&1; then
+                                git diff --name-only origin/main...HEAD
+                            else
+                                echo "origin/main not found, fallback to latest commit diff" >&2
+                                git diff --name-only HEAD~1..HEAD || git ls-files
+                            fi
+                        ''',
                         returnStdout: true
                     ).trim()
 
