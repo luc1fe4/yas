@@ -80,13 +80,18 @@ pipeline {
             }
             steps {
                 script {
+                    // Step 1: Install common-library to local Maven repo first
+                    // (required by cart, order, and other services as a local dependency)
+                    sh 'chmod +x mvnw'
+                    sh './mvnw install -pl common-library -am -DskipTests -q'
+
                     def services = CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
                             // Fix: ensure mvnw is executable on Linux Jenkins
                             sh 'chmod +x mvnw'
-                            // verify: runs tests → jacoco:report → jacoco:check (line coverage >= 70%)
+                            // verify: runs tests -> jacoco:report -> jacoco:check (line coverage >= 70%)
                             // -DskipITs: skip integration tests (only unit tests)
                             sh './mvnw verify -DskipITs'
                         }
@@ -98,16 +103,13 @@ pipeline {
                     script {
                         def services = CHANGED_SERVICES.split(',')
                         services.each { svc ->
+                            // Publish JUnit test results
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
                                 allowEmptyResults: true
                             )
-                            jacoco(
-                                execPattern:   "${svc}/target/jacoco.exec",
-                                classPattern:  "${svc}/target/classes",
-                                sourcePattern: "${svc}/src/main/java",
-                                exclusionPattern: '**/*Test*.class'
-                            )
+                            // Note: jacoco() DSL step removed - JaCoCo plugin not installed.
+                            // Coverage is enforced via the 'Coverage Quality Gate' stage below.
                         }
                     }
                 }
