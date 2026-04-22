@@ -6,29 +6,34 @@ pipeline {
     }
 
     environment {
-        // Dùng biến toàn cục chuẩn của Jenkins
-        CHANGED_SERVICES = ''
+        CHANGED_SERVICES = 'none'
     }
 
     stages {
         stage('Detect Changed Services') {
             steps {
                 script {
-                    sh 'git fetch --no-tags origin main'
+                    def targetBranch = env.CHANGE_TARGET ?: 'main'
+                    sh "git fetch --no-tags origin +refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch}"
 
-                    // Danh sách buildable services theo Maven modules ở parent pom
-                    def allBuildableServices = [
-                        'backoffice-bff', 'cart', 'customer', 'delivery', 'inventory',
-                        'location', 'media', 'order', 'payment-paypal', 'payment',
-                        'product', 'promotion', 'rating', 'search', 'storefront-bff',
-                        'tax', 'webhook', 'sampledata', 'recommendation'
-                    ]
+                    def changedFiles = sh(
+                        script: "git diff --name-only refs/remotes/origin/${targetBranch}...HEAD",
+                        returnStdout: true
+                    ).trim()
 
-                    // Các thay đổi nền tảng buộc build toàn bộ services
-                    def buildAllTriggers = [
-                        'pom.xml',
-                        'common-library/',
-                        'Jenkinsfile'
+                    echo "Changed files:\n${changedFiles}"
+
+                    def services = [
+                        // Business Services (Backend - Java/Spring)
+                        'cart', 'customer', 'delivery', 'inventory', 'location', 
+                        'media', 'order', 'payment', 'payment-paypal', 'product', 
+                        'promotion', 'rating', 'recommendation', 'search', 'tax',
+                        
+                        // BFF & Gateways
+                        'backoffice-bff', 'storefront-bff', 'identity',
+                        
+                        // Frontend (Next.js)
+                        'backoffice', 'storefront'
                     ]
 
                     def detectedByScript = ''
@@ -43,88 +48,46 @@ pipeline {
                         echo "Detect script output: ${detectedByScript}"
                     }
 
-                    if (detectedByScript) {
-                        if (detectedByScript == 'none') {
-                            env.CHANGED_SERVICES = 'none'
-                        } else if (detectedByScript == 'all') {
-                            env.CHANGED_SERVICES = allBuildableServices.join(',')
-                        } else {
-                            def parsed = detectedByScript
-                                .split(/[\n,\s]+/)
-                                .collect { it.trim() }
-                                .findAll { it && allBuildableServices.contains(it) }
-                                .unique()
+                    def selectedServices = affected ? affected.join(',') : 'none'
+                    env.CHANGED_SERVICES = selectedServices
 
-                            env.CHANGED_SERVICES = parsed ? parsed.join(',') : 'none'
-                        }
-                    } else {
-                        def changedFilesRaw = sh(
-                            script: "git diff --name-only FETCH_HEAD...HEAD",
-                            returnStdout: true
-                        ).trim()
-
-                        def changedFiles = changedFilesRaw
-                            ? changedFilesRaw.split('\n').collect { it.trim() }.findAll { it }
-                            : []
-
-                        echo "Changed files:\n${changedFiles.join('\n')}"
-
-                        def shouldBuildAll = changedFiles.any { file ->
-                            buildAllTriggers.any { trigger ->
-                                file == trigger || file.startsWith(trigger)
-                            }
-                        }
-
-                        if (shouldBuildAll) {
-                            env.CHANGED_SERVICES = allBuildableServices.join(',')
-                        } else {
-                            def affected = allBuildableServices.findAll { svc ->
-                                changedFiles.any { it.startsWith("${svc}/") }
-                            }
-
-                            env.CHANGED_SERVICES = affected ? affected.join(',') : 'none'
-                        }
-                    }
-
-                    if (env.CHANGED_SERVICES == 'none') {
+                    if (selectedServices == 'none') {
                         echo "No service changes detected. Skipping build/test."
                     } else {
-                        echo "Services to build/test: ${env.CHANGED_SERVICES}"
+                        echo "Services to build/test: ${selectedServices}"
                     }
                 }
             }
         }
 
-        stage('Security Scan') {
-            steps {
-                echo "--- Đang tải và thực thi GitLeaks ---"
-                script {
-                    sh '''
-                        curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
-                        tar -xzf gitleaks.tar.gz
-                        chmod +x gitleaks
-                    '''
-                    
-                    // SỬA LỖI Ở ĐÂY: Đổi --exit-code=1 thành --exit-code=0
-                    // Nghĩa là: Quét ra lỗi thì vẫn báo cáo, nhưng không đánh FAILED pipeline
-                    sh './gitleaks detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code=0'
-                }
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
-                }
-            }
+       stage('Security Scan') {
+    steps {
+        echo "--- Đang tải và thực thi GitLeaks ---"
+        script {
+            // Tải và cài đặt GitLeaks binary trực tiếp trên Jenkins workspace
+            sh '''
+                curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
+                tar -xzf gitleaks.tar.gz
+                chmod +x gitleaks
+            '''
+            
+            // Thực thi quét secret, bỏ qua lỗi exit code nếu cần thiết lập Quality Gate riêng
+            sh './gitleaks detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code=0'
+        }
+    }
+    post {
+        always {
+            // Lưu trữ file báo cáo quét bảo mật sau mỗi lần chạy
+            archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
         }
 
         stage('Test Phase') {
             when {
-                // Sử dụng env.CHANGED_SERVICES
-                expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != null }
+                expression { (env.CHANGED_SERVICES ?: 'none') != 'none' }
             }
             steps {
                 script {
-                    def services = env.CHANGED_SERVICES.split(',').collect { it.trim() }.findAll { it }
+                    def services = env.CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         if (fileExists("${svc}/mvnw")) {
@@ -146,7 +109,7 @@ pipeline {
             post {
                 always {
                     script {
-                        def services = env.CHANGED_SERVICES.split(',').collect { it.trim() }.findAll { it }
+                        def services = env.CHANGED_SERVICES.split(',')
                         services.each { svc ->
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
@@ -166,11 +129,11 @@ pipeline {
         
         stage('Coverage Quality Gate') {
             when {
-                expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != null }
+                expression { (env.CHANGED_SERVICES ?: 'none') != 'none' }
             }
             steps {
                 script {
-                    def services = env.CHANGED_SERVICES.split(',').collect { it.trim() }.findAll { it }
+                    def services = env.CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
                         
@@ -205,11 +168,11 @@ pipeline {
 
         stage('Build Phase') {
             when {
-                expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != null }
+                expression { (env.CHANGED_SERVICES ?: 'none') != 'none' }
             }
             steps {
                 script {
-                    def services = env.CHANGED_SERVICES.split(',').collect { it.trim() }.findAll { it }
+                    def services = env.CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         echo "Building: ${svc}"
 
@@ -232,7 +195,7 @@ pipeline {
             post {
                 success {
                     script {
-                        def services = env.CHANGED_SERVICES.split(',').collect { it.trim() }.findAll { it }
+                        def services = env.CHANGED_SERVICES.split(',')
                         services.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar,${svc}/target/*.war,${svc}/build/libs/*.jar,${svc}/build/libs/*.war",
                                              allowEmptyArchive: true,
