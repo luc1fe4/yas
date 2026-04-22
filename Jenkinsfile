@@ -3,6 +3,7 @@ pipeline {
 
     tools {
         jdk 'jdk21'
+        maven 'Maven-3.9'
     }
 
     environment {
@@ -84,7 +85,7 @@ pipeline {
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
-                            sh './mvnw test jacoco:report'
+                            sh './mvnw verify'
                         }
                     }
                 }
