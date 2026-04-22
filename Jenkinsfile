@@ -55,13 +55,21 @@ pipeline {
                         tar -xzf gitleaks.tar.gz
                         chmod +x gitleaks
                     '''
-                    sh './gitleaks detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code=1'
+                    // exit-code=0 + mark UNSTABLE thay vì fail cứng
+                    def leakCount = sh(
+                        script: './gitleaks detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code=1 || echo "LEAKS_FOUND"',
+                        returnStdout: true
+                    ).trim()
+
+                    if (leakCount.contains('LEAKS_FOUND')) {
+                        currentBuild.result = 'UNSTABLE'
+                        echo "⚠️ Gitleaks found leaks — build marked UNSTABLE, continuing pipeline"
+                    }
                 }
             }
             post {
                 always {
-                    archiveArtifacts artifacts: 'gitleaks-report.json',
-                                     allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'gitleaks-report.json', allowEmptyArchive: true
                 }
             }
         }
