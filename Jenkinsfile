@@ -80,11 +80,11 @@ pipeline {
 
         stage('Test Phase') {
             when {
-                expression { CHANGED_SERVICES != 'none' && CHANGED_SERVICES != '' }
+                expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != '' }
             }
             steps {
                 script {
-                    def services = CHANGED_SERVICES.split(',')
+                    def services = env.CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
@@ -96,7 +96,7 @@ pipeline {
             post {
                 always {
                     script {
-                        def services = CHANGED_SERVICES.split(',')
+                        def services = env.CHANGED_SERVICES.split(',')
                         services.each { svc ->
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
@@ -115,11 +115,11 @@ pipeline {
         }
         stage('Coverage Quality Gate') {
             when {
-                expression { CHANGED_SERVICES != 'none' && CHANGED_SERVICES != '' }
+                expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != '' }
             }
             steps {
                 script {
-                    def services = CHANGED_SERVICES.split(',')
+                    def services = env.CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
@@ -147,11 +147,11 @@ pipeline {
 
         stage('Build Phase') {
             when {
-                expression { CHANGED_SERVICES != 'none' && CHANGED_SERVICES != '' }
+                expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != '' }
             }
             steps {
                 script {
-                    def services = CHANGED_SERVICES.split(',')
+                    def services = env.CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         echo "Building: ${svc}"
                         dir("${svc}") {
@@ -163,7 +163,7 @@ pipeline {
             post {
                 success {
                     script {
-                        def services = CHANGED_SERVICES.split(',')
+                        def services = env.CHANGED_SERVICES.split(',')
                         services.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar",
                                              allowEmptyArchive: true
