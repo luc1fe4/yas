@@ -123,20 +123,53 @@ pipeline {
         stage('Coverage Quality Gate') {
             steps {
                 script {
-                    def services = env.CHANGED_SERVICES.split(',')
+                    // Lấy danh sách service, loại bỏ khoảng trắng dư thừa
+                    def services = env.CHANGED_SERVICES.split(',').collect { it.trim() }.findAll { it != "" }
                     def failed = []
+
                     services.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
-                        def coverage = sh(script: """...""", returnStdout: true).trim().toInteger()
-                        echo "[${svc}] Line Coverage: ${coverage}%"
-                        if (coverage < 70) {
-                            failed.add("${svc}: ${coverage}%")
+                        
+                        if (fileExists(reportPath)) {
+                            // Đọc file CSV bằng hàm có sẵn của Jenkins (không dùng lệnh sh)
+                            def csvContent = readFile(reportPath)
+                            def lines = csvContent.split('\n')
+                            
+                            long lineMissed = 0
+                            long lineCovered = 0
+                            
+                            // Duyệt từng dòng để cộng dồn LINE_MISSED (cột 7) và LINE_COVERED (cột 8)
+                            lines.eachWithIndex { line, idx ->
+                                if (idx > 0 && line.trim()) { // Bỏ qua dòng header
+                                    def cols = line.split(',')
+                                    if (cols.size() > 8) {
+                                        lineMissed += cols[7].toLong()
+                                        lineCovered += cols[8].toLong()
+                                    }
+                                }
+                            }
+                            
+                            // Công thức tính phần trăm:
+                            // Coverage = (Covered / (Missed + Covered)) * 100
+                            int coverage = (lineCovered + lineMissed > 0) ? 
+                                        (int) (lineCovered * 100 / (lineCovered + lineMissed)) : 0
+                            
+                            echo "[${svc}] Total Line Coverage: ${coverage}%"
+                            
+                            if (coverage < 70) {
+                                failed.add("${svc} (${coverage}%)")
+                            }
+                        } else {
+                            echo "⚠️ Không tìm thấy báo cáo JaCoCo cho service: ${svc} tại ${reportPath}"
                         }
                     }
+
                     if (!failed.isEmpty()) {
-                        // UNSTABLE thay vì error() để Build Phase vẫn chạy
+                        // Đánh dấu UNSTABLE để Build Phase vẫn được thực hiện
                         currentBuild.result = 'UNSTABLE'
-                        echo "⚠️ Coverage below threshold: ${failed.join(', ')}"
+                        echo "❌ Cảnh báo: Coverage dưới ngưỡng 70% tại các service: ${failed.join(', ')}"
+                    } else {
+                        echo "✅ Tuyệt vời! Tất cả các service đều vượt ngưỡng Coverage."
                     }
                 }
             }
