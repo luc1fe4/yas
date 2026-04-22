@@ -8,9 +8,7 @@
         <version>4.0.2</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <properties>
-    <revision>1.0-SNAPSHOT</revision>
-</properties>
+  
     <groupId>com.yas</groupId>
     <artifactId>yas</artifactId>
     <version>${revision}</version>
@@ -46,6 +44,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <yas.version>1.0-SNAPSHOT</yas.version>
+        <revision>1.0-SNAPSHOT</revision>
         <revision>1.0-SNAPSHOT</revision>
 
         <sonar.organization>nashtech-garage</sonar.organization>
