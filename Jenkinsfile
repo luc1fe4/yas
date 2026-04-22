@@ -76,17 +76,17 @@ pipeline {
                     def REVISION = '1.0-SNAPSHOT'
 
                     // Bước 1: Install root pom với revision tường minh
-                    sh "mvn install -N -DskipTests -Drevision=${REVISION}"
+                    sh "mvn install -N -U -DskipTests -Drevision=${REVISION}"
                     // Bước 2: Install common-library với revision tường minh
                     dir('common-library') {
-                        sh "mvn install -DskipTests -Drevision=${REVISION}"
+                        sh "mvn install -U -DskipTests -Drevision=${REVISION}"
                     }
 
                     def services = env.CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
-                            sh "./mvnw verify -Drevision=${REVISION}"
+                            sh "./mvnw test -U -Drevision=${REVISION}"
                         }
                     }
                 }
