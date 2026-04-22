@@ -88,8 +88,8 @@ pipeline {
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
                             sh 'chmod +x mvnw || true'
-                            sh './mvnw -f ../pom.xml -pl common-library -am install -DskipTests'
-                            sh './mvnw test jacoco:report'
+                            sh './mvnw -f ../pom.xml -pl common-library -am install -DskipTests -Dmaven.compiler.source=21 -Dmaven.compiler.target=21'
+                            sh './mvnw test jacoco:report -Dmaven.compiler.source=21 -Dmaven.compiler.target=21'
                         }
                     }
                 }
@@ -157,8 +157,8 @@ pipeline {
                         echo "Building: ${svc}"
                         dir("${svc}") {
                             sh 'chmod +x mvnw || true'
-                            sh './mvnw -f ../pom.xml -pl common-library -am install -DskipTests'
-                            sh './mvnw clean package -DskipTests'
+                            sh './mvnw -f ../pom.xml -pl common-library -am install -DskipTests -Dmaven.compiler.source=21 -Dmaven.compiler.target=21'
+                            sh './mvnw clean package -DskipTests -Dmaven.compiler.source=21 -Dmaven.compiler.target=21'
                         }
                     }
                 }
