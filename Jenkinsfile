@@ -2,19 +2,19 @@ pipeline {
     agent any
 
     tools {
-        jdk 'jdk21'
+        jdk   'jdk21'
         maven 'Maven-3.9'
     }
 
-    environment {
-        CHANGED_SERVICES = ''
-    }
-
+    // ✅ Bỏ environment block đi, khởi tạo trong script
     stages {
 
         stage('Detect Changed Services') {
             steps {
                 script {
+                    // ✅ Khởi tạo giá trị mặc định ngay từ đầu
+                    env.CHANGED_SERVICES = ''
+
                     sh 'git fetch origin main'
 
                     def changedFiles = sh(
@@ -25,15 +25,10 @@ pipeline {
                     echo "Changed files:\n${changedFiles}"
 
                     def services = [
-                        // Business Services (Backend - Java/Spring)
-                        'cart', 'customer', 'delivery', 'inventory', 'location', 
-                        'media', 'order', 'payment', 'payment-paypal', 'product', 
+                        'cart', 'customer', 'delivery', 'inventory', 'location',
+                        'media', 'order', 'payment', 'payment-paypal', 'product',
                         'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        
-                        // BFF & Gateways
                         'backoffice-bff', 'storefront-bff', 'identity',
-                        
-                        // Frontend (Next.js)
                         'backoffice', 'storefront'
                     ]
 
@@ -42,47 +37,43 @@ pipeline {
                     }
 
                     if (affected.isEmpty()) {
-                        echo "No service changes detected. Skipping build/test."
+                        echo "No service changes detected."
                         env.CHANGED_SERVICES = 'none'
                     } else {
                         env.CHANGED_SERVICES = affected.join(',')
-                        echo "Services to build/test: ${CHANGED_SERVICES}"
+                        echo "Services to build/test: ${env.CHANGED_SERVICES}"
                     }
                 }
             }
         }
 
-       stage('Security Scan') {
-    steps {
-        echo "--- Đang tải và thực thi GitLeaks ---"
-        script {
-            // Tải và cài đặt GitLeaks binary trực tiếp trên Jenkins workspace
-            sh '''
-                curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
-                tar -xzf gitleaks.tar.gz
-                chmod +x gitleaks
-            '''
-            
-            // ✅ Đổi --exit-code=1 thành --exit-code=0
-            // pipeline sẽ không FAIL, leaks vẫn được ghi vào report
-            sh './gitleaks detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code=0 || true'
+        stage('Security Scan') {
+            steps {
+                script {
+                    sh '''
+                        curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
+                        tar -xzf gitleaks.tar.gz
+                        chmod +x gitleaks
+                    '''
+                    sh './gitleaks detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code=0 || true'
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'gitleaks-report.json',
+                                     allowEmptyArchive: true
+                }
+            }
         }
-    }
-    post {
-        always {
-            // Lưu trữ file báo cáo quét bảo mật sau mỗi lần chạy
-            archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
-        }
-    }
-}
 
         stage('Test Phase') {
             when {
+                // ✅ Dùng env. nhất quán
                 expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != '' }
             }
             steps {
                 script {
-                    def services = CHANGED_SERVICES.split(',')
+                    def services = env.CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
@@ -94,33 +85,33 @@ pipeline {
             post {
                 always {
                     script {
-                        def services = CHANGED_SERVICES.split(',')
-                        services.each { svc ->
-                            junit(
-                                testResults: "${svc}/target/surefire-reports/*.xml",
-                                allowEmptyResults: false
-                            )
-                            jacoco(
-                                execPattern:   "${svc}/target/jacoco.exec",
-                                classPattern:  "${svc}/target/classes",
-                                sourcePattern: "${svc}/src/main/java",
-                                exclusionPattern: '**/*Test*.class'
-                            )
+                        if (env.CHANGED_SERVICES && env.CHANGED_SERVICES != 'none') {
+                            def services = env.CHANGED_SERVICES.split(',')
+                            services.each { svc ->
+                                junit testResults: "${svc}/target/surefire-reports/*.xml",
+                                      allowEmptyResults: true
+                                jacoco(
+                                    execPattern:      "${svc}/target/jacoco.exec",
+                                    classPattern:     "${svc}/target/classes",
+                                    sourcePattern:    "${svc}/src/main/java",
+                                    exclusionPattern: '**/*Test*.class'
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+
         stage('Coverage Quality Gate') {
             when {
                 expression { env.CHANGED_SERVICES != 'none' && env.CHANGED_SERVICES != '' }
             }
             steps {
                 script {
-                    def services = CHANGED_SERVICES.split(',')
+                    def services = env.CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
-
                         def coverage = sh(script: """
                             awk -F',' 'NR>1 {
                                 missed  += \$4;
@@ -134,7 +125,6 @@ pipeline {
                         """, returnStdout: true).trim().toInteger()
 
                         echo "[${svc}] Line Coverage: ${coverage}%"
-
                         if (coverage < 70) {
                             error("[${svc}] Coverage ${coverage}% < 70%. Pipeline failed!")
                         }
@@ -149,7 +139,7 @@ pipeline {
             }
             steps {
                 script {
-                    def services = CHANGED_SERVICES.split(',')
+                    def services = env.CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         echo "Building: ${svc}"
                         dir("${svc}") {
@@ -161,7 +151,7 @@ pipeline {
             post {
                 success {
                     script {
-                        def services = CHANGED_SERVICES.split(',')
+                        def services = env.CHANGED_SERVICES.split(',')
                         services.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar",
                                              allowEmptyArchive: true
@@ -172,17 +162,9 @@ pipeline {
         }
     }
 
-    // ── POST toàn bộ pipeline ────────────────────────────────────────────
     post {
-        success {
-            echo "CI Pipeline PASSED – All stages completed successfully."
-        }
-        failure {
-            echo "CI Pipeline FAILED – Check logs above for details."
-        }
-        always {
-            // Dọn workspace sau mỗi lần chạy
-            cleanWs()
-        }
+        success { echo "CI Pipeline PASSED." }
+        failure { echo "CI Pipeline FAILED." }
+        always  { cleanWs() }
     }
 }
