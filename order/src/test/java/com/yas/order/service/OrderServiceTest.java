@@ -554,7 +554,7 @@ class OrderServiceTest {
             when(orderRepository.findAll(any(Specification.class), any(Pageable.class)))
                     .thenReturn(page);
             when(orderMapper.toCsv(any(OrderBriefVm.class)))
-                    .thenReturn(new com.yas.order.model.csv.OrderItemCsv());
+                    .thenReturn(com.yas.order.model.csv.OrderItemCsv.builder().build());
 
             OrderRequest request = new OrderRequest();
             request.setCreatedFrom(ZonedDateTime.now().minusDays(7));
