@@ -86,8 +86,10 @@ pipeline {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
-                        sh "chmod +x ${svc}/mvnw || true"
-                        sh "./${svc}/mvnw test jacoco:report -pl ${svc} -am -U"
+                        dir("${svc}") {
+                            sh 'chmod +x mvnw || true'
+                            sh "./mvnw test jacoco:report -f ../pom.xml -pl ${svc} -am -U"
+                        }
                     }
                 }
             }
@@ -100,12 +102,12 @@ pipeline {
                                 testResults: "${svc}/target/surefire-reports/*.xml",
                                 allowEmptyResults: true
                             )
-                            jacoco(
-                                execPattern:   "${svc}/target/jacoco.exec",
-                                classPattern:  "${svc}/target/classes",
-                                sourcePattern: "${svc}/src/main/java",
-                                exclusionPattern: '**/*Test*.class'
-                            )
+                            // jacoco(
+                            //     execPattern:   "${svc}/target/jacoco.exec",
+                            //     classPattern:  "${svc}/target/classes",
+                            //     sourcePattern: "${svc}/src/main/java",
+                            //     exclusionPattern: '**/*Test*.class'
+                            // )
                         }
                     }
                 }
@@ -152,8 +154,10 @@ pipeline {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         echo "Building: ${svc}"
-                        sh "chmod +x ${svc}/mvnw || true"
-                        sh "./${svc}/mvnw clean package -DskipTests -pl ${svc} -am -U"
+                        dir("${svc}") {
+                            sh 'chmod +x mvnw || true'
+                            sh "./mvnw clean package -DskipTests -f ../pom.xml -pl ${svc} -am -U"
+                        }
                     }
                 }
             }
