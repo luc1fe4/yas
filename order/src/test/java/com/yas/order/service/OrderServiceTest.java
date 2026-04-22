@@ -510,7 +510,7 @@ class OrderServiceTest {
 
             when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
             when(orderRepository.findById(any())).thenReturn(Optional.of(savedOrder));
-            when(orderItemRepository.saveAll(anyCollection())).thenReturn(List.of());
+            when(orderItemRepository.saveAll(any())).thenReturn(List.of());
 
             OrderVm result = orderService.createOrder(postVm);
 
@@ -536,6 +536,20 @@ class OrderServiceTest {
             verify(promotionService).updateUsagePromotion(argThat(list ->
                     !list.isEmpty() && "SAVE10".equals(list.get(0).promotionCode())
             ));
+        }
+        @Test
+        @DisplayName("Tạo order → gọi subtractProductStockQuantity")
+        void whenValidRequest_shouldSubtractProductStock() {
+            OrderPostVm postVm = buildOrderPostVm();
+            Order savedOrder = buildOrder(1L, OrderStatus.PENDING);
+
+            when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
+            when(orderRepository.findById(any())).thenReturn(Optional.of(savedOrder));
+            when(orderItemRepository.saveAll(any())).thenReturn(List.of());
+
+            orderService.createOrder(postVm);
+
+            verify(productService).subtractProductStockQuantity(any(OrderVm.class));
         }
     }
 
@@ -580,6 +594,31 @@ class OrderServiceTest {
 
             when(orderRepository.findAll(any(Specification.class), any(Pageable.class)))
                     .thenReturn(emptyPage);
+
+            OrderRequest request = new OrderRequest();
+            request.setCreatedFrom(ZonedDateTime.now().minusDays(7));
+            request.setCreatedTo(ZonedDateTime.now());
+            request.setProductName("");
+            request.setOrderStatus(List.of());
+            request.setBillingCountry("");
+            request.setBillingPhoneNumber("");
+            request.setEmail("");
+            request.setPageNo(0);
+            request.setPageSize(10);
+
+            byte[] result = orderService.exportCsv(request);
+
+            assertThat(result).isNotNull();
+            verify(orderMapper, never()).toCsv(any());
+        }
+
+        @Test
+        @DisplayName("getAllOrder trả về null orderList → exportCsv trả về CSV rỗng")
+        @SuppressWarnings("unchecked")
+        void whenOrderListIsNull_shouldReturnEmptyCsv() throws Exception {
+            // PageImpl rỗng → getAllOrder trả về new OrderListVm(null, 0, 0)
+            when(orderRepository.findAll(any(Specification.class), any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of()));
 
             OrderRequest request = new OrderRequest();
             request.setCreatedFrom(ZonedDateTime.now().minusDays(7));
