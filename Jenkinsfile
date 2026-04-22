@@ -15,7 +15,7 @@ pipeline {
                     // ✅ Khởi tạo giá trị mặc định ngay từ đầu
                     env.CHANGED_SERVICES = ''
 
-                    sh 'git fetch origin main'
+                    sh 'git fetch origin main:remotes/origin/main'
 
                     def changedFiles = sh(
                         script: "git diff --name-only origin/main...HEAD",
