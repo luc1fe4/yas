@@ -73,18 +73,20 @@ pipeline {
             }
             steps {
                 script {
-                    // Bước 1: Install root pom để resolve được ${revision}
-                    sh 'mvn install -N -DskipTests'
-                    // Bước 2: Install common-library vào local Maven repo
+                    def REVISION = '1.0-SNAPSHOT'
+
+                    // Bước 1: Install root pom với revision tường minh
+                    sh "mvn install -N -DskipTests -Drevision=${REVISION}"
+                    // Bước 2: Install common-library với revision tường minh
                     dir('common-library') {
-                        sh 'mvn install -DskipTests'
+                        sh "mvn install -DskipTests -Drevision=${REVISION}"
                     }
 
                     def services = env.CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
-                            sh 'mvn verify'
+                            sh "./mvnw verify -Drevision=${REVISION}"
                         }
                     }
                 }
@@ -146,11 +148,12 @@ pipeline {
             }
             steps {
                 script {
+                    def REVISION = '1.0-SNAPSHOT'
                     def services = env.CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         echo "Building: ${svc}"
                         dir("${svc}") {
-                            sh 'mvn clean package -DskipTests'
+                            sh "./mvnw clean package -DskipTests -Drevision=${REVISION}"
                         }
                     }
                 }
