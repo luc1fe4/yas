@@ -84,6 +84,7 @@ pipeline {
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
+                            sh 'chmod +x mvnw'
                             sh './mvnw test jacoco:report'
                         }
                     }
@@ -151,6 +152,7 @@ pipeline {
                     services.each { svc ->
                         echo "Building: ${svc}"
                         dir("${svc}") {
+                            sh 'chmod +x mvnw'
                             sh './mvnw clean package -DskipTests'
                         }
                     }
