@@ -75,14 +75,14 @@ pipeline {
                 script {
                     // Install common-library vào local Maven repo trước
                     dir('common-library') {
-                        sh './mvnw install -DskipTests'
+                        sh 'mvn install -DskipTests'
                     }
 
                     def services = env.CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
-                            sh './mvnw verify'
+                            sh 'mvn verify'
                         }
                     }
                 }
@@ -148,7 +148,7 @@ pipeline {
                     services.each { svc ->
                         echo "Building: ${svc}"
                         dir("${svc}") {
-                            sh './mvnw clean package -DskipTests'
+                            sh 'mvn install -DskipTests'
                         }
                     }
                 }
