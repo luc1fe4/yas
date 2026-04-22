@@ -80,19 +80,20 @@ pipeline {
             }
             steps {
                 script {
-                    // Step 1: Install common-library to local Maven repo first
-                    // (required by cart, order, and other services as a local dependency)
-                    sh 'chmod +x mvnw'
-                    sh './mvnw install -pl common-library -am -DskipTests -q'
-
                     def services = CHANGED_SERVICES.split(',')
+
+                    // Step 1: Install common-library using the first service's mvnw
+                    // Root dir has no mvnw; we use the service's mvnw with -f pointing to root pom
+                    def firstSvc = services[0]
+                    sh "chmod +x ${firstSvc}/mvnw"
+                    sh "${firstSvc}/mvnw -f pom.xml install -pl common-library -am -DskipTests -q"
+
+                    // Step 2: Run verify for each changed service
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
-                            // Fix: ensure mvnw is executable on Linux Jenkins
                             sh 'chmod +x mvnw'
                             // verify: runs tests -> jacoco:report -> jacoco:check (line coverage >= 70%)
-                            // -DskipITs: skip integration tests (only unit tests)
                             sh './mvnw verify -DskipITs'
                         }
                     }
