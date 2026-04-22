@@ -73,7 +73,9 @@ pipeline {
             }
             steps {
                 script {
-                    // Install common-library vào local Maven repo trước
+                    // Bước 1: Install root pom để resolve được ${revision}
+                    sh 'mvn install -N -DskipTests'
+                    // Bước 2: Install common-library vào local Maven repo
                     dir('common-library') {
                         sh 'mvn install -DskipTests'
                     }
@@ -148,7 +150,7 @@ pipeline {
                     services.each { svc ->
                         echo "Building: ${svc}"
                         dir("${svc}") {
-                            sh 'mvn install -DskipTests'
+                            sh 'mvn clean package -DskipTests'
                         }
                     }
                 }
