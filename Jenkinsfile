@@ -1,3 +1,5 @@
+def changedServices = 'none'
+
 pipeline {
     agent any
 
@@ -5,19 +7,23 @@ pipeline {
         jdk 'jdk21'
     }
 
-    environment {
-        CHANGED_SERVICES = ''
-    }
-
     stages {
 
         stage('Detect Changed Services') {
             steps {
                 script {
-                    sh 'git fetch origin main'
+                    // Dam bao co ref main trong workspace Jenkins truoc khi tinh changed files
+                    sh 'git fetch --no-tags --prune origin +refs/heads/main:refs/remotes/origin/main || true'
 
                     def changedFiles = sh(
-                        script: "git diff --name-only origin/main...HEAD",
+                        script: '''
+                            if git rev-parse --verify origin/main >/dev/null 2>&1; then
+                                git diff --name-only origin/main...HEAD
+                            else
+                                echo "origin/main not found, fallback to latest commit diff" >&2
+                                git diff --name-only HEAD~1..HEAD || git ls-files
+                            fi
+                        ''',
                         returnStdout: true
                     ).trim()
 
@@ -37,15 +43,16 @@ pipeline {
                     ]
 
                     def affected = services.findAll { svc ->
-                        changedFiles.contains("${svc}/")
+                        changedFiles && (changedFiles =~ /(?m)^${java.util.regex.Pattern.quote(svc)}\//)
                     }
 
-                    if (affected.isEmpty()) {
+                    echo "Affected services detected: ${affected}"
+
+                    changedServices = affected.isEmpty() ? 'none' : affected.join(',')
+                    if (changedServices == 'none') {
                         echo "No service changes detected. Skipping build/test."
-                        CHANGED_SERVICES = 'none'
                     } else {
-                        CHANGED_SERVICES = affected.join(',')
-                        echo "Services to build/test: ${CHANGED_SERVICES}"
+                        echo "Services to build/test: ${changedServices}"
                     }
                 }
             }
@@ -62,8 +69,8 @@ pipeline {
                 chmod +x gitleaks
             '''
             
-            // Thực thi quét secret, bỏ qua lỗi exit code nếu cần thiết lập Quality Gate riêng
-            sh './gitleaks detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code=1 || true'
+            // Chi quet commit tren nhanh hien tai so voi main de tranh fail vi leak cu trong lich su du an
+            sh './gitleaks detect --source=. --config=gitleaks.toml --log-opts="origin/main..HEAD" --report-format=json --report-path=gitleaks-report.json --exit-code=1'
         }
     }
     post {
@@ -76,28 +83,16 @@ pipeline {
 
         stage('Test Phase') {
             when {
-                expression { CHANGED_SERVICES != 'none' && CHANGED_SERVICES != '' }
+                expression { changedServices?.trim() && changedServices != 'none' }
             }
             steps {
                 script {
-                    def services = CHANGED_SERVICES.split(',')
-
-                    // Step 1: Install common-library using first service's mvnw
-                    // mvnw must run from INSIDE its own dir (needs .mvn/wrapper/ relative to CWD)
-                    // Use -f ../pom.xml to point to root pom for multi-module resolution
-                    def firstSvc = services[0]
-                    dir("${firstSvc}") {
-                        sh 'chmod +x mvnw'
-                        sh './mvnw -f ../pom.xml install -pl common-library -am -DskipTests -q -Drevision=1.0-SNAPSHOT'
-                    }
-
-                    // Step 2: Run verify for each changed service
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
-                            sh 'chmod +x mvnw'
-                            // verify: unit tests -> jacoco:report -> jacoco:check (coverage >= 70%)
-                            sh './mvnw verify -DskipITs -Drevision=1.0-SNAPSHOT'
+                            sh 'chmod +x mvnw || true'
+                            sh "./mvnw verify jacoco:report -DskipITs -f ../pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                         }
                     }
                 }
@@ -105,7 +100,7 @@ pipeline {
             post {
                 always {
                     script {
-                        def services = CHANGED_SERVICES.split(',')
+                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
                             // Publish JUnit test results
                             junit(
@@ -121,11 +116,11 @@ pipeline {
         }
         stage('Coverage Quality Gate') {
             when {
-                expression { CHANGED_SERVICES != 'none' && CHANGED_SERVICES != '' }
+                expression { changedServices?.trim() && changedServices != 'none' }
             }
             steps {
                 script {
-                    def services = CHANGED_SERVICES.split(',')
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
@@ -153,16 +148,16 @@ pipeline {
 
         stage('Build Phase') {
             when {
-                expression { CHANGED_SERVICES != 'none' && CHANGED_SERVICES != '' }
+                expression { changedServices?.trim() && changedServices != 'none' }
             }
             steps {
                 script {
-                    def services = CHANGED_SERVICES.split(',')
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         echo "Building: ${svc}"
                         dir("${svc}") {
-                            sh 'chmod +x mvnw'
-                            sh './mvnw clean package -DskipTests'
+                            sh 'chmod +x mvnw || true'
+                            sh "./mvnw clean package -DskipTests -f ../pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                         }
                     }
                 }
@@ -170,7 +165,7 @@ pipeline {
             post {
                 success {
                     script {
-                        def services = CHANGED_SERVICES.split(',')
+                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar",
                                              allowEmptyArchive: true
