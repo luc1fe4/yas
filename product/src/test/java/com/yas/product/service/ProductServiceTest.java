@@ -41,6 +41,10 @@ import com.yas.product.viewmodel.product.ProductThumbnailGetVm;
 import com.yas.product.viewmodel.product.ProductThumbnailVm;
 import com.yas.product.viewmodel.product.ProductVariationPostVm;
 import com.yas.product.viewmodel.product.ProductVariationPutVm;
+import com.yas.product.viewmodel.product.ProductVariationGetVm;
+import com.yas.product.viewmodel.product.ProductExportingDetailVm;
+import com.yas.product.viewmodel.product.ProductSlugGetVm;
+import com.yas.product.viewmodel.product.ProductEsDetailVm;
 import com.yas.product.viewmodel.productoption.ProductOptionValuePostVm;
 import com.yas.product.viewmodel.productoption.ProductOptionValuePutVm;
 import java.util.Map;
@@ -407,5 +411,59 @@ class ProductServiceTest {
         assertNotNull(result);
         assertEquals(1, result.productContent().size());
         assertEquals("Test Product", result.productContent().get(0).name());
+    }
+
+    @Test
+    void getProductVariationsByParentId_Success() {
+        product.setHasOptions(true);
+        Product child = new Product();
+        child.setId(2L);
+        child.setPublished(true);
+        child.setThumbnailMediaId(1L);
+        child.setProductImages(List.of());
+        product.setProducts(List.of(child));
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productOptionCombinationRepository.findAllByProduct(any())).thenReturn(List.of());
+        when(mediaService.getMedia(1L)).thenReturn(noFileMediaVm);
+        
+        var result = productService.getProductVariationsByParentId(1L);
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void exportProducts_Success() {
+        when(productRepository.getExportingProducts(any(), any())).thenReturn(List.of(product));
+        var result = productService.exportProducts("Test", "Brand");
+        assertEquals(1, result.size());
+        assertEquals("Test Product", result.get(0).name());
+    }
+
+    @Test
+    void getProductSlug_Success() {
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        var result = productService.getProductSlug(1L);
+        assertEquals("test-product", result.slug());
+    }
+
+    @Test
+    void getProductEsDetailById_Success() {
+        product.setProductCategories(List.of());
+        product.setAttributeValues(List.of());
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        var result = productService.getProductEsDetailById(1L);
+        assertEquals("Test Product", result.name());
+    }
+
+    @Test
+    void getRelatedProductsBackoffice_Success() {
+        Product related = new Product();
+        related.setId(2L);
+        ProductRelated pr = new ProductRelated();
+        pr.setRelatedProduct(related);
+        product.setRelatedProducts(List.of(pr));
+        
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        var result = productService.getRelatedProductsBackoffice(1L);
+        assertEquals(1, result.size());
     }
 }
