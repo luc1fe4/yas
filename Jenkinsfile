@@ -28,7 +28,7 @@ pipeline {
                     def services = [
                         // Business Services (Backend - Java/Spring)
                         'cart', 'customer', 'delivery', 'inventory', 'location', 
-                        'media', 'order', 'payment', 'payment-paypal', 'product', 
+                        'media', 'order', 'payment', 'payment-paypal', // 'product', 
                         'promotion', 'rating', 'recommendation', 'search', 'tax',
                         
                         // BFF & Gateways
