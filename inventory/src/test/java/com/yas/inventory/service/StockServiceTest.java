@@ -98,6 +98,9 @@ class StockServiceTest {
         Stock stock = new Stock();
         stock.setProductId(1L);
         stock.setQuantity(10L);
+        Warehouse warehouse = new Warehouse();
+        warehouse.setId(1L);
+        stock.setWarehouse(warehouse);
         when(stockRepository.findByWarehouseIdAndProductIdIn(anyLong(), any())).thenReturn(List.of(stock));
 
         List<StockVm> result = stockService.getStocksByWarehouseIdAndProductNameAndSku(warehouseId, "P", "S");
