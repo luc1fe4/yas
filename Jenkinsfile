@@ -3,6 +3,10 @@ def changedServices = 'none'
 pipeline {
     agent any
 
+    tools {
+        jdk 'jdk21'
+    }
+
     stages {
 
         stage('Detect Changed Services') {
@@ -88,7 +92,7 @@ pipeline {
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
                             sh 'chmod +x mvnw || true'
-                            sh "./mvnw test jacoco:report -f ../pom.xml -pl ${svc} -am -U"
+                            sh "./mvnw verify jacoco:report -DskipITs -f ../pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                         }
                     }
                 }
@@ -98,16 +102,13 @@ pipeline {
                     script {
                         def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
+                            // Publish JUnit test results
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
                                 allowEmptyResults: true
                             )
-                            // jacoco(
-                            //     execPattern:   "${svc}/target/jacoco.exec",
-                            //     classPattern:  "${svc}/target/classes",
-                            //     sourcePattern: "${svc}/src/main/java",
-                            //     exclusionPattern: '**/*Test*.class'
-                            // )
+                            // Note: jacoco() DSL step removed - JaCoCo plugin not installed.
+                            // Coverage is enforced via the 'Coverage Quality Gate' stage below.
                         }
                     }
                 }
@@ -156,7 +157,7 @@ pipeline {
                         echo "Building: ${svc}"
                         dir("${svc}") {
                             sh 'chmod +x mvnw || true'
-                            sh "./mvnw clean package -DskipTests -f ../pom.xml -pl ${svc} -am -U"
+                            sh "./mvnw clean package -DskipTests -f ../pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                         }
                     }
                 }

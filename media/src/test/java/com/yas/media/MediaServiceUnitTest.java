@@ -27,6 +27,7 @@ import com.yas.media.viewmodel.MediaPostVm;
 import com.yas.media.viewmodel.MediaVm;
 import com.yas.media.viewmodel.NoFileMediaVm;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
@@ -231,7 +232,8 @@ class MediaServiceUnitTest {
     }
 
     @Test
-    void saveMedia_whenFileNameOverrideHasSpaces_thenTrimAndPersistFilePath() throws java.io.IOException {
+
+    void saveMedia_whenFileNameOverrideHasSpaces_thenTrimAndPersistFilePath() throws IOException {
         byte[] fileContent = "content".getBytes();
         MultipartFile multipartFile = new MockMultipartFile(
             "file",
