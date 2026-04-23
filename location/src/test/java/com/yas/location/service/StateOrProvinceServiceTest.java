@@ -75,6 +75,47 @@ class StateOrProvinceServiceTest {
     }
 
     @Test
+    void createStateOrProvince_whenValid_saveStateOrProvince() {
+        StateOrProvincePostVm postVm = StateOrProvincePostVm.builder().countryId(1L).name("State").build();
+        when(countryRepository.existsById(1L)).thenReturn(true);
+        when(stateOrProvinceRepository.existsByNameIgnoreCaseAndCountryId("State", 1L)).thenReturn(false);
+        when(countryRepository.getReferenceById(1L)).thenReturn(new Country());
+        when(stateOrProvinceRepository.save(any())).thenReturn(new StateOrProvince());
+
+        stateOrProvinceService.createStateOrProvince(postVm);
+
+        verify(stateOrProvinceRepository).save(any());
+    }
+
+    @Test
+    void updateStateOrProvince_whenNameDuplicated_throwDuplicatedException() {
+        StateOrProvincePostVm postVm = StateOrProvincePostVm.builder().name("New Name").build();
+        StateOrProvince stateOrProvince = new StateOrProvince();
+        stateOrProvince.setCountry(Country.builder().id(1L).build());
+        
+        when(stateOrProvinceRepository.findById(1L)).thenReturn(Optional.of(stateOrProvince));
+        when(stateOrProvinceRepository.existsByNameIgnoreCaseAndCountryIdAndIdNot("New Name", 1L, 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> stateOrProvinceService.updateStateOrProvince(postVm, 1L))
+                .isInstanceOf(DuplicatedException.class);
+    }
+
+    @Test
+    void updateStateOrProvince_whenValid_saveStateOrProvince() {
+        StateOrProvincePostVm postVm = StateOrProvincePostVm.builder().name("New Name").build();
+        StateOrProvince stateOrProvince = new StateOrProvince();
+        stateOrProvince.setCountry(Country.builder().id(1L).build());
+        
+        when(stateOrProvinceRepository.findById(1L)).thenReturn(Optional.of(stateOrProvince));
+        when(stateOrProvinceRepository.existsByNameIgnoreCaseAndCountryIdAndIdNot("New Name", 1L, 1L)).thenReturn(false);
+
+        stateOrProvinceService.updateStateOrProvince(postVm, 1L);
+
+        assertThat(stateOrProvince.getName()).isEqualTo("New Name");
+        verify(stateOrProvinceRepository).save(stateOrProvince);
+    }
+
+    @Test
     void updateStateOrProvince_whenNotFound_throwNotFoundException() {
         StateOrProvincePostVm postVm = StateOrProvincePostVm.builder().build();
         when(stateOrProvinceRepository.findById(1L)).thenReturn(Optional.empty());
@@ -89,6 +130,26 @@ class StateOrProvinceServiceTest {
 
         assertThatThrownBy(() -> stateOrProvinceService.delete(1L))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void delete_whenValid_deleteById() {
+        when(stateOrProvinceRepository.existsById(1L)).thenReturn(true);
+
+        stateOrProvinceService.delete(1L);
+
+        verify(stateOrProvinceRepository).deleteById(1L);
+    }
+
+    @Test
+    void findById_whenValid_returnVm() {
+        StateOrProvince stateOrProvince = new StateOrProvince();
+        when(stateOrProvinceRepository.findById(1L)).thenReturn(Optional.of(stateOrProvince));
+        when(stateOrProvinceMapper.toStateOrProvinceViewModelFromStateOrProvince(stateOrProvince)).thenReturn(new StateOrProvinceVm(1L, "State", "CODE", "TYPE", 1L));
+
+        StateOrProvinceVm result = stateOrProvinceService.findById(1L);
+
+        assertThat(result.id()).isEqualTo(1L);
     }
 
     @Test

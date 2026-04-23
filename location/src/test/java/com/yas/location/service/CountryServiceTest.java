@@ -99,6 +99,40 @@ class CountryServiceTest {
     }
 
     @Test
+    void update_whenNameDuplicated_throwDuplicatedException() {
+        CountryPostVm postVm = CountryPostVm.builder().name("USA").build();
+        when(countryRepository.findById(1L)).thenReturn(Optional.of(new Country()));
+        when(countryRepository.existsByNameIgnoreCaseAndIdNot("USA", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> countryService.update(postVm, 1L))
+                .isInstanceOf(DuplicatedException.class);
+    }
+
+    @Test
+    void update_whenCodeDuplicated_throwDuplicatedException() {
+        CountryPostVm postVm = CountryPostVm.builder().name("USA").code2("US").build();
+        when(countryRepository.findById(1L)).thenReturn(Optional.of(new Country()));
+        when(countryRepository.existsByNameIgnoreCaseAndIdNot("USA", 1L)).thenReturn(false);
+        when(countryRepository.existsByCode2IgnoreCaseAndIdNot("US", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> countryService.update(postVm, 1L))
+                .isInstanceOf(DuplicatedException.class);
+    }
+
+    @Test
+    void update_whenValid_saveCountry() {
+        CountryPostVm postVm = CountryPostVm.builder().name("USA").code2("US").build();
+        Country country = new Country();
+        when(countryRepository.findById(1L)).thenReturn(Optional.of(country));
+        when(countryRepository.existsByNameIgnoreCaseAndIdNot("USA", 1L)).thenReturn(false);
+        when(countryRepository.existsByCode2IgnoreCaseAndIdNot("US", 1L)).thenReturn(false);
+
+        countryService.update(postVm, 1L);
+
+        verify(countryRepository).save(country);
+    }
+
+    @Test
     void delete_whenNotFound_throwNotFoundException() {
         when(countryRepository.existsById(1L)).thenReturn(false);
 

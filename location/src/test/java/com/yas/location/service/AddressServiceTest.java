@@ -55,10 +55,6 @@ class AddressServiceTest {
     void createAddress_whenValid_returnAddressGetVm() {
         AddressPostVm dto = AddressPostVm.builder()
                 .contactName("John")
-                .phone("123")
-                .addressLine1("Line 1")
-                .city("City")
-                .zipCode("12345")
                 .countryId(1L)
                 .stateOrProvinceId(1L)
                 .districtId(1L)
@@ -88,6 +84,31 @@ class AddressServiceTest {
     }
 
     @Test
+    void createAddress_whenOptionalFieldsNotFound_returnAddressGetVm() {
+        AddressPostVm dto = AddressPostVm.builder()
+                .countryId(1L)
+                .stateOrProvinceId(1L)
+                .districtId(1L)
+                .build();
+
+        when(countryRepository.findById(1L)).thenReturn(Optional.of(new Country()));
+        when(stateOrProvinceRepository.findById(1L)).thenReturn(Optional.empty());
+        when(districtRepository.findById(1L)).thenReturn(Optional.empty());
+        
+        Address address = Address.builder()
+                .id(1L)
+                .country(new Country())
+                .stateOrProvince(new StateOrProvince())
+                .district(new District())
+                .build();
+        when(addressRepository.save(any())).thenReturn(address);
+
+        AddressGetVm result = addressService.createAddress(dto);
+
+        assertThat(result.id()).isEqualTo(1L);
+    }
+
+    @Test
     void updateAddress_whenAddressNotFound_throwNotFoundException() {
         AddressPostVm dto = AddressPostVm.builder().build();
         when(addressRepository.findById(1L)).thenReturn(Optional.empty());
@@ -109,12 +130,32 @@ class AddressServiceTest {
         address.setId(1L);
         when(addressRepository.findById(1L)).thenReturn(Optional.of(address));
         
-        Country country = new Country();
-        when(countryRepository.findById(1L)).thenReturn(Optional.of(country));
-        StateOrProvince stateOrProvince = new StateOrProvince();
-        when(stateOrProvinceRepository.findById(1L)).thenReturn(Optional.of(stateOrProvince));
-        District district = new District();
-        when(districtRepository.findById(1L)).thenReturn(Optional.of(district));
+        when(countryRepository.findById(1L)).thenReturn(Optional.of(new Country()));
+        when(stateOrProvinceRepository.findById(1L)).thenReturn(Optional.of(new StateOrProvince()));
+        when(districtRepository.findById(1L)).thenReturn(Optional.of(new District()));
+
+        addressService.updateAddress(1L, dto);
+
+        assertThat(address.getContactName()).isEqualTo("Updated");
+        verify(addressRepository).save(address);
+    }
+
+    @Test
+    void updateAddress_whenOptionalFieldsNotFound_saveAddress() {
+        AddressPostVm dto = AddressPostVm.builder()
+                .contactName("Updated")
+                .countryId(1L)
+                .stateOrProvinceId(1L)
+                .districtId(1L)
+                .build();
+
+        Address address = new Address();
+        address.setId(1L);
+        when(addressRepository.findById(1L)).thenReturn(Optional.of(address));
+        
+        when(countryRepository.findById(1L)).thenReturn(Optional.empty());
+        when(stateOrProvinceRepository.findById(1L)).thenReturn(Optional.empty());
+        when(districtRepository.findById(1L)).thenReturn(Optional.empty());
 
         addressService.updateAddress(1L, dto);
 
