@@ -134,8 +134,8 @@ pipeline {
 
                         echo "[${svc}] Line Coverage: ${coverage}%"
 
-                        if (coverage < 70) {
-                            error("[${svc}] Coverage ${coverage}% < 70%. Pipeline failed!")
+                        if (coverage <= 70) {
+                            error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
                         }
                     }
                 }
