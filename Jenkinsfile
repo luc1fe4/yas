@@ -3,10 +3,6 @@ def changedServices = 'none'
 pipeline {
     agent any
 
-    tools {
-        jdk 'jdk21'
-    }
-
     stages {
 
         stage('Detect Changed Services') {
