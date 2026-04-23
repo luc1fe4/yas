@@ -112,11 +112,11 @@ public class StockService {
     public void updateProductQuantityInStock(final StockQuantityUpdateVm requestBody) {
         List<StockQuantityVm> stockQuantityVms = requestBody.stockQuantityList();
         List<Stock> stocks =
-            stockRepository.findAllById(stockQuantityVms.parallelStream().map(StockQuantityVm::stockId).toList());
+            stockRepository.findAllById(stockQuantityVms.stream().map(StockQuantityVm::stockId).toList());
 
         for (final Stock stock : stocks) {
             StockQuantityVm stockQuantityVm = stockQuantityVms
-                .parallelStream()
+                .stream()
                 .filter(stockQuantityPostVm -> stockQuantityPostVm.stockId().equals(stock.getId()))
                 .findFirst()
                 .orElse(null);
@@ -137,7 +137,7 @@ public class StockService {
         stockHistoryService.createStockHistories(stocks, stockQuantityVms);
 
         //Update stock quantity for product
-        List<ProductQuantityPostVm> productQuantityPostVms = stocks.parallelStream()
+        List<ProductQuantityPostVm> productQuantityPostVms = stocks.stream()
             .map(ProductQuantityPostVm::fromModel)
             .toList();
         if (!productQuantityPostVms.isEmpty()) {
