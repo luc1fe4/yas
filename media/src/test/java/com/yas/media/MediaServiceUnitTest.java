@@ -231,7 +231,7 @@ class MediaServiceUnitTest {
     }
 
     @Test
-    void saveMedia_whenFileNameOverrideHasSpaces_thenTrimAndPersistFilePath() {
+    void saveMedia_whenFileNameOverrideHasSpaces_thenTrimAndPersistFilePath() throws java.io.IOException {
         byte[] fileContent = "content".getBytes();
         MultipartFile multipartFile = new MockMultipartFile(
             "file",
