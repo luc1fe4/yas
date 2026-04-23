@@ -64,7 +64,7 @@ class StockHistoryServiceTest {
         StockHistoryListVm result = stockHistoryService.getStockHistories(100L, 10L);
 
         assertThat(result.data()).hasSize(1);
-        assertThat(result.data().get(0).productId()).isEqualTo(100L);
+        assertThat(result.data().get(0).productName()).isEqualTo("Product 1");
         verify(stockHistoryRepository).findByProductIdAndWarehouseIdOrderByCreatedOnDesc(100L, 10L);
     }
 }
