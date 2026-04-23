@@ -62,17 +62,7 @@ class StateOrProvinceServiceTest {
                 .isInstanceOf(DuplicatedException.class);
     }
 
-    @Test
-    void createStateOrProvince_whenValid_saveStateOrProvince() {
-        StateOrProvincePostVm postVm = StateOrProvincePostVm.builder().countryId(1L).name("State").build();
-        when(countryRepository.existsById(1L)).thenReturn(true);
-        when(stateOrProvinceRepository.existsByNameIgnoreCaseAndCountryId("State", 1L)).thenReturn(false);
-        when(stateOrProvinceRepository.save(any())).thenReturn(new StateOrProvince());
 
-        stateOrProvinceService.createStateOrProvince(postVm);
-
-        verify(stateOrProvinceRepository).save(any());
-    }
 
     @Test
     void createStateOrProvince_whenValid_saveStateOrProvince() {
