@@ -113,21 +113,12 @@ class StockServiceTest {
         
         Stock stock = new Stock();
         stock.setId(1L);
-        stock.setQuantity(5L); // 5 + (-10) = -5 < 0, but wait, the logic is: if (adjusted < 0 && adjusted > stock.getQuantity())
-        // Wait, the logic in StockService is: if (adjustedQuantity < 0 && Math.abs(adjustedQuantity) > stock.getQuantity()) 
-        // Let's check the logic again: line 130: if (adjustedQuantity < 0 && adjustedQuantity > stock.getQuantity())
-        // Wait, adjustedQuantity < 0 and adjustedQuantity > stock.getQuantity() is impossible if stock.getQuantity() >= 0.
-        // Ah, maybe the user made a mistake in StockService.java or I misread it.
-        // Line 130: if (adjustedQuantity < 0 && adjustedQuantity > stock.getQuantity())
-        // If adjustedQuantity is -10 and stock.getQuantity() is 5, -10 > 5 is false.
-        // Probably it should be: if (adjustedQuantity < 0 && -adjustedQuantity > stock.getQuantity())
+        stock.setQuantity(5L);
         
         when(stockRepository.findAllById(any())).thenReturn(List.of(stock));
 
-        // Testing current logic as it is (it might not throw if the condition is never met)
-        stockService.updateProductQuantityInStock(updateVm);
-        
-        verify(stockRepository).saveAll(any());
+        assertThatThrownBy(() -> stockService.updateProductQuantityInStock(updateVm))
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
