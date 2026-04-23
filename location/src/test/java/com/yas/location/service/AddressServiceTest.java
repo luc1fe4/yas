@@ -75,6 +75,9 @@ class AddressServiceTest {
         Address address = Address.builder()
                 .id(1L)
                 .contactName("John")
+                .country(country)
+                .stateOrProvince(stateOrProvince)
+                .district(district)
                 .build();
         when(addressRepository.save(any())).thenReturn(address);
 
@@ -124,7 +127,9 @@ class AddressServiceTest {
         Address address = Address.builder()
                 .id(1L)
                 .contactName("John")
-                .country(Country.builder().name("Country").build())
+                .country(Country.builder().id(1L).name("Country").build())
+                .stateOrProvince(StateOrProvince.builder().id(1L).name("State").build())
+                .district(District.builder().id(1L).name("District").build())
                 .build();
         when(addressRepository.findAllByIdIn(any())).thenReturn(List.of(address));
 
@@ -147,7 +152,9 @@ class AddressServiceTest {
         Address address = Address.builder()
                 .id(1L)
                 .contactName("John")
-                .country(Country.builder().name("Country").build())
+                .country(Country.builder().id(1L).name("Country").build())
+                .stateOrProvince(StateOrProvince.builder().id(1L).name("State").build())
+                .district(District.builder().id(1L).name("District").build())
                 .build();
         when(addressRepository.findById(1L)).thenReturn(Optional.of(address));
 

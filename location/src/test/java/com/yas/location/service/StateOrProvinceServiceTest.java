@@ -114,7 +114,8 @@ class StateOrProvinceServiceTest {
 
     @Test
     void getPageableStateOrProvinces_whenCalled_returnStateOrProvinceListGetVm() {
-        Page<StateOrProvince> page = new PageImpl<>(List.of(new StateOrProvince()), PageRequest.of(0, 10), 1);
+        StateOrProvince stateOrProvince = StateOrProvince.builder().id(1L).country(Country.builder().id(1L).build()).build();
+        Page<StateOrProvince> page = new PageImpl<>(List.of(stateOrProvince), PageRequest.of(0, 10), 1);
         when(stateOrProvinceRepository.getPageableStateOrProvincesByCountry(anyLong(), any(Pageable.class))).thenReturn(page);
 
         StateOrProvinceListGetVm result = stateOrProvinceService.getPageableStateOrProvinces(0, 10, 1L);
