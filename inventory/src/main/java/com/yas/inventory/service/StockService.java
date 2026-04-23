@@ -86,14 +86,14 @@ public class StockService {
     public List<StockVm> getStocksByWarehouseIdAndProductNameAndSku(Long warehouseId,
                                                                     String productName,
                                                                     String productSku) {
-        HashMap<Long, ProductInfoVm> productInfoVmHashMap =
-            (HashMap<Long, ProductInfoVm>) warehouseService.getProductWarehouse(
-                    warehouseId,
-                    productName,
-                    productSku,
-                    FilterExistInWhSelection.YES)
-                .parallelStream()
-                .collect(Collectors.toMap(ProductInfoVm::id, productInfoVm -> productInfoVm));
+        List<ProductInfoVm> productWarehouse = warehouseService.getProductWarehouse(
+                warehouseId,
+                productName,
+                productSku,
+                FilterExistInWhSelection.YES);
+
+        HashMap<Long, ProductInfoVm> productInfoVmHashMap = productWarehouse.stream()
+                .collect(Collectors.toMap(ProductInfoVm::id, productInfo -> productInfo, (a, b) -> a, HashMap::new));
 
         List<Stock> stocks = stockRepository.findByWarehouseIdAndProductIdIn(
             warehouseId,
@@ -127,7 +127,7 @@ public class StockService {
 
             Long adjustedQuantity = stockQuantityVm.quantity() != null ? stockQuantityVm.quantity() : 0;
 
-            if (adjustedQuantity < 0 && adjustedQuantity > stock.getQuantity()) {
+            if (adjustedQuantity < 0 && -adjustedQuantity > stock.getQuantity()) {
                 throw new BadRequestException(ApiConstant.INVALID_ADJUSTED_QUANTITY);
             }
 
