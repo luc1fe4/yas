@@ -36,6 +36,11 @@ import com.yas.product.viewmodel.product.ProductPutVm;
 import com.yas.product.viewmodel.product.ProductGetDetailVm;
 import com.yas.product.viewmodel.product.ProductThumbnailGetVm;
 import com.yas.product.viewmodel.product.ProductThumbnailVm;
+import com.yas.product.viewmodel.product.ProductVariationPostVm;
+import com.yas.product.viewmodel.product.ProductVariationPutVm;
+import com.yas.product.viewmodel.productoption.ProductOptionValuePostVm;
+import com.yas.product.viewmodel.productoption.ProductOptionValuePutVm;
+import java.util.Map;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -255,6 +260,45 @@ class ProductServiceTest {
     }
 
     @Test
+    void createProduct_WithVariations_Success() {
+        Map<Long, String> optionValuesByOptionId = Map.of(1L, "Red");
+        ProductVariationPostVm variationVm = new ProductVariationPostVm(
+            "Variation 1", "var-1", "VAR-SKU", "VAR-GTIN", 150.0, 1L, List.of(2L), optionValuesByOptionId
+        );
+        ProductOptionValuePostVm optionValueVm = new ProductOptionValuePostVm(1L, "text", 1, List.of("Red"));
+        
+        ProductPostVm productPostVm = new ProductPostVm(
+            "name", "slug", 1L, List.of(1L), "shortDesc", "desc", "spec", "sku", "gtin",
+            1.0, null, 1.0, 1.0, 1.0, 100.0, true, true, true, true, true,
+            "meta", "meta", "meta", 1L, List.of(2L), 
+            List.of(variationVm), 
+            List.of(optionValueVm), 
+            List.of(), 
+            List.of(), null
+        );
+
+        when(brandRepository.findById(1L)).thenReturn(Optional.of(brand));
+        lenient().when(productRepository.save(any())).thenReturn(product);
+        
+        com.yas.product.model.ProductOption productOption = new com.yas.product.model.ProductOption();
+        productOption.setId(1L);
+        productOption.setName("Color");
+        when(productOptionRepository.findAllByIdIn(any())).thenReturn(List.of(productOption));
+        
+        com.yas.product.model.ProductOptionValue pov = new com.yas.product.model.ProductOptionValue();
+        pov.setValue("Red");
+        pov.setProductOption(productOption);
+        lenient().when(productOptionValueRepository.saveAll(any())).thenReturn(List.of(pov));
+        
+        when(productRepository.saveAll(any())).thenReturn(List.of(product));
+
+        ProductGetDetailVm result = productService.createProduct(productPostVm);
+
+        assertNotNull(result);
+        assertEquals("Test Product", result.name());
+    }
+
+    @Test
     void updateProduct_Success() {
         ProductPutVm productPutVm = new ProductPutVm(
             "name", "slug", 100.0, true, true, true, true, true,
@@ -266,6 +310,45 @@ class ProductServiceTest {
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(productCategoryRepository.findAllByProductId(1L)).thenReturn(List.of());
         when(productOptionRepository.findAllByIdIn(any())).thenReturn(List.of(new com.yas.product.model.ProductOption()));
+
+        productService.updateProduct(1L, productPutVm);
+        
+        assertEquals("name", product.getName());
+    }
+
+    @Test
+    void updateProduct_WithVariations_Success() {
+        Map<Long, String> optionValuesByOptionId = Map.of(1L, "Blue");
+        ProductVariationPutVm variationVm = new ProductVariationPutVm(
+            null, "Variation 2", "var-2", "VAR-SKU-2", "VAR-GTIN-2", 200.0, 1L, List.of(2L), optionValuesByOptionId
+        );
+        ProductOptionValuePutVm optionValueVm = new ProductOptionValuePutVm(1L, "text", 1, List.of("Blue"));
+        
+        ProductPutVm productPutVm = new ProductPutVm(
+            "name", "slug", 100.0, true, true, true, true, true,
+            1L, List.of(1L), "shortDesc", "desc", "spec", "sku", "gtin",
+            1.0, null, 1.0, 1.0, 1.0, "meta", "meta", "meta", 
+            1L, List.of(2L), 
+            List.of(variationVm), 
+            List.of(optionValueVm), 
+            List.of(), 
+            List.of(), null
+        );
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productCategoryRepository.findAllByProductId(1L)).thenReturn(List.of());
+        
+        com.yas.product.model.ProductOption productOption = new com.yas.product.model.ProductOption();
+        productOption.setId(1L);
+        productOption.setName("Color");
+        lenient().when(productOptionRepository.findAllByIdIn(any())).thenReturn(List.of(productOption));
+
+        com.yas.product.model.ProductOptionValue pov = new com.yas.product.model.ProductOptionValue();
+        pov.setValue("Blue");
+        pov.setProductOption(productOption);
+        lenient().when(productOptionValueRepository.saveAll(any())).thenReturn(List.of(pov));
+        
+        when(productRepository.saveAll(any())).thenReturn(List.of(product));
 
         productService.updateProduct(1L, productPutVm);
         
