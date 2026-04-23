@@ -147,12 +147,10 @@ pipeline {
             steps {
                 script {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    sh 'chmod +x mvnw || true'
                     services.each { svc ->
                         echo "Building: ${svc}"
-                        dir("${svc}") {
-                            sh 'chmod +x mvnw || true'
-                            sh "./mvnw clean package -DskipTests -f ../pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
-                        }
+                        sh "./mvnw clean package -DskipTests -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                     }
                 }
             }
