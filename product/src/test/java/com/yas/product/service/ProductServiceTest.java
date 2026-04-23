@@ -288,9 +288,12 @@ class ProductServiceTest {
         com.yas.product.model.ProductOptionValue pov = new com.yas.product.model.ProductOptionValue();
         pov.setValue("Red");
         pov.setProductOption(productOption);
+        pov.setDisplayOrder(1);
         lenient().when(productOptionValueRepository.saveAll(any())).thenReturn(List.of(pov));
         
-        when(productRepository.saveAll(any())).thenReturn(List.of(product));
+        Product variationProduct = new Product();
+        variationProduct.setSlug("var-1");
+        when(productRepository.saveAll(any())).thenReturn(List.of(variationProduct));
 
         ProductGetDetailVm result = productService.createProduct(productPostVm);
 
@@ -346,9 +349,12 @@ class ProductServiceTest {
         com.yas.product.model.ProductOptionValue pov = new com.yas.product.model.ProductOptionValue();
         pov.setValue("Blue");
         pov.setProductOption(productOption);
+        pov.setDisplayOrder(1);
         lenient().when(productOptionValueRepository.saveAll(any())).thenReturn(List.of(pov));
         
-        when(productRepository.saveAll(any())).thenReturn(List.of(product));
+        Product variationProduct = new Product();
+        variationProduct.setSlug("var-2");
+        when(productRepository.saveAll(any())).thenReturn(List.of(variationProduct));
 
         productService.updateProduct(1L, productPutVm);
         
