@@ -271,4 +271,6 @@ class ProductServiceTest {
         
         assertEquals("name", product.getName());
     }
+    
+    // Dummy comment to trigger CI pipeline
 }
