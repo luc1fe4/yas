@@ -1,6 +1,7 @@
 package com.yas.product.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -16,6 +17,7 @@ import com.yas.product.model.Category;
 import com.yas.product.model.Product;
 import com.yas.product.model.ProductCategory;
 import com.yas.product.model.ProductImage;
+import com.yas.product.model.ProductRelated;
 import com.yas.product.repository.BrandRepository;
 import com.yas.product.repository.CategoryRepository;
 import com.yas.product.repository.ProductCategoryRepository;
@@ -34,8 +36,19 @@ import com.yas.product.viewmodel.product.ProductListVm;
 import com.yas.product.viewmodel.product.ProductPostVm;
 import com.yas.product.viewmodel.product.ProductPutVm;
 import com.yas.product.viewmodel.product.ProductGetDetailVm;
+import com.yas.product.viewmodel.product.ProductDetailGetVm;
+import com.yas.product.viewmodel.product.ProductsGetVm;
 import com.yas.product.viewmodel.product.ProductThumbnailGetVm;
 import com.yas.product.viewmodel.product.ProductThumbnailVm;
+import com.yas.product.viewmodel.product.ProductVariationPostVm;
+import com.yas.product.viewmodel.product.ProductVariationPutVm;
+import com.yas.product.viewmodel.product.ProductVariationGetVm;
+import com.yas.product.viewmodel.product.ProductExportingDetailVm;
+import com.yas.product.viewmodel.product.ProductSlugGetVm;
+import com.yas.product.viewmodel.product.ProductEsDetailVm;
+import com.yas.product.viewmodel.productoption.ProductOptionValuePostVm;
+import com.yas.product.viewmodel.productoption.ProductOptionValuePutVm;
+import java.util.Map;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -255,6 +268,48 @@ class ProductServiceTest {
     }
 
     @Test
+    void createProduct_WithVariations_Success() {
+        Map<Long, String> optionValuesByOptionId = Map.of(1L, "Red");
+        ProductVariationPostVm variationVm = new ProductVariationPostVm(
+            "Variation 1", "var-1", "VAR-SKU", "VAR-GTIN", 150.0, 1L, List.of(2L), optionValuesByOptionId
+        );
+        ProductOptionValuePostVm optionValueVm = new ProductOptionValuePostVm(1L, "text", 1, List.of("Red"));
+        
+        ProductPostVm productPostVm = new ProductPostVm(
+            "name", "slug", 1L, List.of(1L), "shortDesc", "desc", "spec", "sku", "gtin",
+            1.0, null, 1.0, 1.0, 1.0, 100.0, true, true, true, true, true,
+            "meta", "meta", "meta", 1L, List.of(2L), 
+            List.of(variationVm), 
+            List.of(optionValueVm), 
+            List.of(), 
+            List.of(), null
+        );
+
+        when(brandRepository.findById(1L)).thenReturn(Optional.of(brand));
+        lenient().when(productRepository.save(any())).thenReturn(product);
+        
+        com.yas.product.model.ProductOption productOption = new com.yas.product.model.ProductOption();
+        productOption.setId(1L);
+        productOption.setName("Color");
+        when(productOptionRepository.findAllByIdIn(any())).thenReturn(List.of(productOption));
+        
+        com.yas.product.model.ProductOptionValue pov = new com.yas.product.model.ProductOptionValue();
+        pov.setValue("Red");
+        pov.setProductOption(productOption);
+        pov.setDisplayOrder(1);
+        lenient().when(productOptionValueRepository.saveAll(any())).thenReturn(List.of(pov));
+        
+        Product variationProduct = new Product();
+        variationProduct.setSlug("var-1");
+        when(productRepository.saveAll(any())).thenReturn(List.of(variationProduct));
+
+        ProductGetDetailVm result = productService.createProduct(productPostVm);
+
+        assertNotNull(result);
+        assertEquals("Test Product", result.name());
+    }
+
+    @Test
     void updateProduct_Success() {
         ProductPutVm productPutVm = new ProductPutVm(
             "name", "slug", 100.0, true, true, true, true, true,
@@ -270,5 +325,146 @@ class ProductServiceTest {
         productService.updateProduct(1L, productPutVm);
         
         assertEquals("name", product.getName());
+    }
+
+    @Test
+    void updateProduct_WithVariations_Success() {
+        Map<Long, String> optionValuesByOptionId = Map.of(1L, "Blue");
+        ProductVariationPutVm variationVm = new ProductVariationPutVm(
+            null, "Variation 2", "var-2", "VAR-SKU-2", "VAR-GTIN-2", 200.0, 1L, List.of(2L), optionValuesByOptionId
+        );
+        ProductOptionValuePutVm optionValueVm = new ProductOptionValuePutVm(1L, "text", 1, List.of("Blue"));
+        
+        ProductPutVm productPutVm = new ProductPutVm(
+            "name", "slug", 100.0, true, true, true, true, true,
+            1L, List.of(1L), "shortDesc", "desc", "spec", "sku", "gtin",
+            1.0, null, 1.0, 1.0, 1.0, "meta", "meta", "meta", 
+            1L, List.of(2L), 
+            List.of(variationVm), 
+            List.of(optionValueVm), 
+            List.of(), 
+            List.of(), null
+        );
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productCategoryRepository.findAllByProductId(1L)).thenReturn(List.of());
+        
+        com.yas.product.model.ProductOption productOption = new com.yas.product.model.ProductOption();
+        productOption.setId(1L);
+        productOption.setName("Color");
+        lenient().when(productOptionRepository.findAllByIdIn(any())).thenReturn(List.of(productOption));
+
+        com.yas.product.model.ProductOptionValue pov = new com.yas.product.model.ProductOptionValue();
+        pov.setValue("Blue");
+        pov.setProductOption(productOption);
+        pov.setDisplayOrder(1);
+        lenient().when(productOptionValueRepository.saveAll(any())).thenReturn(List.of(pov));
+        
+        Product variationProduct = new Product();
+        variationProduct.setSlug("var-2");
+        when(productRepository.saveAll(any())).thenReturn(List.of(variationProduct));
+
+        productService.updateProduct(1L, productPutVm);
+        
+        assertEquals("name", product.getName());
+    }
+    
+    @Test
+    void getProductDetail_Success() {
+        when(productRepository.findBySlugAndIsPublishedTrue("test-product")).thenReturn(Optional.of(product));
+        when(mediaService.getMedia(1L)).thenReturn(noFileMediaVm);
+        when(mediaService.getMedia(2L)).thenReturn(noFileMediaVm);
+        
+        ProductDetailGetVm result = productService.getProductDetail("test-product");
+        
+        assertNotNull(result);
+        assertEquals("Test Product", result.name());
+    }
+
+    @Test
+    void getProductDetail_NotFound() {
+        when(productRepository.findBySlugAndIsPublishedTrue("unknown")).thenReturn(Optional.empty());
+        assertThrows(NotFoundException.class, () -> productService.getProductDetail("unknown"));
+    }
+
+    @Test
+    void deleteProduct_Success() {
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        productService.deleteProduct(1L);
+        assertFalse(product.isPublished());
+    }
+
+    @Test
+    void deleteProduct_NotFound() {
+        when(productRepository.findById(1L)).thenReturn(Optional.empty());
+        assertThrows(NotFoundException.class, () -> productService.deleteProduct(1L));
+    }
+
+    @Test
+    void getProductsByMultiQuery_Success() {
+        Page<Product> page = new PageImpl<>(List.of(product), PageRequest.of(0, 10), 1);
+        when(productRepository.findByProductNameAndCategorySlugAndPriceBetween(any(), any(), any(), any(), any()))
+            .thenReturn(page);
+        when(mediaService.getMedia(1L)).thenReturn(noFileMediaVm);
+
+        ProductsGetVm result = productService.getProductsByMultiQuery(0, 10, "Test", "category", 0.0, 100.0);
+        
+        assertNotNull(result);
+        assertEquals(1, result.productContent().size());
+        assertEquals("Test Product", result.productContent().get(0).name());
+    }
+
+    @Test
+    void getProductVariationsByParentId_Success() {
+        product.setHasOptions(true);
+        Product child = new Product();
+        child.setId(2L);
+        child.setPublished(true);
+        child.setThumbnailMediaId(1L);
+        child.setProductImages(List.of());
+        product.setProducts(List.of(child));
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productOptionCombinationRepository.findAllByProduct(any())).thenReturn(List.of());
+        when(mediaService.getMedia(1L)).thenReturn(noFileMediaVm);
+        
+        var result = productService.getProductVariationsByParentId(1L);
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void exportProducts_Success() {
+        when(productRepository.getExportingProducts(any(), any())).thenReturn(List.of(product));
+        var result = productService.exportProducts("Test", "Brand");
+        assertEquals(1, result.size());
+        assertEquals("Test Product", result.get(0).name());
+    }
+
+    @Test
+    void getProductSlug_Success() {
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        var result = productService.getProductSlug(1L);
+        assertEquals("test-product", result.slug());
+    }
+
+    @Test
+    void getProductEsDetailById_Success() {
+        product.setProductCategories(List.of());
+        product.setAttributeValues(List.of());
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        var result = productService.getProductEsDetailById(1L);
+        assertEquals("Test Product", result.name());
+    }
+
+    @Test
+    void getRelatedProductsBackoffice_Success() {
+        Product related = new Product();
+        related.setId(2L);
+        ProductRelated pr = new ProductRelated();
+        pr.setRelatedProduct(related);
+        product.setRelatedProducts(List.of(pr));
+        
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        var result = productService.getRelatedProductsBackoffice(1L);
+        assertEquals(1, result.size());
     }
 }
