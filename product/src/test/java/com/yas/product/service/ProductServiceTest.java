@@ -264,10 +264,7 @@ class ProductServiceTest {
         );
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(brandRepository.findById(1L)).thenReturn(Optional.of(brand));
-        when(categoryRepository.findAllById(List.of(1L))).thenReturn(List.of(category));
         when(productCategoryRepository.findAllByProductId(1L)).thenReturn(List.of());
-        when(productRepository.save(any(Product.class))).thenReturn(product);
         when(productOptionRepository.findAllByIdIn(any())).thenReturn(List.of(new com.yas.product.model.ProductOption()));
 
         productService.updateProduct(1L, productPutVm);
