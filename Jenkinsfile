@@ -84,12 +84,10 @@ pipeline {
             steps {
                 script {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    sh 'chmod +x mvnw || true'
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
-                        dir("${svc}") {
-                            sh 'chmod +x mvnw || true'
-                            sh "./mvnw verify jacoco:report -DskipITs -f ../pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
-                        }
+                        sh "./mvnw verify jacoco:report -DskipITs -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                     }
                 }
             }
