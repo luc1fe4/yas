@@ -257,9 +257,10 @@ class ProductServiceTest {
     @Test
     void updateProduct_Success() {
         ProductPutVm productPutVm = new ProductPutVm(
-            "name", "slug", 1L, List.of(1L), "shortDesc", "desc", "spec", "sku", "gtin",
-            1.0, null, 1.0, 1.0, 1.0, 100.0, true, true, true, true, true,
-            "meta", "meta", "meta", 1L, List.of(2L), List.of(), List.of(), List.of(), List.of(), null
+            "name", "slug", 100.0, true, true, true, true, true,
+            1L, List.of(1L), "shortDesc", "desc", "spec", "sku", "gtin",
+            1.0, null, 1.0, 1.0, 1.0, "meta", "meta", "meta", 
+            1L, List.of(2L), List.of(), List.of(), List.of(), List.of(), null
         );
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
