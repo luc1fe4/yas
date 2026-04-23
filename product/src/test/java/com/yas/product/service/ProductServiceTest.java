@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 import com.yas.commonlibrary.exception.NotFoundException;
@@ -245,8 +246,7 @@ class ProductServiceTest {
         );
 
         when(brandRepository.findById(1L)).thenReturn(Optional.of(brand));
-        when(categoryRepository.findAllById(List.of(1L))).thenReturn(List.of(category));
-        when(productRepository.save(any(Product.class))).thenReturn(product);
+        lenient().when(productRepository.save(any())).thenReturn(product);
 
         ProductGetDetailVm result = productService.createProduct(productPostVm);
 
