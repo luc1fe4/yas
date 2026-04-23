@@ -9,7 +9,7 @@
     </parent>
     <artifactId>order</artifactId>
     <version>${revision}</version>
-    <n>order</n>
+    <name>order</name>
     <description>Order Service for yas project</description>
     <properties>
         <sonar.organization>nashtech-garage</sonar.organization>
