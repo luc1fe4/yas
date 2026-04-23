@@ -22,7 +22,7 @@ class DistrictServiceTest {
 
     @Test
     void getList_whenCalled_returnList() {
-        DistrictGetVm vm = new DistrictGetVm(1L, "District", 1L);
+        DistrictGetVm vm = new DistrictGetVm(1L, "District");
         when(districtRepository.findAllByStateProvinceIdOrderByNameAsc(1L)).thenReturn(List.of(vm));
 
         List<DistrictGetVm> result = districtService.getList(1L);

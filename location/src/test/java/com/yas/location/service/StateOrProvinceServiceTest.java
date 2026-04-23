@@ -126,7 +126,7 @@ class StateOrProvinceServiceTest {
     void getAllByCountryId_whenCalled_returnList() {
         StateOrProvince stateOrProvince = new StateOrProvince();
         when(stateOrProvinceRepository.findAllByCountryIdOrderByNameAsc(1L)).thenReturn(List.of(stateOrProvince));
-        when(stateOrProvinceMapper.toStateOrProvinceViewModelFromStateOrProvince(any())).thenReturn(StateOrProvinceVm.builder().build());
+        when(stateOrProvinceMapper.toStateOrProvinceViewModelFromStateOrProvince(any())).thenReturn(new StateOrProvinceVm(1L, "State", "CODE", "TYPE", 1L));
 
         List<StateOrProvinceVm> result = stateOrProvinceService.getAllByCountryId(1L);
 

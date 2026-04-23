@@ -41,7 +41,7 @@ class CountryServiceTest {
     void findAllCountries_whenCalled_returnList() {
         Country country = Country.builder().id(1L).name("Country").build();
         when(countryRepository.findAll(any(Sort.class))).thenReturn(List.of(country));
-        when(countryMapper.toCountryViewModelFromCountry(any())).thenReturn(CountryVm.builder().id(1L).build());
+        when(countryMapper.toCountryViewModelFromCountry(any())).thenReturn(new CountryVm(1L, "US", "USA", "USA", true, true, true, true, true));
 
         List<CountryVm> result = countryService.findAllCountries();
 
