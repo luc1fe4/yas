@@ -96,7 +96,21 @@ class WarehouseServiceTest {
         warehouse.setAddressId(10L);
         when(warehouseRepository.findById(1L)).thenReturn(Optional.of(warehouse));
 
-        AddressDetailVm address = new AddressDetailVm(10L, "Contact", "123", "Line1", "Line2", "City", "Zip", 1L, 1L, 1L);
+        AddressDetailVm address = AddressDetailVm.builder()
+                .id(10L)
+                .contactName("Contact")
+                .phone("123")
+                .addressLine1("Line1")
+                .addressLine2("Line2")
+                .city("City")
+                .zipCode("Zip")
+                .districtId(1L)
+                .districtName("District")
+                .stateOrProvinceId(1L)
+                .stateOrProvinceName("State")
+                .countryId(1L)
+                .countryName("Country")
+                .build();
         when(locationService.getAddressById(10L)).thenReturn(address);
 
         WarehouseDetailVm result = warehouseService.findById(1L);
@@ -108,7 +122,7 @@ class WarehouseServiceTest {
 
     @Test
     void create_whenNameDuplicated_throwDuplicatedException() {
-        WarehousePostVm postVm = new WarehousePostVm("Warehouse 1", "Contact", "123", "Line1", "Line2", "City", "Zip", 1L, 1L, 1L);
+        WarehousePostVm postVm = WarehousePostVm.builder().name("Warehouse 1").build();
         when(warehouseRepository.existsByName("Warehouse 1")).thenReturn(true);
 
         assertThatThrownBy(() -> warehouseService.create(postVm))
@@ -117,9 +131,30 @@ class WarehouseServiceTest {
 
     @Test
     void create_whenNormalCase_returnWarehouse() {
-        WarehousePostVm postVm = new WarehousePostVm("Warehouse 1", "Contact", "123", "Line1", "Line2", "City", "Zip", 1L, 1L, 1L);
+        WarehousePostVm postVm = WarehousePostVm.builder()
+                .name("Warehouse 1")
+                .contactName("Contact")
+                .phone("123")
+                .addressLine1("Line1")
+                .addressLine2("Line2")
+                .city("City")
+                .zipCode("Zip")
+                .districtId(1L)
+                .stateOrProvinceId(1L)
+                .countryId(1L)
+                .build();
         when(warehouseRepository.existsByName("Warehouse 1")).thenReturn(false);
-        when(locationService.createAddress(any())).thenReturn(new AddressVm(10L, "Contact", "123", "Line1", "Line2", "City", "Zip", 1L, 1L, 1L));
+        when(locationService.createAddress(any())).thenReturn(AddressVm.builder()
+                .id(10L)
+                .contactName("Contact")
+                .phone("123")
+                .addressLine1("Line1")
+                .city("City")
+                .zipCode("Zip")
+                .districtId(1L)
+                .stateOrProvinceId(1L)
+                .countryId(1L)
+                .build());
         
         Warehouse warehouse = new Warehouse();
         warehouse.setName("Warehouse 1");
@@ -133,7 +168,7 @@ class WarehouseServiceTest {
 
     @Test
     void update_whenWarehouseNotFound_throwNotFoundException() {
-        WarehousePostVm postVm = new WarehousePostVm("New Name", "Contact", "123", "Line1", "Line2", "City", "Zip", 1L, 1L, 1L);
+        WarehousePostVm postVm = WarehousePostVm.builder().name("New Name").build();
         when(warehouseRepository.findById(anyLong())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> warehouseService.update(postVm, 1L))
@@ -147,7 +182,7 @@ class WarehouseServiceTest {
         when(warehouseRepository.findById(1L)).thenReturn(Optional.of(warehouse));
         when(warehouseRepository.existsByNameWithDifferentId("New Name", 1L)).thenReturn(true);
 
-        WarehousePostVm postVm = new WarehousePostVm("New Name", "Contact", "123", "Line1", "Line2", "City", "Zip", 1L, 1L, 1L);
+        WarehousePostVm postVm = WarehousePostVm.builder().name("New Name").build();
         assertThatThrownBy(() -> warehouseService.update(postVm, 1L))
                 .isInstanceOf(DuplicatedException.class);
     }
@@ -175,7 +210,7 @@ class WarehouseServiceTest {
 
         WarehouseListGetVm result = warehouseService.getPageableWarehouses(0, 10);
 
-        assertThat(result.warehouseVms()).hasSize(1);
+        assertThat(result.warehouseContent()).hasSize(1);
         assertThat(result.totalElements()).isEqualTo(1);
     }
 }
