@@ -34,6 +34,8 @@ import com.yas.product.viewmodel.product.ProductListVm;
 import com.yas.product.viewmodel.product.ProductPostVm;
 import com.yas.product.viewmodel.product.ProductPutVm;
 import com.yas.product.viewmodel.product.ProductGetDetailVm;
+import com.yas.product.viewmodel.product.ProductDetailGetVm;
+import com.yas.product.viewmodel.product.ProductsGetVm;
 import com.yas.product.viewmodel.product.ProductThumbnailGetVm;
 import com.yas.product.viewmodel.product.ProductThumbnailVm;
 import com.yas.product.viewmodel.product.ProductVariationPostVm;
@@ -361,5 +363,48 @@ class ProductServiceTest {
         assertEquals("name", product.getName());
     }
     
-    // Dummy comment to trigger CI pipeline
+    @Test
+    void getProductDetail_Success() {
+        when(productRepository.findBySlugAndIsPublishedTrue("test-product")).thenReturn(Optional.of(product));
+        when(mediaService.getMedia(1L)).thenReturn(noFileMediaVm);
+        when(mediaService.getMedia(2L)).thenReturn(noFileMediaVm);
+        
+        ProductDetailGetVm result = productService.getProductDetail("test-product");
+        
+        assertNotNull(result);
+        assertEquals("Test Product", result.name());
+    }
+
+    @Test
+    void getProductDetail_NotFound() {
+        when(productRepository.findBySlugAndIsPublishedTrue("unknown")).thenReturn(Optional.empty());
+        assertThrows(NotFoundException.class, () -> productService.getProductDetail("unknown"));
+    }
+
+    @Test
+    void deleteProduct_Success() {
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        productService.deleteProduct(1L);
+        assertFalse(product.isPublished());
+    }
+
+    @Test
+    void deleteProduct_NotFound() {
+        when(productRepository.findById(1L)).thenReturn(Optional.empty());
+        assertThrows(NotFoundException.class, () -> productService.deleteProduct(1L));
+    }
+
+    @Test
+    void getProductsByMultiQuery_Success() {
+        Page<Product> page = new PageImpl<>(List.of(product), PageRequest.of(0, 10), 1);
+        when(productRepository.findByProductNameAndCategorySlugAndPriceBetween(any(), any(), any(), any(), any()))
+            .thenReturn(page);
+        when(mediaService.getMedia(1L)).thenReturn(noFileMediaVm);
+
+        ProductsGetVm result = productService.getProductsByMultiQuery(0, 10, "Test", "category", 0.0, 100.0);
+        
+        assertNotNull(result);
+        assertEquals(1, result.productContent().size());
+        assertEquals("Test Product", result.productContent().get(0).name());
+    }
 }
