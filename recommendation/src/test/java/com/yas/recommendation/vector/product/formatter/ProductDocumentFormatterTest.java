@@ -32,7 +32,7 @@ class ProductDocumentFormatterTest {
         entityMap.put("price", 999.99);
         entityMap.put("brandName", "Apple");
         
-        List<CategoryVm> categories = List.of(new CategoryVm(1L, "Smartphone", "slug"));
+        List<CategoryVm> categories = List.of(new CategoryVm(1L, "Smartphone", null, "slug", null, null, null, true));
         entityMap.put("categories", categories);
         
         List<ProductAttributeValueVm> attributes = List.of(new ProductAttributeValueVm(1L, "Color", "Black"));
