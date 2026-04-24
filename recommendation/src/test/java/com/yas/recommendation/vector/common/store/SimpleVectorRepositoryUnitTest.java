@@ -1,5 +1,6 @@
 package com.yas.recommendation.vector.common.store;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
@@ -12,9 +13,11 @@ import com.yas.recommendation.configuration.EmbeddingSearchConfiguration;
 import com.yas.recommendation.vector.product.document.ProductDocument;
 import com.yas.recommendation.viewmodel.ProductDetailVm;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.test.util.ReflectionTestUtils;
 
