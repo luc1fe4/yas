@@ -1,0 +1,92 @@
+package com.yas.payment.controller;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yas.payment.service.PaymentProviderService;
+import com.yas.payment.viewmodel.paymentprovider.CreatePaymentVm;
+import com.yas.payment.viewmodel.paymentprovider.PaymentProviderVm;
+import com.yas.payment.viewmodel.paymentprovider.UpdatePaymentVm;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@WebMvcTest(PaymentProviderController.class)
+@AutoConfigureMockMvc(addFilters = false)
+class PaymentProviderControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockitoBean
+    private PaymentProviderService paymentProviderService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Test
+    void create_ShouldReturnCreated() throws Exception {
+        CreatePaymentVm request = new CreatePaymentVm();
+        request.setId("pay1");
+        request.setName("Pay 1");
+
+        PaymentProviderVm response = PaymentProviderVm.builder()
+                .id("pay1")
+                .name("Pay 1")
+                .build();
+
+        when(paymentProviderService.create(any())).thenReturn(response);
+
+        mockMvc.perform(post("/backoffice/payment-providers")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(content().json(objectMapper.writeValueAsString(response)));
+    }
+
+    @Test
+    void update_ShouldReturnOk() throws Exception {
+        UpdatePaymentVm request = new UpdatePaymentVm();
+        request.setId("pay1");
+        request.setName("Pay 1 Updated");
+
+        PaymentProviderVm response = PaymentProviderVm.builder()
+                .id("pay1")
+                .name("Pay 1 Updated")
+                .build();
+
+        when(paymentProviderService.update(any())).thenReturn(response);
+
+        mockMvc.perform(put("/backoffice/payment-providers")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().json(objectMapper.writeValueAsString(response)));
+    }
+
+    @Test
+    void getAll_ShouldReturnList() throws Exception {
+        PaymentProviderVm response = PaymentProviderVm.builder()
+                .id("pay1")
+                .name("Pay 1")
+                .build();
+
+        when(paymentProviderService.getEnabledPaymentProviders(any())).thenReturn(List.of(response));
+
+        mockMvc.perform(get("/storefront/payment-providers"))
+                .andExpect(status().isOk())
+                .andExpect(content().json(objectMapper.writeValueAsString(List.of(response))));
+    }
+}
