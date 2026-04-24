@@ -38,6 +38,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 class PromotionServiceTest {
     @Autowired
     private PromotionRepository promotionRepository;
+    @Autowired
+    private com.yas.promotion.repository.PromotionUsageRepository promotionUsageRepository;
     @MockitoBean
     private ProductService productService;
     @Autowired
@@ -136,7 +138,9 @@ class PromotionServiceTest {
 
     @AfterEach
     void tearDown() {
+        promotionUsageRepository.deleteAll();
         promotionRepository.deleteAll();
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -254,11 +258,11 @@ class PromotionServiceTest {
         com.yas.promotion.viewmodel.PromotionUsageVm usageVm = 
             new com.yas.promotion.viewmodel.PromotionUsageVm("code1", 1L, "user1", 1L);
         
-        // Mock security context for extractUserId
         org.springframework.security.oauth2.jwt.Jwt jwt = Mockito.mock(org.springframework.security.oauth2.jwt.Jwt.class);
         org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken jwtAuth = 
             Mockito.mock(org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken.class);
         Mockito.when(jwtAuth.getToken()).thenReturn(jwt);
+        Mockito.when(jwtAuth.getName()).thenReturn("user1");
         Mockito.when(jwt.getSubject()).thenReturn("user1");
         
         org.springframework.security.core.context.SecurityContext securityContext = 
