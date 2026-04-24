@@ -83,9 +83,12 @@ pipeline {
             }
             steps {
                 script {
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                     sh 'chmod +x mvnw || true'
-                    echo "Running tests for: ${changedServices}"
-                    sh "./mvnw verify jacoco:report -DskipITs -pl ${changedServices} -am -U -Drevision=1.0-SNAPSHOT"
+                    services.each { svc ->
+                        echo "Running tests for: ${svc}"
+                        sh "./mvnw verify jacoco:report -DskipITs -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                    }
                 }
             }
             post {
@@ -143,9 +146,12 @@ pipeline {
             }
             steps {
                 script {
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                     sh 'chmod +x mvnw || true'
-                    echo "Building: ${changedServices}"
-                    sh "./mvnw clean package -DskipTests -pl ${changedServices} -am -U -Drevision=1.0-SNAPSHOT"
+                    services.each { svc ->
+                        echo "Building: ${svc}"
+                        sh "./mvnw clean package -DskipTests -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                    }
                 }
             }
             post {
