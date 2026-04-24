@@ -39,16 +39,19 @@ class TaxRateControllerTest {
 
     @Test
     void getTaxRate_whenCalled_thenReturnOk() throws Exception {
-        when(taxRateService.findById(1L)).thenReturn(TaxRateVm.builder().id(1L).build());
+        when(taxRateService.findById(1L)).thenReturn(new TaxRateVm(1L, 10.0, "123", 1L, 1L, 1L));
         mockMvc.perform(get("/backoffice/tax-rates/1"))
                 .andExpect(status().isOk());
     }
 
     @Test
     void createTaxRate_whenValid_thenReturnCreated() throws Exception {
-        TaxRatePostVm postVm = TaxRatePostVm.builder().taxClassId(1L).rate(10.0).build();
-        TaxClass taxClass = TaxClass.builder().id(1L).build();
-        TaxRate taxRate = TaxRate.builder().id(1L).taxClass(taxClass).build();
+        TaxRatePostVm postVm = new TaxRatePostVm(10.0, "123", 1L, 1L, 1L);
+        TaxClass taxClass = new TaxClass();
+        taxClass.setId(1L);
+        TaxRate taxRate = new TaxRate();
+        taxRate.setId(1L);
+        taxRate.setTaxClass(taxClass);
         
         when(taxRateService.createTaxRate(any())).thenReturn(taxRate);
         
@@ -60,7 +63,7 @@ class TaxRateControllerTest {
 
     @Test
     void updateTaxRate_whenValid_thenReturnNoContent() throws Exception {
-        TaxRatePostVm postVm = TaxRatePostVm.builder().taxClassId(1L).rate(15.0).build();
+        TaxRatePostVm postVm = new TaxRatePostVm(15.0, "123", 1L, 1L, 1L);
         mockMvc.perform(put("/backoffice/tax-rates/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(postVm)))

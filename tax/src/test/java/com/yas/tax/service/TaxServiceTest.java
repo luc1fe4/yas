@@ -61,7 +61,7 @@ class TaxServiceTest {
 
     @Test
     void createTaxRate_whenTaxClassNotFound_throwNotFoundException() {
-        TaxRatePostVm postVm = TaxRatePostVm.builder().taxClassId(1L).build();
+        TaxRatePostVm postVm = new TaxRatePostVm(10.0, "123", 1L, 1L, 1L);
         when(taxClassRepository.existsById(1L)).thenReturn(false);
 
         assertThatThrownBy(() -> taxRateService.createTaxRate(postVm))
@@ -70,7 +70,7 @@ class TaxServiceTest {
 
     @Test
     void createTaxRate_whenValid_saveTaxRate() {
-        TaxRatePostVm postVm = TaxRatePostVm.builder().taxClassId(1L).rate(10.0).build();
+        TaxRatePostVm postVm = new TaxRatePostVm(10.0, "123", 1L, 1L, 1L);
         when(taxClassRepository.existsById(1L)).thenReturn(true);
         when(taxClassRepository.getReferenceById(1L)).thenReturn(new TaxClass());
         when(taxRateRepository.save(any())).thenReturn(new TaxRate());
@@ -82,7 +82,7 @@ class TaxServiceTest {
 
     @Test
     void updateTaxRate_whenNotFound_throwNotFoundException() {
-        TaxRatePostVm postVm = TaxRatePostVm.builder().build();
+        TaxRatePostVm postVm = new TaxRatePostVm(10.0, "123", 1L, 1L, 1L);
         when(taxRateRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> taxRateService.updateTaxRate(postVm, 1L))
@@ -91,7 +91,7 @@ class TaxServiceTest {
 
     @Test
     void updateTaxRate_whenTaxClassNotFound_throwNotFoundException() {
-        TaxRatePostVm postVm = TaxRatePostVm.builder().taxClassId(1L).build();
+        TaxRatePostVm postVm = new TaxRatePostVm(10.0, "123", 1L, 1L, 1L);
         when(taxRateRepository.findById(1L)).thenReturn(Optional.of(new TaxRate()));
         when(taxClassRepository.existsById(1L)).thenReturn(false);
 
@@ -120,7 +120,7 @@ class TaxServiceTest {
         TaxRateListGetVm result = taxRateService.getPageableTaxRates(0, 10);
 
         assertThat(result.totalElements()).isEqualTo(1);
-        assertThat(result.taxRateContent().get(0).stateOrProvinceName()).isEqualTo("State");
+        assertThat(result.taxRateGetDetailContent().get(0).stateOrProvinceName()).isEqualTo("State");
     }
 
     @Test

@@ -65,7 +65,7 @@ class TaxClassServiceTest {
 
     @Test
     void create_whenNameDuplicated_throwDuplicatedException() {
-        TaxClassPostVm postVm = new TaxClassPostVm("Tax Class");
+        TaxClassPostVm postVm = new TaxClassPostVm("TC1", "Tax Class");
         when(taxClassRepository.existsByName("Tax Class")).thenReturn(true);
 
         assertThatThrownBy(() -> taxClassService.create(postVm))
@@ -74,7 +74,7 @@ class TaxClassServiceTest {
 
     @Test
     void create_whenValid_saveTaxClass() {
-        TaxClassPostVm postVm = new TaxClassPostVm("Tax Class");
+        TaxClassPostVm postVm = new TaxClassPostVm("TC1", "Tax Class");
         when(taxClassRepository.existsByName("Tax Class")).thenReturn(false);
         when(taxClassRepository.save(any())).thenReturn(new TaxClass());
 
@@ -85,7 +85,7 @@ class TaxClassServiceTest {
 
     @Test
     void update_whenNotFound_throwNotFoundException() {
-        TaxClassPostVm postVm = new TaxClassPostVm("Updated");
+        TaxClassPostVm postVm = new TaxClassPostVm("TC1", "Updated");
         when(taxClassRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> taxClassService.update(postVm, 1L))
@@ -94,7 +94,7 @@ class TaxClassServiceTest {
 
     @Test
     void update_whenNameDuplicated_throwDuplicatedException() {
-        TaxClassPostVm postVm = new TaxClassPostVm("Updated");
+        TaxClassPostVm postVm = new TaxClassPostVm("TC1", "Updated");
         when(taxClassRepository.findById(1L)).thenReturn(Optional.of(new TaxClass()));
         when(taxClassRepository.existsByNameNotUpdatingTaxClass("Updated", 1L)).thenReturn(true);
 
@@ -104,7 +104,7 @@ class TaxClassServiceTest {
 
     @Test
     void update_whenValid_saveTaxClass() {
-        TaxClassPostVm postVm = new TaxClassPostVm("Updated");
+        TaxClassPostVm postVm = new TaxClassPostVm("TC1", "Updated");
         TaxClass taxClass = new TaxClass();
         when(taxClassRepository.findById(1L)).thenReturn(Optional.of(taxClass));
         when(taxClassRepository.existsByNameNotUpdatingTaxClass("Updated", 1L)).thenReturn(false);

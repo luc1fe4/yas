@@ -44,15 +44,17 @@ class TaxClassControllerTest {
 
     @Test
     void getTaxClass_whenCalled_thenReturnOk() throws Exception {
-        when(taxClassService.findById(1L)).thenReturn(TaxClassVm.builder().id(1L).build());
+        when(taxClassService.findById(1L)).thenReturn(new TaxClassVm(1L, "Tax Class"));
         mockMvc.perform(get("/backoffice/tax-classes/1"))
                 .andExpect(status().isOk());
     }
 
     @Test
     void createTaxClass_whenValid_thenReturnCreated() throws Exception {
-        TaxClassPostVm postVm = new TaxClassPostVm("Tax Class");
-        when(taxClassService.create(any())).thenReturn(TaxClass.builder().id(1L).build());
+        TaxClassPostVm postVm = new TaxClassPostVm("TC1", "Tax Class");
+        TaxClass taxClass = new TaxClass();
+        taxClass.setId(1L);
+        when(taxClassService.create(any())).thenReturn(taxClass);
         
         mockMvc.perform(post("/backoffice/tax-classes")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -62,7 +64,7 @@ class TaxClassControllerTest {
 
     @Test
     void updateTaxClass_whenValid_thenReturnNoContent() throws Exception {
-        TaxClassPostVm postVm = new TaxClassPostVm("Updated");
+        TaxClassPostVm postVm = new TaxClassPostVm("TC1", "Updated");
         mockMvc.perform(put("/backoffice/tax-classes/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(postVm)))
