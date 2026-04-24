@@ -63,7 +63,6 @@ class ProductSyncDataConsumerTest {
         verify(productSyncDataService, times(1)).updateProduct(productId);
     }
 
-    @Disabled("Handle later once elasticsearch sync delete complete")
     @Test
     void testSync_whenDeleteAction_deleteProduct() {
         // When
@@ -71,12 +70,43 @@ class ProductSyncDataConsumerTest {
         productSyncDataConsumer.sync(
             ProductMsgKey.builder().id(productId).build(),
             ProductCdcMessage.builder()
-                .after(Product.builder().id(productId).build())
                 .op(DELETE)
                 .build()
         );
 
         // Then
         verify(productSyncDataService, times(1)).deleteProduct(productId);
+    }
+
+    @Test
+    void testSync_whenReadAction_createProduct() {
+        // When
+        long productId = 4L;
+        productSyncDataConsumer.sync(
+            ProductMsgKey.builder().id(productId).build(),
+            ProductCdcMessage.builder()
+                .after(Product.builder().id(productId).build())
+                .op(com.yas.commonlibrary.kafka.cdc.message.Operation.READ)
+                .build()
+        );
+
+        // Then
+        verify(productSyncDataService, times(1)).createProduct(productId);
+    }
+
+    @Test
+    void testSync_whenUnsupportedAction_doNothing() {
+        // When
+        long productId = 5L;
+        productSyncDataConsumer.sync(
+            ProductMsgKey.builder().id(productId).build(),
+            ProductCdcMessage.builder()
+                .op(null)
+                .build()
+        );
+
+        // Then
+        verify(productSyncDataService, never()).createProduct(productId);
+        verify(productSyncDataService, never()).updateProduct(productId);
     }
 }
