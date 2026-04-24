@@ -1,6 +1,5 @@
 package com.yas.payment.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yas.payment.service.PaymentProviderService;
 import com.yas.payment.viewmodel.paymentprovider.CreatePaymentVm;
 import com.yas.payment.viewmodel.paymentprovider.PaymentProviderVm;
@@ -43,10 +42,7 @@ class PaymentProviderControllerTest {
         request.setId("pay1");
         request.setName("Pay 1");
 
-        PaymentProviderVm response = PaymentProviderVm.builder()
-                .id("pay1")
-                .name("Pay 1")
-                .build();
+        PaymentProviderVm response = new PaymentProviderVm("pay1", "Pay 1", null, 0, null, null);
 
         when(paymentProviderService.create(any())).thenReturn(response);
 
@@ -63,10 +59,7 @@ class PaymentProviderControllerTest {
         request.setId("pay1");
         request.setName("Pay 1 Updated");
 
-        PaymentProviderVm response = PaymentProviderVm.builder()
-                .id("pay1")
-                .name("Pay 1 Updated")
-                .build();
+        PaymentProviderVm response = new PaymentProviderVm("pay1", "Pay 1 Updated", null, 0, null, null);
 
         when(paymentProviderService.update(any())).thenReturn(response);
 
@@ -79,10 +72,7 @@ class PaymentProviderControllerTest {
 
     @Test
     void getAll_ShouldReturnList() throws Exception {
-        PaymentProviderVm response = PaymentProviderVm.builder()
-                .id("pay1")
-                .name("Pay 1")
-                .build();
+        PaymentProviderVm response = new PaymentProviderVm("pay1", "Pay 1", null, 0, null, null);
 
         when(paymentProviderService.getEnabledPaymentProviders(any())).thenReturn(List.of(response));
 
