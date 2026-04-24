@@ -35,8 +35,7 @@ class TaxClassControllerTest {
     @MockitoBean
     private TaxClassService taxClassService;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
     void findAllTaxClasses_whenCalled_thenReturnOk() throws Exception {

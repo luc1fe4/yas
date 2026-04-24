@@ -37,8 +37,7 @@ class TaxRateControllerTest {
     @MockitoBean
     private TaxRateService taxRateService;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
     void getTaxRate_whenCalled_thenReturnOk() throws Exception {
