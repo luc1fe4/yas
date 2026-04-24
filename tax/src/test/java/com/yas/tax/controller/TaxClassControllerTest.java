@@ -22,8 +22,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(controllers = TaxClassController.class)
-@org.springframework.test.context.ContextConfiguration(classes = TestControllerConfig.class)
+@WebMvcTest(TaxClassController.class)
+@org.springframework.boot.autoconfigure.ImportAutoConfiguration(org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration.class)
 @AutoConfigureMockMvc(addFilters = false)
 class TaxClassControllerTest {
 
