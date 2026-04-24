@@ -83,9 +83,8 @@ pipeline {
                     def services = CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
-                        dir("${svc}") {
-                            sh './mvnw test jacoco:report'
-                        }
+                        sh "chmod +x mvnw || true"
+                        sh "./mvnw test jacoco:report -pl ${svc} -am"
                     }
                 }
             }
@@ -150,9 +149,8 @@ pipeline {
                     def services = CHANGED_SERVICES.split(',')
                     services.each { svc ->
                         echo "Building: ${svc}"
-                        dir("${svc}") {
-                            sh './mvnw clean package -DskipTests'
-                        }
+                        sh "chmod +x mvnw || true"
+                        sh "./mvnw clean package -DskipTests -pl ${svc} -am"
                     }
                 }
             }
