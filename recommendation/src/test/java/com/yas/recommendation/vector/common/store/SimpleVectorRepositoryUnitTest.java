@@ -61,4 +61,18 @@ class SimpleVectorRepositoryUnitTest {
         verify(vectorStore, times(1)).delete(anyList());
         verify(vectorStore, times(1)).add(anyList());
     }
+
+    @Test
+    void search_whenCalled_shouldQueryVectorStore() {
+        when(embeddingSearchConfiguration.topK()).thenReturn(5);
+        when(embeddingSearchConfiguration.similarityThreshold()).thenReturn(0.7);
+        when(vectorStore.similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class)))
+            .thenReturn(List.of(new Document("result content", Map.of("id", 2L))));
+
+        java.util.List<ProductDocument> results = repository.search(1L);
+
+        org.junit.jupiter.api.Assertions.assertFalse(results.isEmpty());
+        assertEquals("result content", results.get(0).getContent());
+        verify(vectorStore, times(1)).similaritySearch(any(org.springframework.ai.vectorstore.SearchRequest.class));
+    }
 }
