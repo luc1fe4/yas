@@ -23,7 +23,7 @@ class DocumentTest {
     void testProductDocument() {
         ProductDocument doc = new ProductDocument();
         doc.setContent("Content");
-        doc.setMetadata(Map.of("key", "value"));
+        doc.setMetadata(new java.util.HashMap<>(Map.of("key", "value", "type", "P")));
 
         assertEquals("Content", doc.getContent());
         assertEquals("value", doc.getMetadata().get("key"));
