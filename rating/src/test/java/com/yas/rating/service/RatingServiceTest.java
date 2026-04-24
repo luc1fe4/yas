@@ -161,7 +161,7 @@ class RatingServiceTest {
         NotFoundException exception = assertThrows(NotFoundException.class,
                 () -> ratingService.createRating(ratingPostVm));
 
-        assertEquals("Customer user1 is not found", exception.getMessage());
+        assertEquals("CUSTOMER user1 is not found", exception.getMessage());
     }
 
     @Test
