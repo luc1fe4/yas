@@ -22,7 +22,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-@org.springframework.boot.test.context.SpringBootTest(classes = TestApplication.class)
+@WebMvcTest(controllers = TaxClassController.class, excludeAutoConfiguration = {
+    org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration.class,
+    org.springframework.boot.security.oauth2.server.resource.autoconfigure.servlet.OAuth2ResourceServerAutoConfiguration.class
+})
 @AutoConfigureMockMvc(addFilters = false)
 class TaxClassControllerTest {
 
