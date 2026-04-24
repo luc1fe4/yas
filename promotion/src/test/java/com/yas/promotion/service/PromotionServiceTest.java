@@ -255,12 +255,16 @@ class PromotionServiceTest {
             new com.yas.promotion.viewmodel.PromotionUsageVm("code1", 1L, "user1", 1L);
         
         // Mock security context for extractUserId
-        org.springframework.security.core.Authentication auth = Mockito.mock(org.springframework.security.core.Authentication.class);
-        org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken jwtAuth = Mockito.mock(org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken.class);
         org.springframework.security.oauth2.jwt.Jwt jwt = Mockito.mock(org.springframework.security.oauth2.jwt.Jwt.class);
+        org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken jwtAuth = 
+            Mockito.mock(org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken.class);
         Mockito.when(jwtAuth.getToken()).thenReturn(jwt);
         Mockito.when(jwt.getSubject()).thenReturn("user1");
-        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(jwtAuth);
+        
+        org.springframework.security.core.context.SecurityContext securityContext = 
+            org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();
+        securityContext.setAuthentication(jwtAuth);
+        org.springframework.security.core.context.SecurityContextHolder.setContext(securityContext);
 
         promotionService.updateUsagePromotion(List.of(usageVm));
         

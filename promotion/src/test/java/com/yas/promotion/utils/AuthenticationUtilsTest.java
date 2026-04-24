@@ -16,6 +16,11 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 
 class AuthenticationUtilsTest {
 
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        SecurityContextHolder.clearContext();
+    }
+
     @AfterEach
     void tearDown() {
         SecurityContextHolder.clearContext();
