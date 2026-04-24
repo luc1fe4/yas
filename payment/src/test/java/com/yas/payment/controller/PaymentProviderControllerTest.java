@@ -43,8 +43,9 @@ class PaymentProviderControllerTest {
         CreatePaymentVm request = new CreatePaymentVm();
         request.setId("pay1");
         request.setName("Pay 1");
+        request.setConfigureUrl("http://configure");
 
-        PaymentProviderVm response = new PaymentProviderVm("pay1", "Pay 1", null, 0, null, null);
+        PaymentProviderVm response = new PaymentProviderVm("pay1", "Pay 1", "http://configure", 0, null, null);
 
         when(paymentProviderService.create(any())).thenReturn(response);
 
@@ -60,8 +61,9 @@ class PaymentProviderControllerTest {
         UpdatePaymentVm request = new UpdatePaymentVm();
         request.setId("pay1");
         request.setName("Pay 1 Updated");
+        request.setConfigureUrl("http://configure-updated");
 
-        PaymentProviderVm response = new PaymentProviderVm("pay1", "Pay 1 Updated", null, 0, null, null);
+        PaymentProviderVm response = new PaymentProviderVm("pay1", "Pay 1 Updated", "http://configure-updated", 0, null, null);
 
         when(paymentProviderService.update(any())).thenReturn(response);
 
