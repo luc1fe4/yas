@@ -24,7 +24,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(controllers = TaxRateController.class, classes = TestControllerConfig.class)
+@WebMvcTest(controllers = TaxRateController.class)
+@org.springframework.test.context.ContextConfiguration(classes = TestControllerConfig.class)
 @AutoConfigureMockMvc(addFilters = false)
 class TaxRateControllerTest {
 
