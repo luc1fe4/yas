@@ -18,6 +18,7 @@ import com.yas.promotion.viewmodel.ProductVm;
 import com.yas.promotion.viewmodel.PromotionDetailVm;
 import com.yas.promotion.viewmodel.PromotionListVm;
 import com.yas.promotion.viewmodel.PromotionPostVm;
+import com.yas.promotion.viewmodel.PromotionPutVm;
 import com.yas.promotion.viewmodel.PromotionVerifyVm;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -250,7 +251,8 @@ class PromotionServiceTest {
 
     @Test
     void updateUsagePromotion_ThenSuccess() {
-        com.yas.promotion.viewmodel.PromotionUsageVm usageVm = new com.yas.promotion.viewmodel.PromotionUsageVm("code1", 1L, 1L);
+        com.yas.promotion.viewmodel.PromotionUsageVm usageVm = 
+            new com.yas.promotion.viewmodel.PromotionUsageVm("code1", 1L, "user1", 1L);
         
         // Mock security context for extractUserId
         org.springframework.security.core.Authentication auth = Mockito.mock(org.springframework.security.core.Authentication.class);
