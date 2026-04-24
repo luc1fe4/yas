@@ -26,6 +26,7 @@ import org.springframework.test.web.servlet.MockMvc;
     org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration.class,
     org.springframework.boot.security.oauth2.server.resource.autoconfigure.servlet.OAuth2ResourceServerAutoConfiguration.class
 })
+@org.springframework.context.annotation.Import(org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration.class)
 @AutoConfigureMockMvc(addFilters = false)
 class TaxClassControllerTest {
 
