@@ -17,10 +17,10 @@ class ViewModelTest {
             .ratingStar(5)
             .productId(2L)
             .productName("product")
-            .createdBy("user")
             .firstName("first")
             .lastName("last")
             .build();
+        rating.setCreatedBy("user");
         rating.setCreatedOn(ZonedDateTime.now());
 
         RatingVm vm = RatingVm.fromModel(rating);

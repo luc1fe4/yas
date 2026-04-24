@@ -54,11 +54,11 @@ class CustomerServiceTest {
         when(requestHeadersUriSpec.headers(any())).thenReturn(requestHeadersUriSpec);
         when(requestHeadersUriSpec.retrieve()).thenReturn(responseSpec);
 
-        CustomerVm customerVm = new CustomerVm("id", "email", "firstName", "lastName");
+        CustomerVm customerVm = new CustomerVm("user1", "email", "firstName", "lastName");
         when(responseSpec.body(CustomerVm.class)).thenReturn(customerVm);
 
         CustomerVm result = customerService.getCustomer();
-        assertThat(result.id()).isEqualTo("id");
+        assertThat(result.username()).isEqualTo("user1");
     }
 
     @Test
