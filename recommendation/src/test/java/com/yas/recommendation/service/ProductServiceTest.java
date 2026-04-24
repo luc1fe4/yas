@@ -31,7 +31,9 @@ class ProductServiceTest {
     void getProductDetail_whenCalled_returnProductDetail() {
         long productId = 1L;
         String apiUrl = "http://api.yas.local";
-        ProductDetailVm expectedProduct = new ProductDetailVm(productId, "Product Name", "slug");
+        ProductDetailVm expectedProduct = new ProductDetailVm(
+            productId, "Product Name", null, null, null, null, null, "slug",
+            null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         when(config.getApiUrl()).thenReturn(apiUrl);
 
