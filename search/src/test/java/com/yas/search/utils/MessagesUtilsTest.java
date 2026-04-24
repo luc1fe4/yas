@@ -1,28 +1,25 @@
 package com.yas.search.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import org.junit.jupiter.api.Test;
-import org.springframework.context.MessageSource;
-import java.util.Locale;
 
 class MessagesUtilsTest {
 
     @Test
-    void getMessage_whenCalled_returnMessage() {
-        MessageSource messageSource = mock(MessageSource.class);
-        MessagesUtils messagesUtils = new MessagesUtils(messageSource);
-        
-        String code = "test.code";
-        Object[] args = new Object[]{"arg1"};
-        String expectedMessage = "Test Message arg1";
-        
-        when(messageSource.getMessage(code, args, Locale.getDefault())).thenReturn(expectedMessage);
-        
-        String actualMessage = messagesUtils.getMessage(code, args);
-        
-        assertEquals(expectedMessage, actualMessage);
+    void getMessage_whenCodeNotFound_returnCode() {
+        String code = "non.existent.code";
+        String actualMessage = MessagesUtils.getMessage(code);
+        assertEquals(code, actualMessage);
+    }
+
+    @Test
+    void getMessage_withArgs_returnFormattedMessage() {
+        // Since we can't easily mock ResourceBundle static field without PowerMock/MockedStatic,
+        // we'll test the formatting logic which is always active.
+        // If a code is not found, it returns the code itself.
+        // MessageFormatter.arrayFormat("code", ["arg"]) returns "code" if no placeholders.
+        String code = "test {}";
+        String actualMessage = MessagesUtils.getMessage(code, "arg1");
+        assertEquals("test arg1", actualMessage);
     }
 }

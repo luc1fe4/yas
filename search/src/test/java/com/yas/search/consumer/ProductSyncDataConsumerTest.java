@@ -3,6 +3,7 @@ package com.yas.search.consumer;
 import static com.yas.commonlibrary.kafka.cdc.message.Operation.CREATE;
 import static com.yas.commonlibrary.kafka.cdc.message.Operation.DELETE;
 import static com.yas.commonlibrary.kafka.cdc.message.Operation.UPDATE;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
