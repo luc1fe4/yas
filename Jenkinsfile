@@ -1,3 +1,5 @@
+def changedServices = 'none'
+
 pipeline {
     agent any
 
@@ -63,7 +65,9 @@ pipeline {
                     }
 
                     def selectedServices = affected ? affected.join(',') : 'none'
+                    changedServices = selectedServices
                     env.CHANGED_SERVICES = selectedServices
+                    writeFile file: '.changed_services', text: selectedServices
 
                     if (selectedServices == 'none') {
                         echo "No service changes detected. Skipping build/test."
@@ -100,8 +104,13 @@ pipeline {
         stage('Test Phase') {
             steps {
                 script {
-                    echo "CHANGED_SERVICES in Test Phase: ${env.CHANGED_SERVICES}"
-                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    def rawServices = (changedServices ?: '').trim()
+                    if ((!rawServices || rawServices == 'none') && fileExists('.changed_services')) {
+                        rawServices = readFile('.changed_services').trim()
+                    }
+
+                    echo "CHANGED_SERVICES in Test Phase: ${rawServices}"
+                    def services = (rawServices && rawServices != 'none') ? rawServices.split(',').collect { it.trim() }.findAll { it } : []
                     if (services.isEmpty()) {
                         echo 'No changed services. Skip Test Phase.'
                     } else {
@@ -133,7 +142,12 @@ pipeline {
             post {
                 always {
                     script {
-                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                        def rawServices = (changedServices ?: '').trim()
+                        if ((!rawServices || rawServices == 'none') && fileExists('.changed_services')) {
+                            rawServices = readFile('.changed_services').trim()
+                        }
+
+                        def services = (rawServices && rawServices != 'none') ? rawServices.split(',').collect { it.trim() }.findAll { it } : []
                         services.each { svc ->
                             // Publish JUnit test results
                             junit(
@@ -159,8 +173,13 @@ pipeline {
         stage('Coverage Quality Gate') {
             steps {
                 script {
-                    echo "CHANGED_SERVICES in Coverage Quality Gate: ${env.CHANGED_SERVICES}"
-                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    def rawServices = (changedServices ?: '').trim()
+                    if ((!rawServices || rawServices == 'none') && fileExists('.changed_services')) {
+                        rawServices = readFile('.changed_services').trim()
+                    }
+
+                    echo "CHANGED_SERVICES in Coverage Quality Gate: ${rawServices}"
+                    def services = (rawServices && rawServices != 'none') ? rawServices.split(',').collect { it.trim() }.findAll { it } : []
                     if (services.isEmpty()) {
                         echo 'No changed services. Skip Coverage Quality Gate.'
                     } else {
@@ -197,8 +216,13 @@ pipeline {
         stage('Build Phase') {
             steps {
                 script {
-                    echo "CHANGED_SERVICES in Build Phase: ${env.CHANGED_SERVICES}"
-                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    def rawServices = (changedServices ?: '').trim()
+                    if ((!rawServices || rawServices == 'none') && fileExists('.changed_services')) {
+                        rawServices = readFile('.changed_services').trim()
+                    }
+
+                    echo "CHANGED_SERVICES in Build Phase: ${rawServices}"
+                    def services = (rawServices && rawServices != 'none') ? rawServices.split(',').collect { it.trim() }.findAll { it } : []
                     if (services.isEmpty()) {
                         echo 'No changed services. Skip Build Phase.'
                     } else {
@@ -231,7 +255,12 @@ pipeline {
             post {
                 success {
                     script {
-                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                        def rawServices = (changedServices ?: '').trim()
+                        if ((!rawServices || rawServices == 'none') && fileExists('.changed_services')) {
+                            rawServices = readFile('.changed_services').trim()
+                        }
+
+                        def services = (rawServices && rawServices != 'none') ? rawServices.split(',').collect { it.trim() }.findAll { it } : []
                         services.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar,${svc}/target/*.war,${svc}/build/libs/*.jar,${svc}/build/libs/*.war",
                                              allowEmptyArchive: true,
