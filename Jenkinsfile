@@ -116,6 +116,11 @@ pipeline {
                                 sh 'chmod +x gradlew || true'
                                 sh './gradlew test jacocoTestReport'
                             }
+                        } else if (fileExists("${svc}/package.json")) {
+                            dir("${svc}") {
+                                sh 'npm ci --no-audit --no-fund'
+                                sh 'npm test -- --runInBand'
+                            }
                         } else {
                             echo "Skipping tests for ${svc}: no Maven/Gradle wrapper found."
                         }
@@ -131,12 +136,16 @@ pipeline {
                                 testResults: "${svc}/target/surefire-reports/*.xml",
                                 allowEmptyResults: true // Sửa thành true để không bị lỗi nếu không có test
                             )
-                            jacoco(
-                                execPattern:   "${svc}/target/jacoco.exec",
-                                classPattern:  "${svc}/target/classes",
-                                sourcePattern: "${svc}/src/main/java",
-                                exclusionPattern: '**/*Test*.class'
-                            )
+                            if (fileExists("${svc}/target/jacoco.exec")) {
+                                jacoco(
+                                    execPattern:   "${svc}/target/jacoco.exec",
+                                    classPattern:  "${svc}/target/classes",
+                                    sourcePattern: "${svc}/src/main/java",
+                                    exclusionPattern: '**/*Test*.class'
+                                )
+                            } else {
+                                echo "Skipping Jacoco for ${svc}: no Java coverage exec file found."
+                            }
                         }
                     }
                 }
@@ -201,6 +210,11 @@ pipeline {
                             dir("${svc}") {
                                 sh 'chmod +x gradlew || true'
                                 sh './gradlew clean build -x test'
+                            }
+                        } else if (fileExists("${svc}/package.json")) {
+                            dir("${svc}") {
+                                sh 'npm ci --no-audit --no-fund'
+                                sh 'npm run build'
                             }
                         } else {
                             error("Cannot build ${svc}: no Maven/Gradle wrapper found")
