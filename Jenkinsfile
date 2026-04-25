@@ -1,3 +1,5 @@
+def changedServices = 'none'
+
 pipeline {
     agent any
 
@@ -99,11 +101,12 @@ pipeline {
 
         stage('Test Phase') {
             when {
-                expression { (env.CHANGED_SERVICES ?: 'none') != 'none' }
+                expression { changedServices?.trim() && changedServices != 'none' }
             }
             steps {
                 script {
-                    def services = env.CHANGED_SERVICES.split(',')
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    sh 'chmod +x mvnw || true'
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         if (fileExists("${svc}/mvnw")) {
@@ -130,8 +133,9 @@ pipeline {
             post {
                 always {
                     script {
-                        def services = env.CHANGED_SERVICES.split(',')
+                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
+                            // Publish JUnit test results
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
                                 allowEmptyResults: true // Sửa thành true để không bị lỗi nếu không có test
@@ -154,37 +158,30 @@ pipeline {
         
         stage('Coverage Quality Gate') {
             when {
-                expression { (env.CHANGED_SERVICES ?: 'none') != 'none' }
+                expression { changedServices?.trim() && changedServices != 'none' }
             }
             steps {
                 script {
-                    def services = env.CHANGED_SERVICES.split(',')
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
-                        
-                        // Kiểm tra file csv có tồn tại không trước khi chấm điểm
-                        def reportExists = fileExists reportPath
-                        if (reportExists) {
-                            def coverage = sh(script: """
-                                awk -F',' 'NR>1 {
-                                    missed  += \$4;
-                                    covered += \$5
-                                } END {
-                                    if (missed+covered > 0)
-                                        printf "%.0f", covered/(missed+covered)*100;
-                                    else
-                                        print 0
-                                }' ${reportPath}
-                            """, returnStdout: true).trim().toInteger()
 
-                            echo "[${svc}] Line Coverage: ${coverage}%"
+                        def coverage = sh(script: """
+                            awk -F',' 'NR>1 {
+                                missed  += \$4;
+                                covered += \$5
+                            } END {
+                                if (missed+covered > 0)
+                                    printf "%.0f", covered/(missed+covered)*100;
+                                else
+                                    print 0
+                            }' ${reportPath}
+                        """, returnStdout: true).trim().toInteger()
 
-                            // TẠM THỜI ĐỂ 0% ĐỂ CHO PASS QUA, SAU NÀY LỘC VIẾT TEST XONG THÌ ĐỔI LẠI 70
-                            if (coverage < 0) {
-                                error("[${svc}] Coverage ${coverage}% < 70%. Pipeline failed!")
-                            }
-                        } else {
-                            echo "Không tìm thấy report coverage cho ${svc}. Bỏ qua chấm điểm."
+                        echo "[${svc}] Line Coverage: ${coverage}%"
+
+                        if (coverage <= 70) {
+                            error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
                         }
                     }
                 }
@@ -193,11 +190,12 @@ pipeline {
 
         stage('Build Phase') {
             when {
-                expression { (env.CHANGED_SERVICES ?: 'none') != 'none' }
+                expression { changedServices?.trim() && changedServices != 'none' }
             }
             steps {
                 script {
-                    def services = env.CHANGED_SERVICES.split(',')
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    sh 'chmod +x mvnw || true'
                     services.each { svc ->
                         echo "Building: ${svc}"
 
@@ -225,7 +223,7 @@ pipeline {
             post {
                 success {
                     script {
-                        def services = env.CHANGED_SERVICES.split(',')
+                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar,${svc}/target/*.war,${svc}/build/libs/*.jar,${svc}/build/libs/*.war",
                                              allowEmptyArchive: true,
