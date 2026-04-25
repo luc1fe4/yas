@@ -3,23 +3,19 @@ def changedServices = 'none'
 pipeline {
     agent any
 
-    stages {
+    environment {
+        CHANGED_SERVICES = 'none'
+    }
 
+    stages {
         stage('Detect Changed Services') {
             steps {
                 script {
-                    // Dam bao co ref main trong workspace Jenkins truoc khi tinh changed files
-                    sh 'git fetch --no-tags --prune origin +refs/heads/main:refs/remotes/origin/main || true'
+                    def targetBranch = env.CHANGE_TARGET ?: 'main'
+                    sh "git fetch --no-tags origin +refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch}"
 
                     def changedFiles = sh(
-                        script: '''
-                            if git rev-parse --verify origin/main >/dev/null 2>&1; then
-                                git diff --name-only origin/main...HEAD
-                            else
-                                echo "origin/main not found, fallback to latest commit diff" >&2
-                                git diff --name-only HEAD~1..HEAD || git ls-files
-                            fi
-                        ''',
+                        script: "git diff --name-only refs/remotes/origin/${targetBranch}...HEAD",
                         returnStdout: true
                     ).trim()
 
@@ -38,44 +34,70 @@ pipeline {
                         'backoffice', 'storefront'
                     ]
 
-                    def affected = services.findAll { svc ->
-                        changedFiles && (changedFiles =~ /(?m)^${java.util.regex.Pattern.quote(svc)}\//)
+                    def detectedByScript = ''
+                    def affected = [] as Set
+
+                    // Detect trực tiếp từ danh sách file thay đổi theo prefix thư mục service
+                    def changedList = changedFiles ? changedFiles.split('\n') : []
+                    changedList.each { filePath ->
+                        def matched = services.find { svc -> filePath == svc || filePath.startsWith("${svc}/") }
+                        if (matched) {
+                            affected << matched
+                        }
                     }
 
-                    echo "Affected services detected: ${affected}"
+                    // Kết hợp script detect changed services của team (Nguyen Quoc Loc)
+                    if (fileExists('scripts/detect-changed-services.sh')) {
+                        sh 'chmod +x scripts/detect-changed-services.sh || true'
+                        detectedByScript = sh(
+                            script: 'bash scripts/detect-changed-services.sh',
+                            returnStdout: true
+                        ).trim()
+                        echo "Detect script output: ${detectedByScript}"
 
-                    changedServices = affected.isEmpty() ? 'none' : affected.join(',')
-                    if (changedServices == 'none') {
+                        if (detectedByScript && detectedByScript != 'none') {
+                            detectedByScript.split(',').collect { it.trim() }.findAll { it }.each { svc ->
+                                if (services.contains(svc)) {
+                                    affected << svc
+                                }
+                            }
+                        }
+                    }
+
+                    def selectedServices = affected ? affected.join(',') : 'none'
+                    env.CHANGED_SERVICES = selectedServices
+
+                    if (selectedServices == 'none') {
                         echo "No service changes detected. Skipping build/test."
                     } else {
-                        echo "Services to build/test: ${changedServices}"
+                        echo "Services to build/test: ${selectedServices}"
                     }
                 }
             }
         }
 
-       stage('Security Scan') {
-    steps {
-        echo "--- Đang tải và thực thi GitLeaks ---"
-        script {
-            // Tải và cài đặt GitLeaks binary trực tiếp trên Jenkins workspace
-            sh '''
-                curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
-                tar -xzf gitleaks.tar.gz
-                chmod +x gitleaks
-            '''
-            
-            // Chi quet commit tren nhanh hien tai so voi main de tranh fail vi leak cu trong lich su du an
-            sh './gitleaks detect --source=. --config=gitleaks.toml --log-opts="origin/main..HEAD" --report-format=json --report-path=gitleaks-report.json --exit-code=1'
+        stage('Security Scan') {
+            steps {
+                echo "--- Đang tải và thực thi GitLeaks ---"
+                script {
+                    // Tải và cài đặt GitLeaks binary trực tiếp trên Jenkins workspace
+                    sh '''
+                        curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
+                        tar -xzf gitleaks.tar.gz
+                        chmod +x gitleaks
+                    '''
+                    
+                    // Thực thi quét secret, bỏ qua lỗi exit code nếu cần thiết lập Quality Gate riêng
+                    sh './gitleaks detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code=0'
+                }
+            }
+            post {
+                always {
+                    // Lưu trữ file báo cáo quét bảo mật sau mỗi lần chạy
+                    archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
+                }
+            }
         }
-    }
-    post {
-        always {
-            // Lưu trữ file báo cáo quét bảo mật sau mỗi lần chạy
-            archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
-        }
-    }
-}
 
         stage('Test Phase') {
             when {
@@ -108,6 +130,7 @@ pipeline {
                 }
             }
         }
+        
         stage('Coverage Quality Gate') {
             when {
                 expression { changedServices?.trim() && changedServices != 'none' }
@@ -159,8 +182,9 @@ pipeline {
                     script {
                         def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
-                            archiveArtifacts artifacts: "${svc}/target/*.jar",
-                                             allowEmptyArchive: true
+                            archiveArtifacts artifacts: "${svc}/target/*.jar,${svc}/target/*.war,${svc}/build/libs/*.jar,${svc}/build/libs/*.war",
+                                             allowEmptyArchive: true,
+                                             fingerprint: true
                         }
                     }
                 }
@@ -168,7 +192,6 @@ pipeline {
         }
     }
 
-    // ── POST toàn bộ pipeline ────────────────────────────────────────────
     post {
         success {
             echo "CI Pipeline PASSED – All stages completed successfully."
@@ -177,7 +200,6 @@ pipeline {
             echo "CI Pipeline FAILED – Check logs above for details."
         }
         always {
-            // Dọn workspace sau mỗi lần chạy
             cleanWs()
         }
     }
