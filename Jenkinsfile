@@ -114,6 +114,14 @@ pipeline {
                     if (services.isEmpty()) {
                         echo 'No changed services. Skip Test Phase.'
                     } else {
+                        def nodeServices = services.findAll { fileExists("${it}/package.json") }
+                        if (!nodeServices.isEmpty()) {
+                            def npmExists = (sh(script: 'command -v npm >/dev/null 2>&1', returnStatus: true) == 0)
+                            if (!npmExists) {
+                                error("Missing npm on Jenkins agent. Cannot test frontend services: ${nodeServices.join(', ')}")
+                            }
+                        }
+
                         sh 'chmod +x mvnw || true'
                         services.each { svc ->
                             echo "Running tests for: ${svc}"
@@ -149,11 +157,23 @@ pipeline {
 
                         def services = (rawServices && rawServices != 'none') ? rawServices.split(',').collect { it.trim() }.findAll { it } : []
                         services.each { svc ->
-                            // Publish JUnit test results
-                            junit(
-                                testResults: "${svc}/target/surefire-reports/*.xml",
-                                allowEmptyResults: true // Sửa thành true để không bị lỗi nếu không có test
-                            )
+                            def junitPatterns = []
+                            if (fileExists("${svc}/target/surefire-reports")) {
+                                junitPatterns << "${svc}/target/surefire-reports/*.xml"
+                            }
+                            if (fileExists("${svc}/build/test-results/test")) {
+                                junitPatterns << "${svc}/build/test-results/test/*.xml"
+                            }
+
+                            if (!junitPatterns.isEmpty()) {
+                                junit(
+                                    testResults: junitPatterns.join(','),
+                                    allowEmptyResults: true
+                                )
+                            } else {
+                                echo "Skipping JUnit publish for ${svc}: no XML test reports found."
+                            }
+
                             if (fileExists("${svc}/target/jacoco.exec")) {
                                 jacoco(
                                     execPattern:   "${svc}/target/jacoco.exec",
@@ -226,6 +246,14 @@ pipeline {
                     if (services.isEmpty()) {
                         echo 'No changed services. Skip Build Phase.'
                     } else {
+                        def nodeServices = services.findAll { fileExists("${it}/package.json") }
+                        if (!nodeServices.isEmpty()) {
+                            def npmExists = (sh(script: 'command -v npm >/dev/null 2>&1', returnStatus: true) == 0)
+                            if (!npmExists) {
+                                error("Missing npm on Jenkins agent. Cannot build frontend services: ${nodeServices.join(', ')}")
+                            }
+                        }
+
                         sh 'chmod +x mvnw || true'
                         services.each { svc ->
                             echo "Building: ${svc}"
