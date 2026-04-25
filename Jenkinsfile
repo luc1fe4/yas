@@ -105,6 +105,26 @@ pipeline {
             }
         }
 
+        stage('Install Shared Libraries') {
+            steps {
+                script {
+                    echo "--- Cài đặt Parent POM và Common Library vào Jenkins ---"
+                    // 1. Cài đặt file pom.xml ở thư mục gốc (không chạy đệ quy vào các thư mục con nhờ cờ -N)
+                    sh 'chmod +x mvnw || true'
+                    sh './mvnw clean install -N'
+                    
+                    // 2. Chui vào thư mục common-library để build và cài đặt nó vào bộ nhớ đệm
+                    if (fileExists('common-library/pom.xml')) {
+                        dir('common-library') {
+                            sh '../mvnw clean install -DskipTests'
+                        }
+                    } else {
+                        echo "Không tìm thấy common-library, bỏ qua..."
+                    }
+                }
+            }
+        }
+
         stage('Test Phase') {
             steps {
                 script {
