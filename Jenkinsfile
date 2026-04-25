@@ -3,6 +3,10 @@ def changedServices = 'none'
 pipeline {
     agent any
 
+    tools {
+       nodejs 'nodejs'   // Đảm bảo Jenkins có tool này cấu hình sẵn
+    }
+
     environment {
         CHANGED_SERVICES = 'none'
     }
@@ -118,30 +122,35 @@ pipeline {
                         if (!nodeServices.isEmpty()) {
                             def npmExists = (sh(script: 'command -v npm >/dev/null 2>&1', returnStatus: true) == 0)
                             if (!npmExists) {
-                                error("Missing npm on Jenkins agent. Cannot test frontend services: ${nodeServices.join(', ')}")
+                                echo "npm is not available on Jenkins agent. Skipping frontend test for: ${nodeServices.join(', ')}"
+                                services = services.findAll { svc -> !nodeServices.contains(svc) }
                             }
                         }
 
-                        sh 'chmod +x mvnw || true'
-                        services.each { svc ->
-                            echo "Running tests for: ${svc}"
-                            if (fileExists("${svc}/mvnw")) {
-                                dir("${svc}") {
-                                    sh 'chmod +x mvnw || true'
-                                    sh './mvnw -B -ntp test jacoco:report'
+                        if (services.isEmpty()) {
+                            echo 'No runnable services left in Test Phase after environment checks.'
+                        } else {
+                            sh 'chmod +x mvnw || true'
+                            services.each { svc ->
+                                echo "Running tests for: ${svc}"
+                                if (fileExists("${svc}/mvnw")) {
+                                    dir("${svc}") {
+                                        sh 'chmod +x mvnw || true'
+                                        sh './mvnw -B -ntp test jacoco:report'
+                                    }
+                                } else if (fileExists("${svc}/gradlew")) {
+                                    dir("${svc}") {
+                                        sh 'chmod +x gradlew || true'
+                                        sh './gradlew test jacocoTestReport'
+                                    }
+                                } else if (fileExists("${svc}/package.json")) {
+                                    dir("${svc}") {
+                                        sh 'npm ci --no-audit --no-fund'
+                                        sh 'npm test -- --runInBand'
+                                    }
+                                } else {
+                                    echo "Skipping tests for ${svc}: no Maven/Gradle wrapper found."
                                 }
-                            } else if (fileExists("${svc}/gradlew")) {
-                                dir("${svc}") {
-                                    sh 'chmod +x gradlew || true'
-                                    sh './gradlew test jacocoTestReport'
-                                }
-                            } else if (fileExists("${svc}/package.json")) {
-                                dir("${svc}") {
-                                    sh 'npm ci --no-audit --no-fund'
-                                    sh 'npm test -- --runInBand'
-                                }
-                            } else {
-                                echo "Skipping tests for ${svc}: no Maven/Gradle wrapper found."
                             }
                         }
                     }
@@ -250,31 +259,36 @@ pipeline {
                         if (!nodeServices.isEmpty()) {
                             def npmExists = (sh(script: 'command -v npm >/dev/null 2>&1', returnStatus: true) == 0)
                             if (!npmExists) {
-                                error("Missing npm on Jenkins agent. Cannot build frontend services: ${nodeServices.join(', ')}")
+                                echo "npm is not available on Jenkins agent. Skipping frontend build for: ${nodeServices.join(', ')}"
+                                services = services.findAll { svc -> !nodeServices.contains(svc) }
                             }
                         }
 
-                        sh 'chmod +x mvnw || true'
-                        services.each { svc ->
-                            echo "Building: ${svc}"
+                        if (services.isEmpty()) {
+                            echo 'No runnable services left in Build Phase after environment checks.'
+                        } else {
+                            sh 'chmod +x mvnw || true'
+                            services.each { svc ->
+                                echo "Building: ${svc}"
 
-                            if (fileExists("${svc}/mvnw")) {
-                                dir("${svc}") {
-                                    sh 'chmod +x mvnw || true'
-                                    sh './mvnw -B -ntp clean package -DskipTests'
+                                if (fileExists("${svc}/mvnw")) {
+                                    dir("${svc}") {
+                                        sh 'chmod +x mvnw || true'
+                                        sh './mvnw -B -ntp clean package -DskipTests'
+                                    }
+                                } else if (fileExists("${svc}/gradlew")) {
+                                    dir("${svc}") {
+                                        sh 'chmod +x gradlew || true'
+                                        sh './gradlew clean build -x test'
+                                    }
+                                } else if (fileExists("${svc}/package.json")) {
+                                    dir("${svc}") {
+                                        sh 'npm ci --no-audit --no-fund'
+                                        sh 'npm run build'
+                                    }
+                                } else {
+                                    error("Cannot build ${svc}: no Maven/Gradle wrapper found")
                                 }
-                            } else if (fileExists("${svc}/gradlew")) {
-                                dir("${svc}") {
-                                    sh 'chmod +x gradlew || true'
-                                    sh './gradlew clean build -x test'
-                                }
-                            } else if (fileExists("${svc}/package.json")) {
-                                dir("${svc}") {
-                                    sh 'npm ci --no-audit --no-fund'
-                                    sh 'npm run build'
-                                }
-                            } else {
-                                error("Cannot build ${svc}: no Maven/Gradle wrapper found")
                             }
                         }
                     }
