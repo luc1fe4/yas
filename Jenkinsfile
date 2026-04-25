@@ -3,6 +3,10 @@ def changedServices = 'none'
 pipeline {
     agent any
 
+    tools {
+        nodejs 'nodejs'
+    }
+
     environment {
         CHANGED_SERVICES = 'none'
     }
