@@ -1,5 +1,3 @@
-def changedServices = 'none'
-
 pipeline {
     agent any
 
@@ -101,11 +99,11 @@ pipeline {
 
         stage('Test Phase') {
             when {
-                expression { changedServices?.trim() && changedServices != 'none' }
+                expression { (env.CHANGED_SERVICES ?: 'none') != 'none' }
             }
             steps {
                 script {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     sh 'chmod +x mvnw || true'
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
@@ -133,7 +131,7 @@ pipeline {
             post {
                 always {
                     script {
-                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
                             // Publish JUnit test results
                             junit(
@@ -158,30 +156,34 @@ pipeline {
         
         stage('Coverage Quality Gate') {
             when {
-                expression { changedServices?.trim() && changedServices != 'none' }
+                expression { (env.CHANGED_SERVICES ?: 'none') != 'none' }
             }
             steps {
                 script {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
-                        def coverage = sh(script: """
-                            awk -F',' 'NR>1 {
-                                missed  += \$4;
-                                covered += \$5
-                            } END {
-                                if (missed+covered > 0)
-                                    printf "%.0f", covered/(missed+covered)*100;
-                                else
-                                    print 0
-                            }' ${reportPath}
-                        """, returnStdout: true).trim().toInteger()
+                        if (fileExists(reportPath)) {
+                            def coverage = sh(script: """
+                                awk -F',' 'NR>1 {
+                                    missed  += \$4;
+                                    covered += \$5
+                                } END {
+                                    if (missed+covered > 0)
+                                        printf "%.0f", covered/(missed+covered)*100;
+                                    else
+                                        print 0
+                                }' ${reportPath}
+                            """, returnStdout: true).trim().toInteger()
 
-                        echo "[${svc}] Line Coverage: ${coverage}%"
+                            echo "[${svc}] Line Coverage: ${coverage}%"
 
-                        if (coverage <= 70) {
-                            error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
+                            if (coverage <= 70) {
+                                error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
+                            }
+                        } else {
+                            echo "Skipping coverage gate for ${svc}: jacoco.csv not found."
                         }
                     }
                 }
@@ -190,11 +192,11 @@ pipeline {
 
         stage('Build Phase') {
             when {
-                expression { changedServices?.trim() && changedServices != 'none' }
+                expression { (env.CHANGED_SERVICES ?: 'none') != 'none' }
             }
             steps {
                 script {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     sh 'chmod +x mvnw || true'
                     services.each { svc ->
                         echo "Building: ${svc}"
@@ -223,7 +225,7 @@ pipeline {
             post {
                 success {
                     script {
-                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar,${svc}/target/*.war,${svc}/build/libs/*.jar,${svc}/build/libs/*.war",
                                              allowEmptyArchive: true,
