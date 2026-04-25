@@ -33,6 +33,16 @@ pipeline {
                     ]
 
                     def detectedByScript = ''
+                    def affected = [] as Set
+
+                    // Detect trực tiếp từ danh sách file thay đổi theo prefix thư mục service
+                    def changedList = changedFiles ? changedFiles.split('\n') : []
+                    changedList.each { filePath ->
+                        def matched = services.find { svc -> filePath == svc || filePath.startsWith("${svc}/") }
+                        if (matched) {
+                            affected << matched
+                        }
+                    }
 
                     // Kết hợp script detect changed services của team (Nguyen Quoc Loc)
                     if (fileExists('scripts/detect-changed-services.sh')) {
@@ -42,6 +52,14 @@ pipeline {
                             returnStdout: true
                         ).trim()
                         echo "Detect script output: ${detectedByScript}"
+
+                        if (detectedByScript && detectedByScript != 'none') {
+                            detectedByScript.split(',').collect { it.trim() }.findAll { it }.each { svc ->
+                                if (services.contains(svc)) {
+                                    affected << svc
+                                }
+                            }
+                        }
                     }
 
                     def selectedServices = affected ? affected.join(',') : 'none'
