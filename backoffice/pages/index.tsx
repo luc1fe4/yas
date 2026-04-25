@@ -6,3 +6,5 @@ const Home: NextPage = () => {
 };
 
 export default Home;
+
+// Copyright (c) 2024-present, Facebook, Inc. and its affiliates.

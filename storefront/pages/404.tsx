@@ -30,7 +30,7 @@ const NotfoundPage = () => {
         </div>
       </div>
       <h1 className={styles['second-four']}>4</h1>
-      <p className={styles['wrong-para']}>Uh Oh! Page not found! hehehehe</p>
+      <p className={styles['wrong-para']}>Uh Oh! Page not found!</p>
     </div>
   );
 };
