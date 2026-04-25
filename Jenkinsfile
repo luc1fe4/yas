@@ -98,32 +98,34 @@ pipeline {
         }
 
         stage('Test Phase') {
-            when {
-                expression { (env.CHANGED_SERVICES ?: 'none') != 'none' }
-            }
             steps {
                 script {
+                    echo "CHANGED_SERVICES in Test Phase: ${env.CHANGED_SERVICES}"
                     def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
-                    sh 'chmod +x mvnw || true'
-                    services.each { svc ->
-                        echo "Running tests for: ${svc}"
-                        if (fileExists("${svc}/mvnw")) {
-                            dir("${svc}") {
-                                sh 'chmod +x mvnw || true'
-                                sh './mvnw -B -ntp test jacoco:report'
+                    if (services.isEmpty()) {
+                        echo 'No changed services. Skip Test Phase.'
+                    } else {
+                        sh 'chmod +x mvnw || true'
+                        services.each { svc ->
+                            echo "Running tests for: ${svc}"
+                            if (fileExists("${svc}/mvnw")) {
+                                dir("${svc}") {
+                                    sh 'chmod +x mvnw || true'
+                                    sh './mvnw -B -ntp test jacoco:report'
+                                }
+                            } else if (fileExists("${svc}/gradlew")) {
+                                dir("${svc}") {
+                                    sh 'chmod +x gradlew || true'
+                                    sh './gradlew test jacocoTestReport'
+                                }
+                            } else if (fileExists("${svc}/package.json")) {
+                                dir("${svc}") {
+                                    sh 'npm ci --no-audit --no-fund'
+                                    sh 'npm test -- --runInBand'
+                                }
+                            } else {
+                                echo "Skipping tests for ${svc}: no Maven/Gradle wrapper found."
                             }
-                        } else if (fileExists("${svc}/gradlew")) {
-                            dir("${svc}") {
-                                sh 'chmod +x gradlew || true'
-                                sh './gradlew test jacocoTestReport'
-                            }
-                        } else if (fileExists("${svc}/package.json")) {
-                            dir("${svc}") {
-                                sh 'npm ci --no-audit --no-fund'
-                                sh 'npm test -- --runInBand'
-                            }
-                        } else {
-                            echo "Skipping tests for ${svc}: no Maven/Gradle wrapper found."
                         }
                     }
                 }
@@ -155,35 +157,37 @@ pipeline {
         }
         
         stage('Coverage Quality Gate') {
-            when {
-                expression { (env.CHANGED_SERVICES ?: 'none') != 'none' }
-            }
             steps {
                 script {
+                    echo "CHANGED_SERVICES in Coverage Quality Gate: ${env.CHANGED_SERVICES}"
                     def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
-                    services.each { svc ->
-                        def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
+                    if (services.isEmpty()) {
+                        echo 'No changed services. Skip Coverage Quality Gate.'
+                    } else {
+                        services.each { svc ->
+                            def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
-                        if (fileExists(reportPath)) {
-                            def coverage = sh(script: """
-                                awk -F',' 'NR>1 {
-                                    missed  += \$4;
-                                    covered += \$5
-                                } END {
-                                    if (missed+covered > 0)
-                                        printf "%.0f", covered/(missed+covered)*100;
-                                    else
-                                        print 0
-                                }' ${reportPath}
-                            """, returnStdout: true).trim().toInteger()
+                            if (fileExists(reportPath)) {
+                                def coverage = sh(script: """
+                                    awk -F',' 'NR>1 {
+                                        missed  += \$4;
+                                        covered += \$5
+                                    } END {
+                                        if (missed+covered > 0)
+                                            printf "%.0f", covered/(missed+covered)*100;
+                                        else
+                                            print 0
+                                    }' ${reportPath}
+                                """, returnStdout: true).trim().toInteger()
 
-                            echo "[${svc}] Line Coverage: ${coverage}%"
+                                echo "[${svc}] Line Coverage: ${coverage}%"
 
-                            if (coverage <= 70) {
-                                error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
+                                if (coverage <= 70) {
+                                    error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
+                                }
+                            } else {
+                                echo "Skipping coverage gate for ${svc}: jacoco.csv not found."
                             }
-                        } else {
-                            echo "Skipping coverage gate for ${svc}: jacoco.csv not found."
                         }
                     }
                 }
@@ -191,33 +195,35 @@ pipeline {
         }
 
         stage('Build Phase') {
-            when {
-                expression { (env.CHANGED_SERVICES ?: 'none') != 'none' }
-            }
             steps {
                 script {
+                    echo "CHANGED_SERVICES in Build Phase: ${env.CHANGED_SERVICES}"
                     def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
-                    sh 'chmod +x mvnw || true'
-                    services.each { svc ->
-                        echo "Building: ${svc}"
+                    if (services.isEmpty()) {
+                        echo 'No changed services. Skip Build Phase.'
+                    } else {
+                        sh 'chmod +x mvnw || true'
+                        services.each { svc ->
+                            echo "Building: ${svc}"
 
-                        if (fileExists("${svc}/mvnw")) {
-                            dir("${svc}") {
-                                sh 'chmod +x mvnw || true'
-                                sh './mvnw -B -ntp clean package -DskipTests'
+                            if (fileExists("${svc}/mvnw")) {
+                                dir("${svc}") {
+                                    sh 'chmod +x mvnw || true'
+                                    sh './mvnw -B -ntp clean package -DskipTests'
+                                }
+                            } else if (fileExists("${svc}/gradlew")) {
+                                dir("${svc}") {
+                                    sh 'chmod +x gradlew || true'
+                                    sh './gradlew clean build -x test'
+                                }
+                            } else if (fileExists("${svc}/package.json")) {
+                                dir("${svc}") {
+                                    sh 'npm ci --no-audit --no-fund'
+                                    sh 'npm run build'
+                                }
+                            } else {
+                                error("Cannot build ${svc}: no Maven/Gradle wrapper found")
                             }
-                        } else if (fileExists("${svc}/gradlew")) {
-                            dir("${svc}") {
-                                sh 'chmod +x gradlew || true'
-                                sh './gradlew clean build -x test'
-                            }
-                        } else if (fileExists("${svc}/package.json")) {
-                            dir("${svc}") {
-                                sh 'npm ci --no-audit --no-fund'
-                                sh 'npm run build'
-                            }
-                        } else {
-                            error("Cannot build ${svc}: no Maven/Gradle wrapper found")
                         }
                     }
                 }
