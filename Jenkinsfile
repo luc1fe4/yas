@@ -35,7 +35,7 @@ pipeline {
                         'backoffice-bff', 'storefront-bff', 'identity',
                         
                         // Frontend (Next.js)
-                        'backoffice', 'storefront'
+                        // 'backoffice', 'storefront'
                     ]
 
                     def detectedByScript = ''
