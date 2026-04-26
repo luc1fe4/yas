@@ -15,6 +15,7 @@
         <sonar.organization>nashtech-garage</sonar.organization>
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
         <sonar.projectKey>nashtech-garage_yas-order</sonar.projectKey>
+        <argLine></argLine>
     </properties>
     <dependencies>
         <dependency>
@@ -113,6 +114,10 @@
                         <arg>-Xlint:deprecation</arg>
                     </compilerArgs>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
