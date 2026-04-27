@@ -64,7 +64,7 @@ pipeline {
             }
 
             tools {
-                nodejs 'NodeJS 20'
+                nodejs 'nodejs'
             }
 
             steps {
