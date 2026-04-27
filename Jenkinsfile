@@ -1,4 +1,5 @@
 def changedServices = 'none'
+def frontendServices = ['backoffice', 'storefront']
 
 pipeline {
     agent any
@@ -54,38 +55,78 @@ pipeline {
             }
         }
 
-       stage('Security Scan') {
-    steps {
-        echo "--- Đang tải và thực thi GitLeaks ---"
-        script {
-            // Tải và cài đặt GitLeaks binary trực tiếp trên Jenkins workspace
-            sh '''
-                curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
-                tar -xzf gitleaks.tar.gz
-                chmod +x gitleaks
-            '''
-            
-            // Chi quet commit tren nhanh hien tai so voi main de tranh fail vi leak cu trong lich su du an
-            sh './gitleaks detect --source=. --config=gitleaks.toml --log-opts="origin/main..HEAD" --report-format=json --report-path=gitleaks-report.json --exit-code=1'
-        }
-    }
-    post {
-        always {
-            // Lưu trữ file báo cáo quét bảo mật sau mỗi lần chạy
-            archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
-        }
-    }
-}
-
-        stage('Test Phase') {
+        stage('Frontend Build Start Test') {
             when {
-                expression { changedServices?.trim() && changedServices != 'none' }
+                expression {
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    services.any { frontendServices.contains(it) }
+                }
             }
             steps {
                 script {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def frontendChanged = services.findAll { frontendServices.contains(it) }
+
+                    frontendChanged.eachWithIndex { svc, idx ->
+                        def port = 3100 + idx
+                        echo "Running frontend build/start/test for: ${svc} on port ${port}"
+                        sh """
+                            set -e
+                            cd ${svc}
+                            npm ci
+                            npm run build
+                            npm run start -- -p ${port} > ../${svc}-start.log 2>&1 &
+                            APP_PID=\$!
+                            trap 'kill \$APP_PID >/dev/null 2>&1 || true; wait \$APP_PID >/dev/null 2>&1 || true' EXIT
+                            sleep 15
+                            npm run test -- --ci
+                        """
+                    }
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: '*-start.log', allowEmptyArchive: true
+                }
+            }
+        }
+
+       stage('Security Scan') {
+            steps {
+                echo "--- Đang tải và thực thi GitLeaks ---"
+                script {
+                    // Tải và cài đặt GitLeaks binary trực tiếp trên Jenkins workspace
+                    sh '''
+                        curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
+                        tar -xzf gitleaks.tar.gz
+                        chmod +x gitleaks
+                    '''
+                    
+                    // Chi quet commit tren nhanh hien tai so voi main de tranh fail vi leak cu trong lich su du an
+                    sh './gitleaks detect --source=. --config=gitleaks.toml --log-opts="origin/main..HEAD" --report-format=json --report-path=gitleaks-report.json --exit-code=1'
+                }
+            }
+            post {
+                always {
+                    // Lưu trữ file báo cáo quét bảo mật sau mỗi lần chạy
+                    archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('Test Phase') {
+            when {
+                expression {
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    services.any { !frontendServices.contains(it) }
+                }
+            }
+            steps {
+                script {
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def backendServices = services.findAll { !frontendServices.contains(it) }
                     sh 'chmod +x mvnw || true'
-                    services.each { svc ->
+                    backendServices.each { svc ->
                         echo "Running tests for: ${svc}"
                         sh "./mvnw verify jacoco:report -DskipITs -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                     }
@@ -95,7 +136,8 @@ pipeline {
                 always {
                     script {
                         def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                        services.each { svc ->
+                        def backendServices = services.findAll { !frontendServices.contains(it) }
+                        backendServices.each { svc ->
                             // Publish JUnit test results
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
@@ -110,12 +152,16 @@ pipeline {
         }
         stage('Coverage Quality Gate') {
             when {
-                expression { changedServices?.trim() && changedServices != 'none' }
+                expression {
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    services.any { !frontendServices.contains(it) }
+                }
             }
             steps {
                 script {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                    services.each { svc ->
+                    def backendServices = services.findAll { !frontendServices.contains(it) }
+                    backendServices.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
                         def coverage = sh(script: """
@@ -142,13 +188,17 @@ pipeline {
 
         stage('Build Phase') {
             when {
-                expression { changedServices?.trim() && changedServices != 'none' }
+                expression {
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    services.any { !frontendServices.contains(it) }
+                }
             }
             steps {
                 script {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def backendServices = services.findAll { !frontendServices.contains(it) }
                     sh 'chmod +x mvnw || true'
-                    services.each { svc ->
+                    backendServices.each { svc ->
                         echo "Building: ${svc}"
                         sh "./mvnw clean package -DskipTests -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                     }
@@ -158,7 +208,8 @@ pipeline {
                 success {
                     script {
                         def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                        services.each { svc ->
+                        def backendServices = services.findAll { !frontendServices.contains(it) }
+                        backendServices.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar",
                                              allowEmptyArchive: true
                         }
