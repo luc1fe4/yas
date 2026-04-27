@@ -3,23 +3,23 @@ def changedServices = 'none'
 pipeline {
     agent any
 
-    tools {
-       nodejs 'nodejs'   // Đảm bảo Jenkins có tool này cấu hình sẵn
-    }
-
-    environment {
-        CHANGED_SERVICES = 'none'
-    }
-
     stages {
+
         stage('Detect Changed Services') {
             steps {
                 script {
-                    def targetBranch = env.CHANGE_TARGET ?: 'main'
-                    sh "git fetch --no-tags origin +refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch}"
+                    // Dam bao co ref main trong workspace Jenkins truoc khi tinh changed files
+                    sh 'git fetch --no-tags --prune origin +refs/heads/main:refs/remotes/origin/main || true'
 
                     def changedFiles = sh(
-                        script: "git diff --name-only refs/remotes/origin/${targetBranch}...HEAD",
+                        script: '''
+                            if git rev-parse --verify origin/main >/dev/null 2>&1; then
+                                git diff --name-only origin/main...HEAD
+                            else
+                                echo "origin/main not found, fallback to latest commit diff" >&2
+                                git diff --name-only HEAD~1..HEAD || git ls-files
+                            fi
+                        ''',
                         returnStdout: true
                     ).trim()
 
@@ -34,206 +34,106 @@ pipeline {
                         // BFF & Gateways
                         'backoffice-bff', 'storefront-bff', 'identity',
                         
-                        // Frontend (Next.js) - Đã comment lại để bỏ qua theo Lựa chọn 2
-                        // 'backoffice', 'storefront'
+                        // Frontend (Next.js)
+                        'backoffice', 'storefront'
                     ]
 
-                    def detectedByScript = ''
-                    def affected = [] as Set
-
-                    def changedList = changedFiles ? changedFiles.split('\n') : []
-                    changedList.each { filePath ->
-                        def matched = services.find { svc -> filePath == svc || filePath.startsWith("${svc}/") }
-                        if (matched) {
-                            affected << matched
-                        }
+                    def affected = services.findAll { svc ->
+                        changedFiles && (changedFiles =~ /(?m)^${java.util.regex.Pattern.quote(svc)}\//)
                     }
 
-                    if (fileExists('scripts/detect-changed-services.sh')) {
-                        sh 'chmod +x scripts/detect-changed-services.sh || true'
-                        detectedByScript = sh(
-                            script: 'bash scripts/detect-changed-services.sh',
-                            returnStdout: true
-                        ).trim()
-                        echo "Detect script output: ${detectedByScript}"
+                    echo "Affected services detected: ${affected}"
 
-                        if (detectedByScript && detectedByScript != 'none') {
-                            detectedByScript.split(',').collect { it.trim() }.findAll { it }.each { svc ->
-                                if (services.contains(svc)) {
-                                    affected << svc
-                                }
-                            }
-                        }
-                    }
-
-                    def selectedServices = affected ? affected.join(',') : 'none'
-                    changedServices = selectedServices
-                    env.CHANGED_SERVICES = selectedServices
-                    writeFile file: '.changed_services', text: selectedServices
-
-                    if (selectedServices == 'none') {
+                    changedServices = affected.isEmpty() ? 'none' : affected.join(',')
+                    if (changedServices == 'none') {
                         echo "No service changes detected. Skipping build/test."
                     } else {
-                        echo "Services to build/test: ${selectedServices}"
+                        echo "Services to build/test: ${changedServices}"
                     }
                 }
             }
         }
 
-        stage('Security Scan') {
-            steps {
-                echo "--- Đang tải và thực thi GitLeaks ---"
-                script {
-                    sh '''
-                        curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
-                        tar -xzf gitleaks.tar.gz
-                        chmod +x gitleaks
-                    '''
-                    sh './gitleaks detect --source=. --report-format=json --report-path=gitleaks-report.json --exit-code=0'
-                }
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
-                }
-            }
+       stage('Security Scan') {
+    steps {
+        echo "--- Đang tải và thực thi GitLeaks ---"
+        script {
+            // Tải và cài đặt GitLeaks binary trực tiếp trên Jenkins workspace
+            sh '''
+                curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
+                tar -xzf gitleaks.tar.gz
+                chmod +x gitleaks
+            '''
+            
+            // Chi quet commit tren nhanh hien tai so voi main de tranh fail vi leak cu trong lich su du an
+            sh './gitleaks detect --source=. --config=gitleaks.toml --log-opts="origin/main..HEAD" --report-format=json --report-path=gitleaks-report.json --exit-code=1'
         }
-
-        // ĐÃ XÓA STAGE "Install Shared Libraries" Ở ĐÂY
+    }
+    post {
+        always {
+            // Lưu trữ file báo cáo quét bảo mật sau mỗi lần chạy
+            archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
+        }
+    }
+}
 
         stage('Test Phase') {
+            when {
+                expression { changedServices?.trim() && changedServices != 'none' }
+            }
             steps {
                 script {
-                    def rawServices = (changedServices ?: '').trim()
-                    if ((!rawServices || rawServices == 'none') && fileExists('.changed_services')) {
-                        rawServices = readFile('.changed_services').trim()
-                    }
-
-                    echo "CHANGED_SERVICES in Test Phase: ${rawServices}"
-                    def services = (rawServices && rawServices != 'none') ? rawServices.split(',').collect { it.trim() }.findAll { it } : []
-                    if (services.isEmpty()) {
-                        echo 'No changed services. Skip Test Phase.'
-                    } else {
-                        def nodeServices = services.findAll { fileExists("${it}/package.json") }
-                        if (!nodeServices.isEmpty()) {
-                            def npmExists = (sh(script: 'command -v npm >/dev/null 2>&1', returnStatus: true) == 0)
-                            if (!npmExists) {
-                                echo "npm is not available on Jenkins agent. Skipping frontend test for: ${nodeServices.join(', ')}"
-                                services = services.findAll { svc -> !nodeServices.contains(svc) }
-                            }
-                        }
-
-                        if (services.isEmpty()) {
-                            echo 'No runnable services left in Test Phase after environment checks.'
-                        } else {
-                            sh 'chmod +x mvnw || true'
-                            services.each { svc ->
-                                echo "Running tests for: ${svc}"
-                                
-                                // ĐÃ SỬA LẠI ĐOẠN NÀY: Dùng -pl và -am, đứng ở thư mục gốc
-                                if (fileExists("${svc}/pom.xml")) {
-                                    sh "./mvnw -B -ntp test jacoco:report -pl ${svc} -am"
-                                } 
-                                else if (fileExists("${svc}/gradlew")) {
-                                    dir("${svc}") {
-                                        sh 'chmod +x gradlew || true'
-                                        sh './gradlew test jacocoTestReport'
-                                    }
-                                } 
-                                else if (fileExists("${svc}/package.json")) {
-                                    dir("${svc}") {
-                                        sh 'npm ci --no-audit --no-fund'
-                                        sh 'npm test -- --runInBand'
-                                    }
-                                } else {
-                                    echo "Skipping tests for ${svc}: no Maven/Gradle wrapper found."
-                                }
-                            }
-                        }
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    sh 'chmod +x mvnw || true'
+                    services.each { svc ->
+                        echo "Running tests for: ${svc}"
+                        sh "./mvnw verify jacoco:report -DskipITs -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                     }
                 }
             }
             post {
                 always {
                     script {
-                        def rawServices = (changedServices ?: '').trim()
-                        if ((!rawServices || rawServices == 'none') && fileExists('.changed_services')) {
-                            rawServices = readFile('.changed_services').trim()
-                        }
-
-                        def services = (rawServices && rawServices != 'none') ? rawServices.split(',').collect { it.trim() }.findAll { it } : []
+                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
-                            def junitPatterns = []
-                            if (fileExists("${svc}/target/surefire-reports")) {
-                                junitPatterns << "${svc}/target/surefire-reports/*.xml"
-                            }
-                            if (fileExists("${svc}/build/test-results/test")) {
-                                junitPatterns << "${svc}/build/test-results/test/*.xml"
-                            }
-
-                            if (!junitPatterns.isEmpty()) {
-                                junit(
-                                    testResults: junitPatterns.join(','),
-                                    allowEmptyResults: true
-                                )
-                            } else {
-                                echo "Skipping JUnit publish for ${svc}: no XML test reports found."
-                            }
-
-                            if (fileExists("${svc}/target/jacoco.exec")) {
-                                jacoco(
-                                    execPattern:   "${svc}/target/jacoco.exec",
-                                    classPattern:  "${svc}/target/classes",
-                                    sourcePattern: "${svc}/src/main/java",
-                                    exclusionPattern: '**/*Test*.class'
-                                )
-                            } else {
-                                echo "Skipping Jacoco for ${svc}: no Java coverage exec file found."
-                            }
+                            // Publish JUnit test results
+                            junit(
+                                testResults: "${svc}/target/surefire-reports/*.xml",
+                                allowEmptyResults: true
+                            )
+                            // Note: jacoco() DSL step removed - JaCoCo plugin not installed.
+                            // Coverage is enforced via the 'Coverage Quality Gate' stage below.
                         }
                     }
                 }
             }
         }
-        
         stage('Coverage Quality Gate') {
+            when {
+                expression { changedServices?.trim() && changedServices != 'none' }
+            }
             steps {
                 script {
-                    def rawServices = (changedServices ?: '').trim()
-                    if ((!rawServices || rawServices == 'none') && fileExists('.changed_services')) {
-                        rawServices = readFile('.changed_services').trim()
-                    }
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    services.each { svc ->
+                        def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
-                    echo "CHANGED_SERVICES in Coverage Quality Gate: ${rawServices}"
-                    def services = (rawServices && rawServices != 'none') ? rawServices.split(',').collect { it.trim() }.findAll { it } : []
-                    if (services.isEmpty()) {
-                        echo 'No changed services. Skip Coverage Quality Gate.'
-                    } else {
-                        services.each { svc ->
-                            def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
+                        def coverage = sh(script: """
+                            awk -F',' 'NR>1 {
+                                missed  += \$4;
+                                covered += \$5
+                            } END {
+                                if (missed+covered > 0)
+                                    printf "%.0f", covered/(missed+covered)*100;
+                                else
+                                    print 0
+                            }' ${reportPath}
+                        """, returnStdout: true).trim().toInteger()
 
-                            if (fileExists(reportPath)) {
-                                def coverage = sh(script: """
-                                    awk -F',' 'NR>1 {
-                                        missed  += \$4;
-                                        covered += \$5
-                                    } END {
-                                        if (missed+covered > 0)
-                                            printf "%.0f", covered/(missed+covered)*100;
-                                        else
-                                            print 0
-                                    }' ${reportPath}
-                                """, returnStdout: true).trim().toInteger()
+                        echo "[${svc}] Line Coverage: ${coverage}%"
 
-                                echo "[${svc}] Line Coverage: ${coverage}%"
-
-                                // ĐÃ SỬA LẠI ĐOẠN NÀY THÀNH < 0 ĐỂ PIPELINE KHÔNG BỊ FAIL
-                                if (coverage < 0) {
-                                    error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
-                                }
-                            } else {
-                                echo "Skipping coverage gate for ${svc}: jacoco.csv not found."
-                            }
+                        if (coverage <= 70) {
+                            error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
                         }
                     }
                 }
@@ -241,70 +141,26 @@ pipeline {
         }
 
         stage('Build Phase') {
+            when {
+                expression { changedServices?.trim() && changedServices != 'none' }
+            }
             steps {
                 script {
-                    def rawServices = (changedServices ?: '').trim()
-                    if ((!rawServices || rawServices == 'none') && fileExists('.changed_services')) {
-                        rawServices = readFile('.changed_services').trim()
-                    }
-
-                    echo "CHANGED_SERVICES in Build Phase: ${rawServices}"
-                    def services = (rawServices && rawServices != 'none') ? rawServices.split(',').collect { it.trim() }.findAll { it } : []
-                    if (services.isEmpty()) {
-                        echo 'No changed services. Skip Build Phase.'
-                    } else {
-                        def nodeServices = services.findAll { fileExists("${it}/package.json") }
-                        if (!nodeServices.isEmpty()) {
-                            def npmExists = (sh(script: 'command -v npm >/dev/null 2>&1', returnStatus: true) == 0)
-                            if (!npmExists) {
-                                echo "npm is not available on Jenkins agent. Skipping frontend build for: ${nodeServices.join(', ')}"
-                                services = services.findAll { svc -> !nodeServices.contains(svc) }
-                            }
-                        }
-
-                        if (services.isEmpty()) {
-                            echo 'No runnable services left in Build Phase after environment checks.'
-                        } else {
-                            sh 'chmod +x mvnw || true'
-                            services.each { svc ->
-                                echo "Building: ${svc}"
-
-                                // ĐÃ SỬA LẠI ĐOẠN NÀY: Dùng -pl và -am, đứng ở thư mục gốc
-                                if (fileExists("${svc}/pom.xml")) {
-                                    sh "./mvnw -B -ntp clean package -DskipTests -pl ${svc} -am"
-                                } 
-                                else if (fileExists("${svc}/gradlew")) {
-                                    dir("${svc}") {
-                                        sh 'chmod +x gradlew || true'
-                                        sh './gradlew clean build -x test'
-                                    }
-                                } 
-                                else if (fileExists("${svc}/package.json")) {
-                                    dir("${svc}") {
-                                        sh 'npm ci --no-audit --no-fund'
-                                        sh 'npm run build'
-                                    }
-                                } else {
-                                    error("Cannot build ${svc}: no Maven/Gradle wrapper found")
-                                }
-                            }
-                        }
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    sh 'chmod +x mvnw || true'
+                    services.each { svc ->
+                        echo "Building: ${svc}"
+                        sh "./mvnw clean package -DskipTests -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                     }
                 }
             }
             post {
                 success {
                     script {
-                        def rawServices = (changedServices ?: '').trim()
-                        if ((!rawServices || rawServices == 'none') && fileExists('.changed_services')) {
-                            rawServices = readFile('.changed_services').trim()
-                        }
-
-                        def services = (rawServices && rawServices != 'none') ? rawServices.split(',').collect { it.trim() }.findAll { it } : []
+                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
-                            archiveArtifacts artifacts: "${svc}/target/*.jar,${svc}/target/*.war,${svc}/build/libs/*.jar,${svc}/build/libs/*.war",
-                                             allowEmptyArchive: true,
-                                             fingerprint: true
+                            archiveArtifacts artifacts: "${svc}/target/*.jar",
+                                             allowEmptyArchive: true
                         }
                     }
                 }
@@ -312,6 +168,7 @@ pipeline {
         }
     }
 
+    // ── POST toàn bộ pipeline ────────────────────────────────────────────
     post {
         success {
             echo "CI Pipeline PASSED – All stages completed successfully."
@@ -320,6 +177,7 @@ pipeline {
             echo "CI Pipeline FAILED – Check logs above for details."
         }
         always {
+            // Dọn workspace sau mỗi lần chạy
             cleanWs()
         }
     }
