@@ -77,9 +77,14 @@ pipeline {
                         def port = 3100 + idx
                         echo "Running frontend build/start/test for: ${svc} on port ${port}"
                         
-                        // Đã thêm dấu chấm phẩy (;) vào cuối mỗi lệnh để chống lỗi dính dòng
                         sh """
                             set -e;
+                            
+                            # --- CÀI ĐẶT THƯ VIỆN BỊ THIẾU CỦA LINUX ---
+                            apt-get update -y || true;
+                            apt-get install -y libatomic1 || true;
+                            # ------------------------------------------
+
                             node --version;
                             npm --version;
                             cd ${svc};
