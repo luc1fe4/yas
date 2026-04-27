@@ -10,7 +10,7 @@
     </parent>
     <artifactId>storefront-bff</artifactId>
     <version>${revision}</version>
-    <n>storefront-bff</n>
+    <name>storefront-bff</name>
     <description>Back end for Storefront</description>
     <properties>
         <sonar.organization>nashtech-garage</sonar.organization>
