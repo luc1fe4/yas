@@ -63,6 +63,7 @@ pipeline {
                 }
             }
 
+            // Jenkins Plugin sẽ lo việc nạp NodeJS vào môi trường
             tools {
                 nodejs 'nodejs'
             }
@@ -75,25 +76,11 @@ pipeline {
                     frontendChanged.eachWithIndex { svc, idx ->
                         def port = 3100 + idx
                         echo "Running frontend build/start/test for: ${svc} on port ${port}"
+                        
+                        // Đã xóa bỏ đoạn export PATH và tải Node.js thủ công
+                        // Cứ thế gọi thẳng node và npm, Jenkins đã lo phần lõi rồi
                         sh """
                             set -e
-
-                            export PATH="/usr/local/bin:/usr/bin:/bin:\$PATH"
-                            if ! command -v npm >/dev/null 2>&1; then
-                                echo "npm not found. Bootstrapping local Node.js runtime..."
-                                NODE_VERSION="v20.15.1"
-                                NODE_ROOT="\$WORKSPACE/.tools"
-                                NODE_ARCHIVE="node-\${NODE_VERSION}-linux-x64.tar.xz"
-                                NODE_DIR="\$NODE_ROOT/node-\${NODE_VERSION}-linux-x64"
-
-                                mkdir -p "\$NODE_ROOT"
-                                if [ ! -x "\$NODE_DIR/bin/npm" ]; then
-                                    curl -fsSL "https://nodejs.org/dist/\${NODE_VERSION}/\${NODE_ARCHIVE}" -o "\$NODE_ROOT/\${NODE_ARCHIVE}"
-                                    tar -xf "\$NODE_ROOT/\${NODE_ARCHIVE}" -C "\$NODE_ROOT"
-                                fi
-                                export PATH="\$NODE_DIR/bin:\$PATH"
-                            fi
-
                             node --version
                             npm --version
                             cd ${svc}
