@@ -4,23 +4,42 @@ def frontendServices = ['backoffice', 'storefront']
 pipeline {
     agent any
 
+    parameters {
+        string(name: 'DIFF_BASE_BRANCH', defaultValue: 'main', description: 'Nhanh goc de so sanh changed files (vd: main, develop, release/v1)')
+    }
+
+    environment {
+        DIFF_BASE_BRANCH = "${params.DIFF_BASE_BRANCH ?: 'main'}"
+    }
+
     stages {
 
         stage('Detect Changed Services') {
             steps {
                 script {
-                    // Dam bao co ref main trong workspace Jenkins truoc khi tinh changed files
-                    sh 'git fetch --no-tags --prune origin +refs/heads/main:refs/remotes/origin/main || true'
+                    def diffBaseBranch = (env.DIFF_BASE_BRANCH ?: 'main').trim()
+                    if (!diffBaseBranch) {
+                        diffBaseBranch = 'main'
+                    }
+                    if (!(diffBaseBranch ==~ /^[A-Za-z0-9._\/-]+$/)) {
+                        error("DIFF_BASE_BRANCH khong hop le: ${diffBaseBranch}")
+                    }
+
+                    def diffBaseRef = "origin/${diffBaseBranch}"
+                    echo "Using base branch for diff: ${diffBaseRef}"
+
+                    // Dam bao co ref base branch trong workspace Jenkins truoc khi tinh changed files
+                    sh "git fetch --no-tags --prune origin +refs/heads/${diffBaseBranch}:refs/remotes/origin/${diffBaseBranch} || true"
 
                     def changedFiles = sh(
-                        script: '''
-                            if git rev-parse --verify origin/main >/dev/null 2>&1; then
-                                git diff --name-only origin/main...HEAD
+                        script: """
+                            if git rev-parse --verify ${diffBaseRef} >/dev/null 2>&1; then
+                                git diff --name-only ${diffBaseRef}...HEAD
                             else
-                                echo "origin/main not found, fallback to latest commit diff" >&2
+                                echo "${diffBaseRef} not found, fallback to latest commit diff" >&2
                                 git diff --name-only HEAD~1..HEAD || git ls-files
                             fi
-                        ''',
+                        """,
                         returnStdout: true
                     ).trim()
 
@@ -108,6 +127,11 @@ pipeline {
             steps {
                 echo "--- Đang tải và thực thi GitLeaks ---"
                 script {
+                    def diffBaseBranch = (env.DIFF_BASE_BRANCH ?: 'main').trim()
+                    if (!diffBaseBranch) {
+                        diffBaseBranch = 'main'
+                    }
+
                     // Tải và cài đặt GitLeaks binary trực tiếp trên Jenkins workspace
                     sh '''
                         curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
@@ -116,7 +140,7 @@ pipeline {
                     '''
                     
                     // Chi quet commit tren nhanh hien tai so voi main de tranh fail vi leak cu trong lich su du an
-                    sh './gitleaks detect --source=. --config=gitleaks.toml --log-opts="origin/main..HEAD" --report-format=json --report-path=gitleaks-report.json --exit-code=1'
+                    sh "./gitleaks detect --source=. --config=gitleaks.toml --log-opts=\"origin/${diffBaseBranch}..HEAD\" --report-format=json --report-path=gitleaks-report.json --exit-code=1"
                 }
             }
             post {
