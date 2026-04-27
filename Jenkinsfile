@@ -1,5 +1,11 @@
 pipeline {
     agent any
+    options {
+        // Tắt shallow clone để git diff hoạt động đúng
+        checkout([$class: 'GitSCM',
+            extensions: [[$class: 'CloneOption', shallow: false]]
+        ])
+    }
 
     tools {
         jdk 'jdk21'
