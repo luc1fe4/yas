@@ -77,20 +77,19 @@ pipeline {
                         def port = 3100 + idx
                         echo "Running frontend build/start/test for: ${svc} on port ${port}"
                         
-                        // Đã xóa bỏ đoạn export PATH và tải Node.js thủ công
-                        // Cứ thế gọi thẳng node và npm, Jenkins đã lo phần lõi rồi
+                        // Đã thêm dấu chấm phẩy (;) vào cuối mỗi lệnh để chống lỗi dính dòng
                         sh """
-                            set -e
-                            node --version
-                            npm --version
-                            cd ${svc}
-                            npm ci
-                            npm run build
+                            set -e;
+                            node --version;
+                            npm --version;
+                            cd ${svc};
+                            npm ci;
+                            npm run build;
                             npm run start -- -p ${port} > ../${svc}-start.log 2>&1 &
-                            APP_PID=\$!
-                            trap 'kill \$APP_PID >/dev/null 2>&1 || true; wait \$APP_PID >/dev/null 2>&1 || true' EXIT
-                            sleep 15
-                            npm run test -- --ci
+                            APP_PID=\$!;
+                            trap 'kill \$APP_PID >/dev/null 2>&1 || true; wait \$APP_PID >/dev/null 2>&1 || true' EXIT;
+                            sleep 15;
+                            npm run test -- --ci;
                         """
                     }
                 }
