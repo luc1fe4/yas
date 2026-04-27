@@ -80,11 +80,9 @@ pipeline {
                         sh """
                             set -e;
                             
-                            # --- CÀI ĐẶT THƯ VIỆN BỊ THIẾU CỦA LINUX ---
                             apt-get update -y || true;
                             apt-get install -y libatomic1 || true;
-                            # ------------------------------------------
-
+                            
                             node --version;
                             npm --version;
                             cd ${svc};
