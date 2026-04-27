@@ -62,6 +62,11 @@ pipeline {
                     services.any { frontendServices.contains(it) }
                 }
             }
+
+            tools {
+                nodejs 'NodeJS 20'
+            }
+
             steps {
                 script {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
