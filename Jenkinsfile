@@ -5,7 +5,7 @@ pipeline {
     agent any
 
     parameters {
-        string(name: 'DIFF_BASE_BRANCH', defaultValue: 'main', description: 'Nhanh goc de so sanh changed files (vd: main, develop, release/v1)')
+        string(name: 'DIFF_BASE_BRANCH', defaultValue: 'feature/backoffice-unit-test', description: 'Nhanh goc de so sanh changed files (vd: main, develop, release/v1)')
     }
 
     environment {
