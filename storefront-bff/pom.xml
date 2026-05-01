@@ -55,6 +55,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
                 <executions>
                     <!-- Inject JaCoCo agent vào argLine trước khi test chạy -->
                     <execution>
