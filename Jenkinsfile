@@ -1,4 +1,6 @@
-﻿def changedServices = 'none'
+import groovy.transform.Field
+
+@Field String changedServices = 'none'
 
 pipeline {
     agent any
