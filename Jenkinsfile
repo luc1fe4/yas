@@ -1,9 +1,9 @@
-﻿import groovy.transform.Field
-
-@Field String changedServices = 'none'
-
 pipeline {
     agent any
+
+    environment {
+        CHANGED_SERVICES = 'none'
+    }
 
     tools {
         maven 'Maven-3.9'
@@ -44,11 +44,11 @@ pipeline {
 
                     echo "Affected services detected: ${affected}"
 
-                    changedServices = affected.isEmpty() ? 'none' : affected.join(',')
-                    if (changedServices == 'none') {
+                    env.CHANGED_SERVICES = affected.isEmpty() ? 'none' : affected.join(',')
+                    if (env.CHANGED_SERVICES == 'none') {
                         echo 'No service changes detected. Skipping build/test.'
                     } else {
-                        echo "Services to build/test: ${changedServices}"
+                        echo "Services to build/test: ${env.CHANGED_SERVICES}"
                     }
                 }
             }
@@ -76,11 +76,11 @@ pipeline {
 
         stage('Test Phase') {
             when {
-                expression { changedServices?.trim() && changedServices != 'none' }
+                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
             }
             steps {
                 script {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         sh "mvn verify -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
@@ -90,7 +90,7 @@ pipeline {
             post {
                 always {
                     script {
-                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
@@ -104,11 +104,11 @@ pipeline {
 
         stage('Coverage Quality Gate') {
             when {
-                expression { changedServices?.trim() && changedServices != 'none' }
+                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
             }
             steps {
                 script {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
@@ -145,7 +145,7 @@ pipeline {
 
         stage('SonarQube Scan') {
             when {
-                expression { changedServices?.trim() && changedServices != 'none' }
+                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
             }
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
@@ -166,7 +166,7 @@ pipeline {
 
         stage('Snyk Dependency Scan') {
             when {
-                expression { changedServices?.trim() && changedServices != 'none' }
+                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
             }
             steps {
                 withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
@@ -190,11 +190,11 @@ pipeline {
 
         stage('Build Phase') {
             when {
-                expression { changedServices?.trim() && changedServices != 'none' }
+                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
             }
             steps {
                 script {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         echo "Building: ${svc}"
                         sh "mvn clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
@@ -204,7 +204,7 @@ pipeline {
             post {
                 success {
                     script {
-                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar",
                                              allowEmptyArchive: true
