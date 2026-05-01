@@ -113,6 +113,9 @@ pipeline {
         }
 
         stage('Coverage Quality Gate') {
+            when {
+                expression { changedServices?.trim() && changedServices != 'none' }
+            }
             steps {
                 script {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
