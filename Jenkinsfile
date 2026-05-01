@@ -113,16 +113,22 @@ pipeline {
         }
 
         stage('Coverage Quality Gate') {
-            when {
-                expression { changedServices?.trim() && changedServices != 'none' }
-            }
             steps {
                 script {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
-                        // Cột $8 = LINE_MISSED, $9 = LINE_COVERED (đúng với line coverage)
+                        // Kiểm tra file tồn tại trước khi đọc
+                        def fileExists = sh(script: "test -f ${reportPath} && echo 'yes' || echo 'no'", returnStdout: true).trim()
+
+                        if (fileExists == 'no') {
+                            echo "[${svc}] WARNING: jacoco.csv not found at ${reportPath}"
+                            echo "[${svc}] Listing target/site to debug:"
+                            sh "find ${svc}/target -name '*.csv' -o -name 'jacoco*' 2>/dev/null || echo 'No jacoco files found'"
+                            error("[${svc}] JaCoCo report missing — check if jacoco-maven-plugin is configured in ${svc}/pom.xml")
+                        }
+
                         def coverage = sh(script: """
                             awk -F',' 'NR>1 {
                                 missed  += \$8;
