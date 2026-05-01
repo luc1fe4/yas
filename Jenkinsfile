@@ -1,4 +1,4 @@
-pipeline {
+﻿pipeline {
     agent any
 
     environment {
@@ -144,9 +144,9 @@ pipeline {
         }
 
         stage('SonarQube Scan') {
-            when {
-                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
-            }
+            //when {
+                //expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
+            //}
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     sh '''
@@ -165,9 +165,9 @@ pipeline {
         }
 
         stage('Snyk Dependency Scan') {
-            when {
-                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
-            }
+            //when {
+                //expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
+            //}
             steps {
                 withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
                     sh '''
