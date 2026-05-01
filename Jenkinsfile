@@ -1,4 +1,4 @@
-﻿pipeline {
+pipeline {
     agent any
 
     environment {
@@ -155,7 +155,7 @@
                             -Dsonar.token=$SONAR_TOKEN \
                             -Dsonar.organization=luc1fe4 \
                             -Dsonar.projectKey=luc1fe4_yas \
-                            -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \
+                            -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml
                     '''
                 }
             }
