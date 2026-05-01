@@ -284,5 +284,20 @@ class SecurityConfigTest {
             assertThat(vm.productId()).isEqualTo(99L);
             assertThat(vm.quantity()).isEqualTo(5);
         }
+
+        @Test
+        @DisplayName("CartGetDetailVm — id, customerId, cartDetails đúng")
+        void cartGetDetailVm() {
+            com.yas.storefrontbff.viewmodel.CartDetailVm detail =
+                new com.yas.storefrontbff.viewmodel.CartDetailVm(1L, 101L, 2);
+
+            com.yas.storefrontbff.viewmodel.CartGetDetailVm vm =
+                new com.yas.storefrontbff.viewmodel.CartGetDetailVm(10L, "customer-abc", List.of(detail));
+
+            assertThat(vm.id()).isEqualTo(10L);
+            assertThat(vm.customerId()).isEqualTo("customer-abc");
+            assertThat(vm.cartDetails()).hasSize(1);
+            assertThat(vm.cartDetails().get(0).productId()).isEqualTo(101L);
+        }
     }
 }
