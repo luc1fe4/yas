@@ -150,8 +150,7 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     sh '''
-                        mvn org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \
-                            -DskipTests \
+                        mvn -DskipTests compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \
                             -Drevision=1.0-SNAPSHOT \
                             -Dsonar.token=$SONAR_TOKEN \
                             -Dsonar.organization=luc1fe4 \
