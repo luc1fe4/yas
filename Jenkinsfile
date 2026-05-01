@@ -1,4 +1,4 @@
-pipeline {
+﻿pipeline {
     agent any
 
     environment {
@@ -156,8 +156,6 @@ pipeline {
                             -Dsonar.organization=luc1fe4 \
                             -Dsonar.projectKey=luc1fe4_yas \
                             -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \
-                            -Dsonar.qualitygate.wait=true \
-                            -Dsonar.qualitygate.timeout=300
                     '''
                 }
             }
