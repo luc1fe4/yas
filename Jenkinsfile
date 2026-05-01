@@ -84,10 +84,9 @@ pipeline {
             steps {
                 script {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                    sh 'chmod +x mvnw || true'
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
-                        sh "./mvnw verify jacoco:report -DskipITs -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                        sh "mvn verify jacoco:report -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                     }
                 }
             }
@@ -96,13 +95,10 @@ pipeline {
                     script {
                         def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
-                            // Publish JUnit test results
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
                                 allowEmptyResults: true
                             )
-                            // Note: jacoco() DSL step removed - JaCoCo plugin not installed.
-                            // Coverage is enforced via the 'Coverage Quality Gate' stage below.
                         }
                     }
                 }
@@ -147,10 +143,9 @@ pipeline {
             steps {
                 script {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                    sh 'chmod +x mvnw || true'
                     services.each { svc ->
                         echo "Building: ${svc}"
-                        sh "./mvnw clean package -DskipTests -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                        sh "mvn clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                     }
                 }
             }
@@ -159,8 +154,7 @@ pipeline {
                     script {
                         def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
-                            archiveArtifacts artifacts: "${svc}/target/*.jar",
-                                             allowEmptyArchive: true
+                            archiveArtifacts artifacts: "${svc}/target/*.jar", allowEmptyArchive: true
                         }
                     }
                 }
