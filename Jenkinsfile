@@ -87,8 +87,8 @@ pipeline {
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
                         dir("${svc}") {
-                            sh 'chmod +x mvnw || true'
-                            sh "./mvnw verify jacoco:report -DskipITs -f ../pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                            sh "chmod +x ${svc}/mvnw || true"
+                            sh "./${svc}/mvnw verify jacoco:report -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                         }
                     }
                 }
@@ -152,8 +152,8 @@ pipeline {
                     services.each { svc ->
                         echo "Building: ${svc}"
                         dir("${svc}") {
-                            sh 'chmod +x mvnw || true'
-                            sh "./mvnw clean package -DskipTests -f ../pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                            sh "chmod +x ${svc}/mvnw || true"
+                            sh "./${svc}/mvnw verify jacoco:report -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                         }
                     }
                 }
