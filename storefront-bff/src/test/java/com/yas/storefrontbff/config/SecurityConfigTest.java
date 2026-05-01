@@ -437,5 +437,17 @@ class SecurityConfigTest {
 
             assertThat(userVm.username()).isNull();
         }
+        @Test
+        @DisplayName("ServiceUrlConfig services map is exposed")
+        void serviceUrlConfig() {
+            ServiceUrlConfig config = new ServiceUrlConfig(Map.of(
+                "cart", "http://cart-service",
+                "product", "http://product-service"
+            ));
+
+            assertThat(config.services())
+                .containsEntry("cart", "http://cart-service")
+                .containsEntry("product", "http://product-service");
+        }
     }
 }
