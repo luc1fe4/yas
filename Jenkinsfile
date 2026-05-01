@@ -4,7 +4,7 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven-3.9'   // Phải khớp tên đặt trong: Manage Jenkins → Tools → Maven installations
+        maven 'Maven-3.9'
     }
 
     stages {
@@ -12,7 +12,6 @@ pipeline {
         stage('Detect Changed Services') {
             steps {
                 script {
-                    // Dam bao co ref main trong workspace Jenkins truoc khi tinh changed files
                     sh 'git fetch --no-tags --prune origin +refs/heads/main:refs/remotes/origin/main || true'
 
                     def changedFiles = sh(
@@ -30,15 +29,10 @@ pipeline {
                     echo "Changed files:\n${changedFiles}"
 
                     def services = [
-                        // Business Services (Backend - Java/Spring)
                         'cart', 'customer', 'delivery', 'inventory', 'location',
                         'media', 'order', 'payment', 'payment-paypal', 'product',
                         'promotion', 'rating', 'recommendation', 'search', 'tax',
-
-                        // BFF & Gateways
                         'backoffice-bff', 'storefront-bff', 'identity',
-
-                        // Frontend (Next.js)
                         'backoffice', 'storefront'
                     ]
 
@@ -50,7 +44,7 @@ pipeline {
 
                     changedServices = affected.isEmpty() ? 'none' : affected.join(',')
                     if (changedServices == 'none') {
-                        echo "No service changes detected. Skipping build/test."
+                        echo 'No service changes detected. Skipping build/test.'
                     } else {
                         echo "Services to build/test: ${changedServices}"
                     }
@@ -60,22 +54,19 @@ pipeline {
 
         stage('Security Scan') {
             steps {
-                echo "--- Đang tải và thực thi GitLeaks ---"
+                echo 'Running GitLeaks secret scan'
                 script {
-                    // Tải và cài đặt GitLeaks binary trực tiếp trên Jenkins workspace
                     sh '''
                         curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
                         tar -xzf gitleaks.tar.gz
                         chmod +x gitleaks
                     '''
 
-                    // Chi quet commit tren nhanh hien tai so voi main de tranh fail vi leak cu trong lich su du an
                     sh './gitleaks detect --source=. --config=gitleaks.toml --log-opts="origin/main..HEAD" --report-format=json --report-path=gitleaks-report.json --exit-code=1'
                 }
             }
             post {
                 always {
-                    // Lưu trữ file báo cáo quét bảo mật sau mỗi lần chạy
                     archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
                 }
             }
@@ -99,13 +90,10 @@ pipeline {
                     script {
                         def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
-                            // Publish JUnit test results
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
                                 allowEmptyResults: true
                             )
-                            // Note: jacoco() DSL step removed - JaCoCo plugin not installed.
-                            // Coverage is enforced via the 'Coverage Quality Gate' stage below.
                         }
                     }
                 }
@@ -122,14 +110,13 @@ pipeline {
                     services.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
-                        // Kiểm tra file tồn tại trước khi đọc
                         def fileExists = sh(script: "test -f ${reportPath} && echo 'yes' || echo 'no'", returnStdout: true).trim()
 
                         if (fileExists == 'no') {
                             echo "[${svc}] WARNING: jacoco.csv not found at ${reportPath}"
                             echo "[${svc}] Listing target/site to debug:"
                             sh "find ${svc}/target -name '*.csv' -o -name 'jacoco*' 2>/dev/null || echo 'No jacoco files found'"
-                            error("[${svc}] JaCoCo report missing — check if jacoco-maven-plugin is configured in ${svc}/pom.xml")
+                            error("[${svc}] JaCoCo report missing - check if jacoco-maven-plugin is configured in ${svc}/pom.xml")
                         }
 
                         def coverage = sh(script: """
@@ -150,6 +137,49 @@ pipeline {
                             error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
                         }
                     }
+                }
+            }
+        }
+
+        stage('SonarQube Scan') {
+            when {
+                expression { changedServices?.trim() && changedServices != 'none' }
+            }
+            steps {
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    sh '''
+                        mvn sonar:sonar \
+                            -DskipTests \
+                            -Drevision=1.0-SNAPSHOT \
+                            -Dsonar.token=$SONAR_TOKEN \
+                            -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \
+                            -Dsonar.qualitygate.wait=true \
+                            -Dsonar.qualitygate.timeout=300
+                    '''
+                }
+            }
+        }
+
+        stage('Snyk Dependency Scan') {
+            when {
+                expression { changedServices?.trim() && changedServices != 'none' }
+            }
+            steps {
+                withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
+                    sh '''
+                        curl -sSL https://static.snyk.io/cli/latest/snyk-linux -o snyk
+                        chmod +x snyk
+                        ./snyk test \
+                            --all-projects \
+                            --detection-depth=4 \
+                            --severity-threshold=high \
+                            --json-file-output=snyk-test-report.json
+                    '''
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'snyk-test-report.json', fingerprint: true, allowEmptyArchive: true
                 }
             }
         }
@@ -181,16 +211,14 @@ pipeline {
         }
     }
 
-    // ── POST toàn bộ pipeline ────────────────────────────────────────────
     post {
         success {
-            echo "CI Pipeline PASSED – All stages completed successfully."
+            echo 'CI Pipeline PASSED - All stages completed successfully.'
         }
         failure {
-            echo "CI Pipeline FAILED – Check logs above for details."
+            echo 'CI Pipeline FAILED - Check logs above for details.'
         }
         always {
-            // Dọn workspace sau mỗi lần chạy
             cleanWs()
         }
     }
