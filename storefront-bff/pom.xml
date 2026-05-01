@@ -58,11 +58,19 @@
                 <version>0.8.12</version>
                 <executions>
                     <!-- Inject JaCoCo agent vào argLine trước khi test chạy -->
+                    <!-- Override excludes từ parent: bỏ config/** vì SecurityConfig cần đo coverage -->
                     <execution>
                         <id>prepare-agent</id>
                         <goals>
                             <goal>prepare-agent</goal>
                         </goals>
+                        <configuration>
+                            <excludes>
+                                <exclude>com/yas/**/*Application.class</exclude>
+                                <exclude>com/yas/**/exception/**</exclude>
+                                <exclude>com/yas/**/constants/**</exclude>
+                            </excludes>
+                        </configuration>
                     </execution>
                     <!-- Sinh report (xml + csv + html) sau phase test -->
                     <execution>
@@ -71,6 +79,13 @@
                         <goals>
                             <goal>report</goal>
                         </goals>
+                        <configuration>
+                            <excludes>
+                                <exclude>com/yas/**/*Application.class</exclude>
+                                <exclude>com/yas/**/exception/**</exclude>
+                                <exclude>com/yas/**/constants/**</exclude>
+                            </excludes>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
