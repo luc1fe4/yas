@@ -1,4 +1,4 @@
-def changedServices = 'none'
+﻿def changedServices = 'none'
 
 pipeline {
     agent any
