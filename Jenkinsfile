@@ -154,6 +154,9 @@ pipeline {
                             -DskipTests \
                             -Drevision=1.0-SNAPSHOT \
                             -Dsonar.token=$SONAR_TOKEN \
+                            -Dsonar.organization=nashtech-garage \
+                            -Dsonar.projectKey=nashtech-garage_yas-yas-parent \
+                            -Dsonar.region=us \
                             -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \
                             -Dsonar.qualitygate.wait=true \
                             -Dsonar.qualitygate.timeout=300
