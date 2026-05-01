@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
@@ -70,6 +71,18 @@ class SecurityConfigTest {
                 .extracting(GrantedAuthority::getAuthority)
                 .containsExactly("ROLE_ROLE_admin");
         }
+
+        @Test
+        @DisplayName("single role → trả về 1 authority")
+        void whenSingleRole_shouldReturnOneAuthority() {
+            Collection<GrantedAuthority> authorities =
+                securityConfig.generateAuthoritiesFromClaim(List.of("viewer"));
+
+            assertThat(authorities).hasSize(1);
+            assertThat(authorities)
+                .extracting(GrantedAuthority::getAuthority)
+                .containsExactly("ROLE_viewer");
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -123,6 +136,31 @@ class SecurityConfigTest {
             Collection<? extends GrantedAuthority> result = mapper.mapAuthorities(Set.of(oidcAuthority));
 
             assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("OIDC user có realm_access với single role → map đúng")
+        void whenOidcUserHasSingleRole_shouldMapCorrectly() {
+            GrantedAuthoritiesMapper mapper = securityConfig.userAuthoritiesMapperForKeycloak();
+
+            OidcIdToken idToken = OidcIdToken.withTokenValue("token")
+                .issuedAt(Instant.now())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .subject("user-123")
+                .build();
+
+            OidcUserInfo userInfo = new OidcUserInfo(Map.of(
+                "realm_access", Map.of("roles", List.of("superadmin")),
+                "sub", "user-123"
+            ));
+
+            OidcUserAuthority oidcAuthority = new OidcUserAuthority(idToken, userInfo);
+
+            Collection<? extends GrantedAuthority> result = mapper.mapAuthorities(Set.of(oidcAuthority));
+
+            assertThat(result)
+                .extracting(GrantedAuthority::getAuthority)
+                .containsExactly("ROLE_superadmin");
         }
     }
 
@@ -189,6 +227,65 @@ class SecurityConfigTest {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // userAuthoritiesMapperForKeycloak — Unknown authority type (branch coverage)
+    // ═══════════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("userAuthoritiesMapperForKeycloak — Unknown authority type")
+    class AuthoritiesMapperUnknown {
+
+        @Test
+        @DisplayName("Authority không phải OIDC hoặc OAuth2 → trả về empty set")
+        void whenUnknownAuthorityType_shouldReturnEmpty() {
+            GrantedAuthoritiesMapper mapper = securityConfig.userAuthoritiesMapperForKeycloak();
+
+            // SimpleGrantedAuthority là loại khác, không phải OidcUserAuthority / OAuth2UserAuthority
+            SimpleGrantedAuthority unknownAuthority = new SimpleGrantedAuthority("ROLE_UNKNOWN");
+
+            Collection<? extends GrantedAuthority> result = mapper.mapAuthorities(Set.of(unknownAuthority));
+
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("Empty authorities set → trả về empty set")
+        void whenEmptyAuthoritiesSet_shouldReturnEmpty() {
+            GrantedAuthoritiesMapper mapper = securityConfig.userAuthoritiesMapperForKeycloak();
+
+            Collection<? extends GrantedAuthority> result = mapper.mapAuthorities(Set.of());
+
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("Mixed: OIDC và Unknown authority → chỉ map OIDC roles")
+        void whenMixedOidcAndUnknown_shouldOnlyMapOidcRoles() {
+            GrantedAuthoritiesMapper mapper = securityConfig.userAuthoritiesMapperForKeycloak();
+
+            OidcIdToken idToken = OidcIdToken.withTokenValue("token")
+                .issuedAt(Instant.now())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .subject("user-123")
+                .build();
+
+            OidcUserInfo userInfo = new OidcUserInfo(Map.of(
+                "realm_access", Map.of("roles", List.of("admin")),
+                "sub", "user-123"
+            ));
+
+            OidcUserAuthority oidcAuthority = new OidcUserAuthority(idToken, userInfo);
+            SimpleGrantedAuthority unknownAuthority = new SimpleGrantedAuthority("ROLE_OTHER");
+
+            Collection<? extends GrantedAuthority> result =
+                mapper.mapAuthorities(Set.of(oidcAuthority, unknownAuthority));
+
+            assertThat(result)
+                .extracting(GrantedAuthority::getAuthority)
+                .containsExactly("ROLE_admin");
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // CartItemVm.fromCartDetailVm
     // ═══════════════════════════════════════════════════════════════
 
@@ -220,6 +317,19 @@ class SecurityConfigTest {
 
             assertThat(cartItemVm.productId()).isEqualTo(202L);
             assertThat(cartItemVm.quantity()).isEqualTo(0);
+        }
+
+        @Test
+        @DisplayName("fromCartDetailVm với quantity lớn → map đúng")
+        void whenLargeQuantity_shouldMapCorrectly() {
+            com.yas.storefrontbff.viewmodel.CartDetailVm cartDetailVm =
+                new com.yas.storefrontbff.viewmodel.CartDetailVm(3L, 303L, Integer.MAX_VALUE);
+
+            com.yas.storefrontbff.viewmodel.CartItemVm cartItemVm =
+                com.yas.storefrontbff.viewmodel.CartItemVm.fromCartDetailVm(cartDetailVm);
+
+            assertThat(cartItemVm.productId()).isEqualTo(303L);
+            assertThat(cartItemVm.quantity()).isEqualTo(Integer.MAX_VALUE);
         }
     }
 
@@ -264,6 +374,16 @@ class SecurityConfigTest {
         }
 
         @Test
+        @DisplayName("TokenResponseVm — accessToken null, refreshToken null")
+        void tokenResponseVm_nullValues() {
+            com.yas.storefrontbff.viewmodel.TokenResponseVm tokenVm =
+                new com.yas.storefrontbff.viewmodel.TokenResponseVm(null, null);
+
+            assertThat(tokenVm.accessToken()).isNull();
+            assertThat(tokenVm.refreshToken()).isNull();
+        }
+
+        @Test
         @DisplayName("GuestUserVm — userId, email, password đúng")
         void guestUserVm() {
             com.yas.storefrontbff.viewmodel.GuestUserVm guestVm =
@@ -298,6 +418,24 @@ class SecurityConfigTest {
             assertThat(vm.customerId()).isEqualTo("customer-abc");
             assertThat(vm.cartDetails()).hasSize(1);
             assertThat(vm.cartDetails().get(0).productId()).isEqualTo(101L);
+        }
+
+        @Test
+        @DisplayName("CartGetDetailVm — cartDetails rỗng")
+        void cartGetDetailVm_emptyDetails() {
+            com.yas.storefrontbff.viewmodel.CartGetDetailVm vm =
+                new com.yas.storefrontbff.viewmodel.CartGetDetailVm(11L, "customer-xyz", List.of());
+
+            assertThat(vm.cartDetails()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("AuthenticatedUserVm — username null vẫn hợp lệ")
+        void authenticatedUserVm_nullUsername() {
+            com.yas.storefrontbff.viewmodel.AuthenticatedUserVm userVm =
+                new com.yas.storefrontbff.viewmodel.AuthenticatedUserVm(null);
+
+            assertThat(userVm.username()).isNull();
         }
     }
 }
