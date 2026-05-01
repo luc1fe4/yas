@@ -148,7 +148,7 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     sh '''
-                        mvn sonar:sonar \
+                        mvn org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \
                             -DskipTests \
                             -Drevision=1.0-SNAPSHOT \
                             -Dsonar.token=$SONAR_TOKEN \
