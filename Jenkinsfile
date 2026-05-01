@@ -3,6 +3,10 @@ def changedServices = 'none'
 pipeline {
     agent any
 
+    tools {
+        maven 'Maven-3.9'   // Phải khớp tên đặt trong: Manage Jenkins → Tools → Maven installations
+    }
+
     stages {
 
         stage('Detect Changed Services') {
@@ -27,13 +31,13 @@ pipeline {
 
                     def services = [
                         // Business Services (Backend - Java/Spring)
-                        'cart', 'customer', 'delivery', 'inventory', 'location', 
-                        'media', 'order', 'payment', 'payment-paypal', 'product', 
+                        'cart', 'customer', 'delivery', 'inventory', 'location',
+                        'media', 'order', 'payment', 'payment-paypal', 'product',
                         'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        
+
                         // BFF & Gateways
                         'backoffice-bff', 'storefront-bff', 'identity',
-                        
+
                         // Frontend (Next.js)
                         'backoffice', 'storefront'
                     ]
@@ -54,28 +58,28 @@ pipeline {
             }
         }
 
-       stage('Security Scan') {
-    steps {
-        echo "--- Đang tải và thực thi GitLeaks ---"
-        script {
-            // Tải và cài đặt GitLeaks binary trực tiếp trên Jenkins workspace
-            sh '''
-                curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
-                tar -xzf gitleaks.tar.gz
-                chmod +x gitleaks
-            '''
-            
-            // Chi quet commit tren nhanh hien tai so voi main de tranh fail vi leak cu trong lich su du an
-            sh './gitleaks detect --source=. --config=gitleaks.toml --log-opts="origin/main..HEAD" --report-format=json --report-path=gitleaks-report.json --exit-code=1'
+        stage('Security Scan') {
+            steps {
+                echo "--- Đang tải và thực thi GitLeaks ---"
+                script {
+                    // Tải và cài đặt GitLeaks binary trực tiếp trên Jenkins workspace
+                    sh '''
+                        curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
+                        tar -xzf gitleaks.tar.gz
+                        chmod +x gitleaks
+                    '''
+
+                    // Chi quet commit tren nhanh hien tai so voi main de tranh fail vi leak cu trong lich su du an
+                    sh './gitleaks detect --source=. --config=gitleaks.toml --log-opts="origin/main..HEAD" --report-format=json --report-path=gitleaks-report.json --exit-code=1'
+                }
+            }
+            post {
+                always {
+                    // Lưu trữ file báo cáo quét bảo mật sau mỗi lần chạy
+                    archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
+                }
+            }
         }
-    }
-    post {
-        always {
-            // Lưu trữ file báo cáo quét bảo mật sau mỗi lần chạy
-            archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
-        }
-    }
-}
 
         stage('Test Phase') {
             when {
@@ -95,15 +99,19 @@ pipeline {
                     script {
                         def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
+                            // Publish JUnit test results
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
                                 allowEmptyResults: true
                             )
+                            // Note: jacoco() DSL step removed - JaCoCo plugin not installed.
+                            // Coverage is enforced via the 'Coverage Quality Gate' stage below.
                         }
                     }
                 }
             }
         }
+
         stage('Coverage Quality Gate') {
             when {
                 expression { changedServices?.trim() && changedServices != 'none' }
@@ -114,10 +122,11 @@ pipeline {
                     services.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
+                        // Cột $8 = LINE_MISSED, $9 = LINE_COVERED (đúng với line coverage)
                         def coverage = sh(script: """
                             awk -F',' 'NR>1 {
-                                missed  += \$4;
-                                covered += \$5
+                                missed  += \$8;
+                                covered += \$9
                             } END {
                                 if (missed+covered > 0)
                                     printf "%.0f", covered/(missed+covered)*100;
@@ -154,7 +163,8 @@ pipeline {
                     script {
                         def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
-                            archiveArtifacts artifacts: "${svc}/target/*.jar", allowEmptyArchive: true
+                            archiveArtifacts artifacts: "${svc}/target/*.jar",
+                                             allowEmptyArchive: true
                         }
                     }
                 }
