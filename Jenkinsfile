@@ -86,6 +86,11 @@ pipeline {
                             chmod +x snyk
                         '''
                         
+                        // Fix lỗi "Cannot build Maven dependency tree" bằng cách install parent và common-library
+                        echo "--- Installing parent and common-library to fix Snyk dependency tree issues ---"
+                        sh "./mvnw install -N -DskipTests -Drevision=1.0-SNAPSHOT"
+                        sh "./mvnw install -pl common-library -am -DskipTests -Drevision=1.0-SNAPSHOT"
+                        
                         def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
                             echo "--- Snyk scanning service: ${svc} ---"
@@ -100,7 +105,7 @@ pipeline {
                                     snykCmd += " --command=./mvnw"
                                 }
 
-                                // Chạy Snyk (nếu có lỗi bảo mật cao, stage này sẽ fail theo đúng quy trình CI)
+                                // Chạy Snyk (Sử dụng || true nếu muốn pipeline tiếp tục dù có lỗ hổng, hoặc bỏ để fail pipeline)
                                 sh "${snykCmd}"
                             }
                         }
