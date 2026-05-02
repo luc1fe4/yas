@@ -64,7 +64,7 @@
         <org.elasticsearch.version>9.2.3</org.elasticsearch.version>
         <paypal-checkout-sdk.version>2.0.0</paypal-checkout-sdk.version>
         <testcontainers-keycloak.version>4.2.1</testcontainers-keycloak.version>
-        <testcontainers.version>4.2.1</testcontainers.version>
+        <testcontainers.version>2.0.5</testcontainers.version>
         <rest-assured.version>6.0.0</rest-assured.version>
         <instancio-junit.version>5.0.2</instancio-junit.version>
         <opencsv.version>5.11.1</opencsv.version>
