@@ -7,12 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-<<<<<<< HEAD
     "test": "jest --passWithNoTests",
-=======
-    "test": "jest",
-    "test:coverage": "jest --coverage --coverageReporters='json-summary'",
->>>>>>> origin/main
     "format": "npx prettier --write ."
   },
   "dependencies": {

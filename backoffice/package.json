@@ -7,12 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-<<<<<<< HEAD
     "test": "jest --passWithNoTests"
-=======
-    "test": "jest",
-    "test:coverage": "jest --coverage --coverageReporters='json-summary'"
->>>>>>> origin/main
   },
   "dependencies": {
     "@fortawesome/fontawesome-common-types": "^6.4.0",
