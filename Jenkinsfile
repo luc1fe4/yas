@@ -161,7 +161,10 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     script {
-                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                        def services = (env.CHANGED_SERVICES ?: '')
+                            .split(',')
+                            .collect { it.trim() }
+                            .findAll { it && it != 'none' }
                         def plModules = services ? services.join(',') : ''
                         // SONAR_SCANNER_OPTS: disables HTTP/2 in the scanner JVM (avoids Http2 stream reset /
                         // CANCEL timeouts on multipart upload to SonarCloud ce/submit). Maven -D alone may not apply here.
