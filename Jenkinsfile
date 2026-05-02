@@ -9,7 +9,18 @@ pipeline {
         maven 'Maven-3.9'
     }
 
+    options {
+        skipDefaultCheckout()
+    }
+
     stages {
+
+        stage('Checkout') {
+            steps {
+                cleanWs()
+                checkout scm
+            }
+        }
 
         stage('Detect Changed Services') {
             steps {
@@ -234,7 +245,13 @@ pipeline {
             echo 'CI Pipeline FAILED - Check logs above for details.'
         }
         always {
-            cleanWs()
+            script {
+                try {
+                    cleanWs()
+                } catch (Throwable e) {
+                    echo "cleanWs skipped: ${e.getClass().getSimpleName()}"
+                }
+            }
         }
     }
 }
