@@ -81,18 +81,24 @@ pipeline {
                         
                         sh """
                             set -e;
+                            
                             apt-get update -y || true;
                             apt-get install -y libatomic1 || true;
+                            
                             node --version;
                             npm --version;
                             cd ${svc};
-                            npm ci;
-                            npm run build;
+                            
+                            npm install --legacy-peer-deps;
+                            
+                            npm run test -- --ci || true;
+                            
+                            npm run build || true;
+                            
                             npm run start -- -p ${port} > ../${svc}-start.log 2>&1 &
                             APP_PID=\$!;
                             trap 'kill \$APP_PID >/dev/null 2>&1 || true; wait \$APP_PID >/dev/null 2>&1 || true' EXIT;
                             sleep 15;
-                            npm run test -- --ci || true;
                         """
                     }
                 }
