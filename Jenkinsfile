@@ -135,12 +135,8 @@ stage('Test Phase') {
                         if (fileExists("${svc}/pom.xml")) {
                             echo "Running Maven tests for: ${svc}"
                             sh "./mvnw verify jacoco:report -DskipITs -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
-                        } else if (fileExists("${svc}/package.json")) {
-                            echo "Running Node.js tests for: ${svc}"
-                            dir("${svc}") {
-                                // Nếu ông có viết unit test cho Node.js thì lệnh này sẽ chạy, nếu chưa có thì '|| true' sẽ giúp pass
-                                sh "npm install && npm test || true"
-                            }
+                        } else {
+                            echo "Skipping non-Maven service in Test Phase: ${svc}"
                         }
                     }
                 }
@@ -157,6 +153,30 @@ stage('Test Phase') {
                             )
                             // Note: jacoco() DSL step removed - JaCoCo plugin not installed.
                             // Coverage is enforced via the 'Coverage Quality Gate' stage below.
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Frontend Test Phase') {
+            when {
+                expression {
+                    changedServices?.trim() && changedServices != 'none' &&
+                    (changedServices =~ /(^|,)(backoffice|storefront)(,|$)/)
+                }
+            }
+            steps {
+                script {
+                    def frontendServices = ['backoffice', 'storefront']
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def frontendChanged = services.findAll { svc -> frontendServices.contains(svc) }
+
+                    frontendChanged.each { svc ->
+                        echo "Running frontend unit tests for: ${svc}"
+                        dir("${svc}") {
+                            sh "npm install"
+                            sh "npm test"
                         }
                     }
                 }
@@ -211,9 +231,13 @@ stage('Test Phase') {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         echo "Building: ${svc}"
-                        dir("${svc}") {
-                            sh 'chmod +x mvnw || true'
-                            sh "./mvnw clean package -DskipTests -f ../pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                        if (fileExists("${svc}/pom.xml")) {
+                            dir("${svc}") {
+                                sh 'chmod +x mvnw || true'
+                                sh "./mvnw clean package -DskipTests -f ../pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                            }
+                        } else {
+                            echo "Skipping non-Maven service in Build Phase: ${svc}"
                         }
                     }
                 }
@@ -225,6 +249,30 @@ stage('Test Phase') {
                         services.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar",
                                              allowEmptyArchive: true
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Frontend Build Phase') {
+            when {
+                expression {
+                    changedServices?.trim() && changedServices != 'none' &&
+                    (changedServices =~ /(^|,)(backoffice|storefront)(,|$)/)
+                }
+            }
+            steps {
+                script {
+                    def frontendServices = ['backoffice', 'storefront']
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def frontendChanged = services.findAll { svc -> frontendServices.contains(svc) }
+
+                    frontendChanged.each { svc ->
+                        echo "Building frontend: ${svc}"
+                        dir("${svc}") {
+                            sh "npm install"
+                            sh "npm run build"
                         }
                     }
                 }
