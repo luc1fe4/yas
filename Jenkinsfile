@@ -88,6 +88,7 @@ pipeline {
                         
                         // Fix lỗi "Cannot build Maven dependency tree" bằng cách install parent và common-library
                         echo "--- Installing parent and common-library to fix Snyk dependency tree issues ---"
+                        sh "chmod +x mvnw || true"
                         sh "./mvnw install -N -DskipTests -Drevision=1.0-SNAPSHOT"
                         sh "./mvnw install -pl common-library -am -DskipTests -Drevision=1.0-SNAPSHOT"
                         
