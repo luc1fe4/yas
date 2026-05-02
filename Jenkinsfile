@@ -167,7 +167,7 @@ pipeline {
                         // CANCEL timeouts on multipart upload to SonarCloud ce/submit). Maven -D alone may not apply here.
                         withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
                             sh """
-                                mvn -DskipTests compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
+                                mvn verify -DskipITs org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
                                     -f pom.xml \\
                                     -pl ${plModules} -am \\
                                     -Drevision=1.0-SNAPSHOT \\
