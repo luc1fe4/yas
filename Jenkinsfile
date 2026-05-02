@@ -1,25 +1,45 @@
 def changedServices = 'none'
+def frontendServices = ['backoffice', 'storefront']
 
 pipeline {
     agent any
+
+    parameters {
+        string(name: 'DIFF_BASE_BRANCH', defaultValue: 'feature/backoffice-unit-test', description: 'Nhanh goc de so sanh changed files (vd: main, develop, release/v1)')
+    }
+
+    environment {
+        DIFF_BASE_BRANCH = "${params.DIFF_BASE_BRANCH ?: 'main'}"
+    }
 
     stages {
 
         stage('Detect Changed Services') {
             steps {
                 script {
-                    // Dam bao co ref main trong workspace Jenkins truoc khi tinh changed files
-                    sh 'git fetch --no-tags --prune origin +refs/heads/main:refs/remotes/origin/main || true'
+                    def diffBaseBranch = (env.DIFF_BASE_BRANCH ?: 'main').trim()
+                    if (!diffBaseBranch) {
+                        diffBaseBranch = 'main'
+                    }
+                    if (!(diffBaseBranch ==~ /^[A-Za-z0-9._\/-]+$/)) {
+                        error("DIFF_BASE_BRANCH khong hop le: ${diffBaseBranch}")
+                    }
+
+                    def diffBaseRef = "origin/${diffBaseBranch}"
+                    echo "Using base branch for diff: ${diffBaseRef}"
+
+                    // Dam bao co ref base branch trong workspace Jenkins truoc khi tinh changed files
+                    sh "git fetch --no-tags --prune origin +refs/heads/${diffBaseBranch}:refs/remotes/origin/${diffBaseBranch} || true"
 
                     def changedFiles = sh(
-                        script: '''
-                            if git rev-parse --verify origin/main >/dev/null 2>&1; then
-                                git diff --name-only origin/main...HEAD
+                        script: """
+                            if git rev-parse --verify ${diffBaseRef} >/dev/null 2>&1; then
+                                git diff --name-only ${diffBaseRef}...HEAD
                             else
-                                echo "origin/main not found, fallback to latest commit diff" >&2
+                                echo "${diffBaseRef} not found, fallback to latest commit diff" >&2
                                 git diff --name-only HEAD~1..HEAD || git ls-files
                             fi
-                        ''',
+                        """,
                         returnStdout: true
                     ).trim()
 
@@ -54,20 +74,66 @@ pipeline {
             }
         }
 
-       stage('Security Scan (GitLeaks)') {
+        stage('Frontend Build Start Test') {
+            when {
+                expression {
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    services.any { frontendServices.contains(it) }
+                }
+            }
+
+            // Jenkins Plugin sẽ lo việc nạp NodeJS vào môi trường
+            tools {
+                nodejs 'nodejs'
+            }
+
+            steps {
+                script {
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def frontendChanged = services.findAll { frontendServices.contains(it) }
+
+                    frontendChanged.eachWithIndex { svc, idx ->
+                        def port = 3100 + idx
+                        echo "Running frontend build/start/test for: ${svc} on port ${port}"
+                        
+                        sh """
+                            set -e;
+                            
+                            apt-get update -y || true;
+                            apt-get install -y libatomic1 || true;
+                            
+                            node --version;
+                            npm --version;
+                            cd ${svc};
+                            npm ci;
+                            npm run build;
+                            npm run start -- -p ${port} > ../${svc}-start.log 2>&1 &
+                            APP_PID=\$!;
+                            trap 'kill \$APP_PID >/dev/null 2>&1 || true; wait \$APP_PID >/dev/null 2>&1 || true' EXIT;
+                            sleep 15;
+                            npm run test -- --ci;
+                        """
+                    }
+       
+
+       stage('Security Scan') {
             steps {
                 echo "--- Đang tải và thực thi GitLeaks ---"
                 script {
+                    def diffBaseBranch = (env.DIFF_BASE_BRANCH ?: 'main').trim()
+                    if (!diffBaseBranch) {
+                        diffBaseBranch = 'main'
+                    }
+
+                    // Tải và cài đặt GitLeaks binary trực tiếp trên Jenkins workspace
                     sh '''
                         curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
                         tar -xzf gitleaks.tar.gz
                         chmod +x gitleaks
                     '''
-                    sh './gitleaks detect --source=. --config=gitleaks.toml --log-opts="origin/main..HEAD" --report-format=json --report-path=gitleaks-report.json --exit-code=1'
-                }
-            }
-            post {
-                always {
+                    
+                    // Chi quet commit tren nhanh hien tai so voi main de tranh fail vi leak cu trong lich su du an
+                    sh "./gitleaks detect --source=. --config=gitleaks.toml --log-opts=\"origin/${diffBaseBranch}..HEAD\" --report-format=json --report-path=gitleaks-report.json --exit-code=1"
                     archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
                 }
             }
@@ -118,6 +184,8 @@ pipeline {
             }
             post {
                 always {
+                    // Lưu trữ file báo cáo quét bảo mật sau mỗi lần chạy
+                    archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
                     archiveArtifacts artifacts: 'snyk-*-report.json', fingerprint: true, allowEmptyArchive: true
                 }
             }
@@ -125,11 +193,19 @@ pipeline {
 
 stage('Test Phase') {
             when {
-                expression { changedServices?.trim() && changedServices != 'none' }
+                expression {
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    services.any { !frontendServices.contains(it) }
+                }
             }
             steps {
                 script {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def backendServices = services.findAll { !frontendServices.contains(it) }
+                    sh 'chmod +x mvnw || true'
+                    backendServices.each { svc ->
+                        echo "Running tests for: ${svc}"
+                        sh "./mvnw verify jacoco:report -DskipITs -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                     sh 'chmod +x mvnw || true'
                     services.each { svc ->
                         if (fileExists("${svc}/pom.xml")) {
@@ -149,7 +225,8 @@ stage('Test Phase') {
                 always {
                     script {
                         def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                        services.each { svc ->
+                        def backendServices = services.findAll { !frontendServices.contains(it) }
+                        backendServices.each { svc ->
                             // Publish JUnit test results
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
@@ -164,11 +241,34 @@ stage('Test Phase') {
         }
         stage('Coverage Quality Gate') {
             when {
-                expression { changedServices?.trim() && changedServices != 'none' }
+                expression {
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    services.any { !frontendServices.contains(it) }
+                }
             }
             steps {
                 script {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def backendServices = services.findAll { !frontendServices.contains(it) }
+                    backendServices.each { svc ->
+                        def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
+
+                        def coverage = sh(script: """
+                            awk -F',' 'NR>1 {
+                                missed  += \$4;
+                                covered += \$5
+                            } END {
+                                if (missed+covered > 0)
+                                    printf "%.0f", covered/(missed+covered)*100;
+                                else
+                                    print 0
+                            }' ${reportPath}
+                        """, returnStdout: true).trim().toInteger()
+
+                        echo "[${svc}] Line Coverage: ${coverage}%"
+
+                        if (coverage <= 70) {
+                            error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
                     services.each { svc ->
                         if (fileExists("${svc}/pom.xml")) {
                             def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
@@ -204,17 +304,19 @@ stage('Test Phase') {
 
         stage('Build Phase') {
             when {
-                expression { changedServices?.trim() && changedServices != 'none' }
+                expression {
+                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    services.any { !frontendServices.contains(it) }
+                }
             }
             steps {
                 script {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                    services.each { svc ->
+                    def backendServices = services.findAll { !frontendServices.contains(it) }
+                    sh 'chmod +x mvnw || true'
+                    backendServices.each { svc ->
                         echo "Building: ${svc}"
-                        dir("${svc}") {
-                            sh 'chmod +x mvnw || true'
-                            sh "./mvnw clean package -DskipTests -f ../pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
-                        }
+                        sh "./mvnw clean package -DskipTests -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                     }
                 }
             }
@@ -222,7 +324,8 @@ stage('Test Phase') {
                 success {
                     script {
                         def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                        services.each { svc ->
+                        def backendServices = services.findAll { !frontendServices.contains(it) }
+                        backendServices.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar",
                                              allowEmptyArchive: true
                         }
