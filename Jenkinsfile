@@ -5,7 +5,7 @@ pipeline {
 
 
     environment {
-        CHANGED_SERVICES = 'none'
+        CHANGED_SERVICES = ''
     }
 
     stages {
@@ -65,10 +65,10 @@ pipeline {
                         }
                     }
 
-                    def selectedServices = affected ? affected.join(',') : 'none'
+                    def selectedServices = affected ? affected.join(',') : ''
                     env.CHANGED_SERVICES = selectedServices
 
-                    if (selectedServices == 'none') {
+                    if (!selectedServices) {
                         echo "No service changes detected. Skipping build/test."
                     } else {
                         echo "Services to build/test: ${selectedServices}"
@@ -80,7 +80,7 @@ pipeline {
         stage('Frontend Build Start Test') {
             when {
                 expression {
-                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && it != 'none' }
                     services.any { frontendServices.contains(it) }
                 }
             }
@@ -92,7 +92,7 @@ pipeline {
 
             steps {
                 script {
-                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && it != 'none' }
                     def frontendChanged = services.findAll { frontendServices.contains(it) }
 
                     frontendChanged.eachWithIndex { svc, idx ->
@@ -154,13 +154,13 @@ pipeline {
         stage('Test Phase') {
             when {
                 expression {
-                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && it != 'none' }
                     services.any { !frontendServices.contains(it) }
                 }
             }
             steps {
                 script {
-                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && it != 'none' }
                     def backendServices = services.findAll { !frontendServices.contains(it) }
                     sh 'chmod +x mvnw || true'
                     backendServices.each { svc ->
@@ -172,7 +172,7 @@ pipeline {
             post {
                 always {
                     script {
-                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && it != 'none' }
                         def backendServices = services.findAll { !frontendServices.contains(it) }
                         backendServices.each { svc ->
                             // Publish JUnit test results
@@ -190,13 +190,13 @@ pipeline {
         stage('Coverage Quality Gate') {
             when {
                 expression {
-                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && it != 'none' }
                     services.any { !frontendServices.contains(it) }
                 }
             }
             steps {
                 script {
-                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && it != 'none' }
                     def backendServices = services.findAll { !frontendServices.contains(it) }
                     backendServices.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
@@ -226,13 +226,13 @@ pipeline {
         stage('Build Phase') {
             when {
                 expression {
-                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && it != 'none' }
                     services.any { !frontendServices.contains(it) }
                 }
             }
             steps {
                 script {
-                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && it != 'none' }
                     def backendServices = services.findAll { !frontendServices.contains(it) }
                     sh 'chmod +x mvnw || true'
                     backendServices.each { svc ->
@@ -244,7 +244,7 @@ pipeline {
             post {
                 success {
                     script {
-                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && it != 'none' }
                         def backendServices = services.findAll { !frontendServices.contains(it) }
                         backendServices.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar",
