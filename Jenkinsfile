@@ -138,8 +138,8 @@ stage('Test Phase') {
                         } else if (fileExists("${svc}/package.json")) {
                             echo "Running Node.js tests for: ${svc}"
                             dir("${svc}") {
-                                // Nếu ông có viết unit test cho Node.js thì lệnh này sẽ chạy, nếu chưa có thì '|| true' sẽ giúp pass
-                                sh "npm install && npm test || true"
+                                // Cài đặt dependencies và chạy test sinh báo cáo coverage
+                                sh "npm install && npm run test:coverage || true"
                             }
                         }
                     }
@@ -171,6 +171,7 @@ stage('Test Phase') {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         if (fileExists("${svc}/pom.xml")) {
+                            // --- KIỂM TRA CHO JAVA ---
                             def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
                             if (fileExists(reportPath)) {
                                 def coverageValue = sh(script: """
@@ -186,16 +187,33 @@ stage('Test Phase') {
                                 """, returnStdout: true).trim()
                                 
                                 def coverage = coverageValue.toInteger()
-                                echo "[${svc}] Line Coverage: ${coverage}%"
+                                echo "[${svc}] Java Line Coverage: ${coverage}%"
 
                                 if (coverage <= 70) {
-                                    error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
+                                    error("[${svc}] Java Coverage ${coverage}% <= 70%. Pipeline failed!")
                                 }
                             } else {
-                                echo "[${svc}] JaCoCo report not found for ${svc}. Skipping coverage check."
+                                echo "[${svc}] JaCoCo report not found. Skipping check."
                             }
-                        } else {
-                             echo "[${svc}] Skipping coverage check for non-Maven service: ${svc}"
+                        } else if (fileExists("${svc}/package.json")) {
+                            // --- KIỂM TRA CHO NODE.JS ---
+                            def reportPath = "${svc}/coverage/coverage-summary.json"
+                            if (fileExists(reportPath)) {
+                                script {
+                                    // Dùng Groovy JsonSlurper để đọc file JSON của Jest
+                                    def jsonContent = readFile(reportPath)
+                                    def json = new groovy.json.JsonSlurper().parseText(jsonContent)
+                                    def coverage = json.total.lines.pct.toInteger()
+                                    
+                                    echo "[${svc}] Node.js Line Coverage: ${coverage}%"
+
+                                    if (coverage <= 70) {
+                                        error("[${svc}] Node.js Coverage ${coverage}% <= 70%. Pipeline failed!")
+                                    }
+                                }
+                            } else {
+                                echo "[${svc}] Node.js coverage report not found for ${svc}."
+                            }
                         }
                     }
                 }

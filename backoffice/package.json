@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "jest",
+    "test:coverage": "jest --coverage --coverageReporters='json-summary'"
   },
   "dependencies": {
     "@fortawesome/fontawesome-common-types": "^6.4.0",
