@@ -102,9 +102,9 @@ pipeline {
                             if (fileExists("${svc}/pom.xml")) {
                                 // Java service: quét bằng Maven từ thư mục gốc
                                 sh "./snyk test --file=${svc}/pom.xml --severity-threshold=high --command=./mvnw --json-file-output=${reportFile} || true"
-                            } else if (fileExists("${svc}/package-lock.json")) {
-                                // Node.js service: quét bằng npm
-                                sh "./snyk test --file=${svc}/package-lock.json --severity-threshold=high --json-file-output=${reportFile} || true"
+                            } else if (fileExists("${svc}/package.json")) {
+                                // Node.js service: quét thẳng package.json cho ổn định
+                                sh "./snyk test --file=${svc}/package.json --severity-threshold=high --json-file-output=${reportFile} || true"
                             } else {
                                 echo "Skipping ${svc}: no known manifest file found."
                             }
