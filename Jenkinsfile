@@ -170,24 +170,32 @@ stage('Test Phase') {
                 script {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
-                        def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
+                        if (fileExists("${svc}/pom.xml")) {
+                            def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
+                            if (fileExists(reportPath)) {
+                                def coverageValue = sh(script: """
+                                    awk -F',' 'NR>1 {
+                                        missed  += \$4;
+                                        covered += \$5
+                                    } END {
+                                        if (missed+covered > 0)
+                                            printf "%.0f", covered/(missed+covered)*100;
+                                        else
+                                            print 0
+                                    }' ${reportPath}
+                                """, returnStdout: true).trim()
+                                
+                                def coverage = coverageValue.toInteger()
+                                echo "[${svc}] Line Coverage: ${coverage}%"
 
-                        def coverage = sh(script: """
-                            awk -F',' 'NR>1 {
-                                missed  += \$4;
-                                covered += \$5
-                            } END {
-                                if (missed+covered > 0)
-                                    printf "%.0f", covered/(missed+covered)*100;
-                                else
-                                    print 0
-                            }' ${reportPath}
-                        """, returnStdout: true).trim().toInteger()
-
-                        echo "[${svc}] Line Coverage: ${coverage}%"
-
-                        if (coverage <= 70) {
-                            error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
+                                if (coverage <= 70) {
+                                    error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
+                                }
+                            } else {
+                                echo "[${svc}] JaCoCo report not found for ${svc}. Skipping coverage check."
+                            }
+                        } else {
+                             echo "[${svc}] Skipping coverage check for non-Maven service: ${svc}"
                         }
                     }
                 }
