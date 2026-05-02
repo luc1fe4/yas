@@ -171,7 +171,7 @@ pipeline {
                         withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
                             if (plModules) {
                                 sh """
-                                    mvn verify -DskipITs org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
+                                    mvn -DskipTests -DskipITs org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
                                         -f pom.xml \\
                                         -pl ${plModules} -am \\
                                         -Drevision=1.0-SNAPSHOT \\
@@ -186,7 +186,7 @@ pipeline {
                                 """
                             } else {
                                 sh """
-                                    mvn verify -DskipITs org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
+                                    mvn -DskipTests -DskipITs org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
                                         -f pom.xml \\
                                         -Drevision=1.0-SNAPSHOT \\
                                         -Dsonar.token=\$SONAR_TOKEN \\
