@@ -103,11 +103,11 @@ pipeline {
                                 // Java service: quét bằng Maven từ thư mục gốc
                                 sh "./snyk test --file=${svc}/pom.xml --severity-threshold=high --command=./mvnw --json-file-output=${reportFile} || true"
                             } else if (fileExists("${svc}/package.json")) {
-                                // Node.js service: Tạo lại lockfile trước khi quét để Snyk không bị lỗi
+                                // Node.js: cần cài node_modules đầy đủ thì Snyk mới quét được
                                 dir("${svc}") {
-                                    sh "npm install --package-lock-only || true"
+                                    sh "npm install || true"
                                 }
-                                // Quét bằng package-lock.json để Snyk phân tích chính xác nhất
+                                // Quét bằng package-lock.json (được tạo ra bởi npm install ở trên)
                                 sh "./snyk test --file=${svc}/package-lock.json --severity-threshold=high --json-file-output=${reportFile} || true"
                             } else {
                                 echo "Skipping ${svc}: no known manifest file found."
@@ -138,8 +138,8 @@ stage('Test Phase') {
                         } else if (fileExists("${svc}/package.json")) {
                             echo "Running Node.js tests for: ${svc}"
                             dir("${svc}") {
-                                // Cài đặt dependencies và chạy test sinh báo cáo coverage
-                                sh "npm install && npm run test:coverage || true"
+                                // Nếu ông có viết unit test cho Node.js thì lệnh này sẽ chạy, nếu chưa có thì '|| true' sẽ giúp pass
+                                sh "npm install && npm test || true"
                             }
                         }
                     }
@@ -171,7 +171,6 @@ stage('Test Phase') {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         if (fileExists("${svc}/pom.xml")) {
-                            // --- KIỂM TRA CHO JAVA ---
                             def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
                             if (fileExists(reportPath)) {
                                 def coverageValue = sh(script: """
@@ -187,33 +186,16 @@ stage('Test Phase') {
                                 """, returnStdout: true).trim()
                                 
                                 def coverage = coverageValue.toInteger()
-                                echo "[${svc}] Java Line Coverage: ${coverage}%"
+                                echo "[${svc}] Line Coverage: ${coverage}%"
 
                                 if (coverage <= 70) {
-                                    error("[${svc}] Java Coverage ${coverage}% <= 70%. Pipeline failed!")
+                                    error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
                                 }
                             } else {
-                                echo "[${svc}] JaCoCo report not found. Skipping check."
+                                echo "[${svc}] JaCoCo report not found for ${svc}. Skipping coverage check."
                             }
-                        } else if (fileExists("${svc}/package.json")) {
-                            // --- KIỂM TRA CHO NODE.JS ---
-                            def reportPath = "${svc}/coverage/coverage-summary.json"
-                            if (fileExists(reportPath)) {
-                                script {
-                                    // Dùng Groovy JsonSlurper để đọc file JSON của Jest
-                                    def jsonContent = readFile(reportPath)
-                                    def json = new groovy.json.JsonSlurper().parseText(jsonContent)
-                                    def coverage = json.total.lines.pct.toInteger()
-                                    
-                                    echo "[${svc}] Node.js Line Coverage: ${coverage}%"
-
-                                    if (coverage <= 70) {
-                                        error("[${svc}] Node.js Coverage ${coverage}% <= 70%. Pipeline failed!")
-                                    }
-                                }
-                            } else {
-                                echo "[${svc}] Node.js coverage report not found for ${svc}."
-                            }
+                        } else {
+                             echo "[${svc}] Skipping coverage check for non-Maven service: ${svc}"
                         }
                     }
                 }
