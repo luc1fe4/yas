@@ -103,8 +103,12 @@ pipeline {
                                 // Java service: quét bằng Maven từ thư mục gốc
                                 sh "./snyk test --file=${svc}/pom.xml --severity-threshold=high --command=./mvnw --json-file-output=${reportFile} || true"
                             } else if (fileExists("${svc}/package.json")) {
-                                // Node.js service: quét thẳng package.json cho ổn định
-                                sh "./snyk test --file=${svc}/package.json --severity-threshold=high --json-file-output=${reportFile} || true"
+                                // Node.js service: Tạo lại lockfile trước khi quét để Snyk không bị lỗi
+                                dir("${svc}") {
+                                    sh "npm install --package-lock-only || true"
+                                }
+                                // Quét bằng package-lock.json để Snyk phân tích chính xác nhất
+                                sh "./snyk test --file=${svc}/package-lock.json --severity-threshold=high --json-file-output=${reportFile} || true"
                             } else {
                                 echo "Skipping ${svc}: no known manifest file found."
                             }
