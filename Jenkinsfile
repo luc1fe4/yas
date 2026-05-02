@@ -96,17 +96,17 @@ pipeline {
                         services.each { svc ->
                             echo "--- Snyk scanning service: ${svc} ---"
                             dir("${svc}") {
-                                if (fileExists('mvnw')) {
-                                    sh 'chmod +x mvnw || true'
-                                }
+                                // Xác định đường dẫn mvnw (ưu tiên tại chỗ, fallback về thư mục gốc)
+                                def mvnwPath = fileExists('mvnw') ? './mvnw' : '../mvnw'
+                                sh "chmod +x ${mvnwPath} || true"
 
                                 // Xác định lệnh quét dựa trên loại project
                                 def snykCmd = "../snyk test --severity-threshold=high --json-file-output=../snyk-${svc}-report.json"
                                 if (fileExists('pom.xml')) {
-                                    snykCmd += " --command=./mvnw"
+                                    snykCmd += " --command=${mvnwPath}"
                                 }
 
-                                // Chạy Snyk (Sử dụng || true nếu muốn pipeline tiếp tục dù có lỗ hổng, hoặc bỏ để fail pipeline)
+                                // Chạy Snyk
                                 sh "${snykCmd}"
                             }
                         }
