@@ -170,6 +170,11 @@
                 <artifactId>spring-retry</artifactId>
                 <version>${spring-retry.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>42.7.11</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <dependencies>
