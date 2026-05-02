@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "jest --passWithNoTests"
+    "test": "jest",
+    "test:coverage": "jest --coverage --coverageReporters='json-summary'"
   },
   "dependencies": {
     "@fortawesome/fontawesome-common-types": "^6.4.0",
@@ -19,7 +21,7 @@
     "bootstrap-icons": "^1.9.1",
     "clsx": "^1.2.1",
     "moment": "^2.29.4",
-    "next": "^14.2.14",
+    "next": "^16.1.5",
     "query-string": "^8.1.0",
     "react": "^18.3.1",
     "react-bootstrap": "^2.4.0",
