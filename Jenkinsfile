@@ -1,45 +1,22 @@
-def changedServices = 'none'
 def frontendServices = ['backoffice', 'storefront']
 
 pipeline {
     agent any
 
-    parameters {
-        string(name: 'DIFF_BASE_BRANCH', defaultValue: 'feature/backoffice-unit-test', description: 'Nhanh goc de so sanh changed files (vd: main, develop, release/v1)')
-    }
 
     environment {
-        DIFF_BASE_BRANCH = "${params.DIFF_BASE_BRANCH ?: 'main'}"
+        CHANGED_SERVICES = 'none'
     }
 
     stages {
-
         stage('Detect Changed Services') {
             steps {
                 script {
-                    def diffBaseBranch = (env.DIFF_BASE_BRANCH ?: 'main').trim()
-                    if (!diffBaseBranch) {
-                        diffBaseBranch = 'main'
-                    }
-                    if (!(diffBaseBranch ==~ /^[A-Za-z0-9._\/-]+$/)) {
-                        error("DIFF_BASE_BRANCH khong hop le: ${diffBaseBranch}")
-                    }
-
-                    def diffBaseRef = "origin/${diffBaseBranch}"
-                    echo "Using base branch for diff: ${diffBaseRef}"
-
-                    // Dam bao co ref base branch trong workspace Jenkins truoc khi tinh changed files
-                    sh "git fetch --no-tags --prune origin +refs/heads/${diffBaseBranch}:refs/remotes/origin/${diffBaseBranch} || true"
+                    def targetBranch = env.CHANGE_TARGET ?: 'main'
+                    sh "git fetch --no-tags origin +refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch}"
 
                     def changedFiles = sh(
-                        script: """
-                            if git rev-parse --verify ${diffBaseRef} >/dev/null 2>&1; then
-                                git diff --name-only ${diffBaseRef}...HEAD
-                            else
-                                echo "${diffBaseRef} not found, fallback to latest commit diff" >&2
-                                git diff --name-only HEAD~1..HEAD || git ls-files
-                            fi
-                        """,
+                        script: "git diff --name-only refs/remotes/origin/${targetBranch}...HEAD",
                         returnStdout: true
                     ).trim()
 
@@ -58,17 +35,43 @@ pipeline {
                         'backoffice', 'storefront'
                     ]
 
-                    def affected = services.findAll { svc ->
-                        changedFiles && (changedFiles =~ /(?m)^${java.util.regex.Pattern.quote(svc)}\//)
+                    def detectedByScript = ''
+                    def affected = [] as Set
+
+                    // Detect trực tiếp từ danh sách file thay đổi theo prefix thư mục service
+                    def changedList = changedFiles ? changedFiles.split('\n') : []
+                    changedList.each { filePath ->
+                        def matched = services.find { svc -> filePath == svc || filePath.startsWith("${svc}/") }
+                        if (matched) {
+                            affected << matched
+                        }
                     }
 
-                    echo "Affected services detected: ${affected}"
+                    // Kết hợp script detect changed services của team (Nguyen Quoc Loc)
+                    if (fileExists('scripts/detect-changed-services.sh')) {
+                        sh 'chmod +x scripts/detect-changed-services.sh || true'
+                        detectedByScript = sh(
+                            script: 'bash scripts/detect-changed-services.sh',
+                            returnStdout: true
+                        ).trim()
+                        echo "Detect script output: ${detectedByScript}"
 
-                    changedServices = affected.isEmpty() ? 'none' : affected.join(',')
-                    if (changedServices == 'none') {
+                        if (detectedByScript && detectedByScript != 'none') {
+                            detectedByScript.split(',').collect { it.trim() }.findAll { it }.each { svc ->
+                                if (services.contains(svc)) {
+                                    affected << svc
+                                }
+                            }
+                        }
+                    }
+
+                    def selectedServices = affected ? affected.join(',') : 'none'
+                    env.CHANGED_SERVICES = selectedServices
+
+                    if (selectedServices == 'none') {
                         echo "No service changes detected. Skipping build/test."
                     } else {
-                        echo "Services to build/test: ${changedServices}"
+                        echo "Services to build/test: ${selectedServices}"
                     }
                 }
             }
@@ -77,7 +80,7 @@ pipeline {
         stage('Frontend Build Start Test') {
             when {
                 expression {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     services.any { frontendServices.contains(it) }
                 }
             }
@@ -89,7 +92,7 @@ pipeline {
 
             steps {
                 script {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     def frontendChanged = services.findAll { frontendServices.contains(it) }
 
                     frontendChanged.eachWithIndex { svc, idx ->
@@ -127,10 +130,7 @@ pipeline {
             steps {
                 echo "--- Đang tải và thực thi GitLeaks ---"
                 script {
-                    def diffBaseBranch = (env.DIFF_BASE_BRANCH ?: 'main').trim()
-                    if (!diffBaseBranch) {
-                        diffBaseBranch = 'main'
-                    }
+                    def diffBaseBranch = 'main'
 
                     // Tải và cài đặt GitLeaks binary trực tiếp trên Jenkins workspace
                     sh '''
@@ -154,13 +154,13 @@ pipeline {
         stage('Test Phase') {
             when {
                 expression {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     services.any { !frontendServices.contains(it) }
                 }
             }
             steps {
                 script {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     def backendServices = services.findAll { !frontendServices.contains(it) }
                     sh 'chmod +x mvnw || true'
                     backendServices.each { svc ->
@@ -172,7 +172,7 @@ pipeline {
             post {
                 always {
                     script {
-                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                         def backendServices = services.findAll { !frontendServices.contains(it) }
                         backendServices.each { svc ->
                             // Publish JUnit test results
@@ -190,13 +190,13 @@ pipeline {
         stage('Coverage Quality Gate') {
             when {
                 expression {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     services.any { !frontendServices.contains(it) }
                 }
             }
             steps {
                 script {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     def backendServices = services.findAll { !frontendServices.contains(it) }
                     backendServices.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
@@ -226,13 +226,13 @@ pipeline {
         stage('Build Phase') {
             when {
                 expression {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     services.any { !frontendServices.contains(it) }
                 }
             }
             steps {
                 script {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     def backendServices = services.findAll { !frontendServices.contains(it) }
                     sh 'chmod +x mvnw || true'
                     backendServices.each { svc ->
@@ -244,7 +244,7 @@ pipeline {
             post {
                 success {
                     script {
-                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                         def backendServices = services.findAll { !frontendServices.contains(it) }
                         backendServices.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar",
