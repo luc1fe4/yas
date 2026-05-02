@@ -1,5 +1,22 @@
 def changedServices = 'none'
 
+def ensureNodeInstalled() {
+    sh '''
+        set -e
+        NODE_VERSION=18.20.4
+        NODE_DIR="$WORKSPACE/.node"
+        if ! command -v npm >/dev/null 2>&1; then
+            echo "npm not found. Installing Node.js ${NODE_VERSION}..."
+            if [ ! -d "$NODE_DIR" ]; then
+                curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o node.tar.xz
+                mkdir -p "$NODE_DIR"
+                tar -xf node.tar.xz -C "$NODE_DIR" --strip-components=1
+                rm -f node.tar.xz
+            fi
+        fi
+    '''
+}
+
 pipeline {
     agent any
 
@@ -118,15 +135,19 @@ pipeline {
             }
             steps {
                 script {
-                    def frontendServices = ['backoffice', 'storefront']
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                    def frontendChanged = services.findAll { svc -> frontendServices.contains(svc) }
+                    withEnv(["PATH=${env.WORKSPACE}/.node/bin:${env.PATH}"]) {
+                        ensureNodeInstalled()
 
-                    frontendChanged.each { svc ->
-                        echo "Running frontend unit tests for: ${svc}"
-                        dir("${svc}") {
-                            sh "npm install"
-                            sh "npm test"
+                        def frontendServices = ['backoffice', 'storefront']
+                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                        def frontendChanged = services.findAll { svc -> frontendServices.contains(svc) }
+
+                        frontendChanged.each { svc ->
+                            echo "Running frontend unit tests for: ${svc}"
+                            dir("${svc}") {
+                                sh "npm install"
+                                sh "npm test"
+                            }
                         }
                     }
                 }
@@ -214,15 +235,19 @@ pipeline {
             }
             steps {
                 script {
-                    def frontendServices = ['backoffice', 'storefront']
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                    def frontendChanged = services.findAll { svc -> frontendServices.contains(svc) }
+                    withEnv(["PATH=${env.WORKSPACE}/.node/bin:${env.PATH}"]) {
+                        ensureNodeInstalled()
 
-                    frontendChanged.each { svc ->
-                        echo "Building frontend: ${svc}"
-                        dir("${svc}") {
-                            sh "npm install"
-                            sh "npm run build"
+                        def frontendServices = ['backoffice', 'storefront']
+                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                        def frontendChanged = services.findAll { svc -> frontendServices.contains(svc) }
+
+                        frontendChanged.each { svc ->
+                            echo "Building frontend: ${svc}"
+                            dir("${svc}") {
+                                sh "npm install"
+                                sh "npm run build"
+                            }
                         }
                     }
                 }
