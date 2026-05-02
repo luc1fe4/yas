@@ -92,23 +92,26 @@ pipeline {
                         sh "./mvnw install -N -DskipTests -Drevision=1.0-SNAPSHOT"
                         sh "./mvnw install -pl common-library -am -DskipTests -Drevision=1.0-SNAPSHOT"
                         
-                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                        services.each { svc ->
-                            echo "--- Snyk scanning service: ${svc} ---"
-                            dir("${svc}") {
-                                // Dùng đường dẫn tuyệt đối để Snyk không bị lạc đường
-                                def rootPath = env.WORKSPACE
-                                def mvnwPath = fileExists('mvnw') ? "${rootPath}/${svc}/mvnw" : "${rootPath}/mvnw"
-                                sh "chmod +x ${mvnwPath} || true"
+                        // Đưa thư mục gốc vào PATH để Snyk tìm thấy 'snyk' và 'mvnw' ở mọi nơi
+                        withEnv(["PATH+EXTRA=${env.WORKSPACE}"]) {
+                            def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                            services.each { svc ->
+                                echo "--- Snyk scanning service: ${svc} ---"
+                                dir("${svc}") {
+                                    // Cấp quyền thực thi cho mvnw tại chỗ hoặc ở gốc
+                                    def hasLocalMvnw = fileExists('mvnw')
+                                    if (hasLocalMvnw) {
+                                        sh "chmod +x ./mvnw || true"
+                                    }
 
-                                // Xác định lệnh quét với đường dẫn tuyệt đối
-                                def snykCmd = "${rootPath}/snyk test --severity-threshold=high --json-file-output=${rootPath}/snyk-${svc}-report.json"
-                                if (fileExists('pom.xml')) {
-                                    snykCmd += " --command=${mvnwPath}"
+                                    // Lệnh Snyk gọn gàng hơn nhờ đã có PATH
+                                    def snykCmd = "snyk test --severity-threshold=high --json-file-output=${env.WORKSPACE}/snyk-${svc}-report.json"
+                                    if (fileExists('pom.xml')) {
+                                        snykCmd += " --command=${hasLocalMvnw ? './mvnw' : 'mvnw'}"
+                                    }
+
+                                    sh "${snykCmd}"
                                 }
-
-                                // Chạy Snyk
-                                sh "${snykCmd}"
                             }
                         }
                     }
