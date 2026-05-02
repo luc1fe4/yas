@@ -1,4 +1,4 @@
-pipeline {
+﻿pipeline {
     agent any
 
     environment {
@@ -144,19 +144,28 @@ pipeline {
         }
 
         stage('SonarQube Scan') {
-            //when {
-                //expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
-            //}
+            when {
+                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
+            }
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                    sh '''
-                        mvn -DskipTests compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \
-                            -Drevision=1.0-SNAPSHOT \
-                            -Dsonar.token=$SONAR_TOKEN \
-                            -Dsonar.organization=luc1fe4 \
-                            -Dsonar.projectKey=luc1fe4_yas \
-                            -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml
-                    '''
+                    script {
+                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                        def plModules = services.join(',')
+                        sh """
+                            mvn -DskipTests compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \
+                                -f pom.xml \
+                                -pl ${plModules} -am \
+                                -Drevision=1.0-SNAPSHOT \
+                                -Dsonar.token=\$SONAR_TOKEN \
+                                -Dsonar.organization=luc1fe4 \
+                                -Dsonar.projectKey=luc1fe4_yas \
+                                -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \
+                                -Dsonar.scanner.socketTimeout=300 \
+                                -Dsonar.scanner.responseTimeout=300 \
+                                -Dsonar.scanner.internal.useHttp2=false
+                        """
+                    }
                 }
             }
         }
