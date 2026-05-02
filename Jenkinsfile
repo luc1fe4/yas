@@ -82,10 +82,19 @@ pipeline {
                     sh '''
                         curl -sSL https://static.snyk.io/cli/latest/snyk-linux -o snyk
                         chmod +x snyk
+
+                        # Make sure mvnw is executable across all modules
+                        chmod +x mvnw || true
+                        find . -name "mvnw" -exec chmod +x {} + || true
+
+                        # Add current directory to PATH so Snyk can find mvnw
+                        export PATH=$PATH:.
+
                         ./snyk test \
                             --all-projects \
                             --detection-depth=4 \
                             --severity-threshold=high \
+                            --command=./mvnw \
                             --json-file-output=snyk-test-report.json
                     '''
                 }
