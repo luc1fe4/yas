@@ -74,34 +74,42 @@ pipeline {
         }
 
         stage('Snyk Dependency Scan') {
-            //when {
-                //expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
-            //}
+            when {
+                expression { changedServices?.trim() && changedServices != 'none' }
+            }
             steps {
                 withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
-                    sh '''
-                        curl -sSL https://static.snyk.io/cli/latest/snyk-linux -o snyk
-                        chmod +x snyk
+                    script {
+                        // Tải Snyk CLI ở thư mục gốc
+                        sh '''
+                            curl -sSL https://static.snyk.io/cli/latest/snyk-linux -o snyk
+                            chmod +x snyk
+                        '''
+                        
+                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                        services.each { svc ->
+                            echo "--- Snyk scanning service: ${svc} ---"
+                            dir("${svc}") {
+                                if (fileExists('mvnw')) {
+                                    sh 'chmod +x mvnw || true'
+                                }
 
-                        # Make sure mvnw is executable across all modules
-                        chmod +x mvnw || true
-                        find . -name "mvnw" -exec chmod +x {} + || true
+                                // Xác định lệnh quét dựa trên loại project
+                                def snykCmd = "../snyk test --severity-threshold=high --json-file-output=../snyk-${svc}-report.json"
+                                if (fileExists('pom.xml')) {
+                                    snykCmd += " --command=./mvnw"
+                                }
 
-                        # Add current directory to PATH so Snyk can find mvnw
-                        export PATH=$PATH:.
-
-                        ./snyk test \
-                            --all-projects \
-                            --detection-depth=4 \
-                            --severity-threshold=high \
-                            --command=./mvnw \
-                            --json-file-output=snyk-test-report.json
-                    '''
+                                // Chạy Snyk (nếu có lỗi bảo mật cao, stage này sẽ fail theo đúng quy trình CI)
+                                sh "${snykCmd}"
+                            }
+                        }
+                    }
                 }
             }
             post {
                 always {
-                    archiveArtifacts artifacts: 'snyk-test-report.json', fingerprint: true, allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'snyk-*-report.json', fingerprint: true, allowEmptyArchive: true
                 }
             }
         }
