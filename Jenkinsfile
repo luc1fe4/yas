@@ -3,6 +3,11 @@ def changedServices = 'none'
 pipeline {
     agent any
 
+    environment {
+        // Lấy Snyk Token từ Jenkins Credentials (loại Secret text)
+        SNYK_TOKEN = credentials('snyk-token')
+    }
+
     stages {
 
         stage('Detect Changed Services') {
@@ -54,28 +59,48 @@ pipeline {
             }
         }
 
-       stage('Security Scan') {
-    steps {
-        echo "--- Đang tải và thực thi GitLeaks ---"
-        script {
-            // Tải và cài đặt GitLeaks binary trực tiếp trên Jenkins workspace
-            sh '''
-                curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
-                tar -xzf gitleaks.tar.gz
-                chmod +x gitleaks
-            '''
-            
-            // Chi quet commit tren nhanh hien tai so voi main de tranh fail vi leak cu trong lich su du an
-            sh './gitleaks detect --source=. --config=gitleaks.toml --log-opts="origin/main..HEAD" --report-format=json --report-path=gitleaks-report.json --exit-code=1'
+       stage('Security Scan (GitLeaks)') {
+            steps {
+                echo "--- Đang tải và thực thi GitLeaks ---"
+                script {
+                    sh '''
+                        curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
+                        tar -xzf gitleaks.tar.gz
+                        chmod +x gitleaks
+                    '''
+                    sh './gitleaks detect --source=. --config=gitleaks.toml --log-opts="origin/main..HEAD" --report-format=json --report-path=gitleaks-report.json --exit-code=1'
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
+                }
+            }
         }
-    }
-    post {
-        always {
-            // Lưu trữ file báo cáo quét bảo mật sau mỗi lần chạy
-            archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
+
+        stage('Snyk Dependency Scan') {
+            //when {
+                //expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
+            //}
+            steps {
+                withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
+                    sh '''
+                        curl -sSL https://static.snyk.io/cli/latest/snyk-linux -o snyk
+                        chmod +x snyk
+                        ./snyk test \
+                            --all-projects \
+                            --detection-depth=4 \
+                            --severity-threshold=high \
+                            --json-file-output=snyk-test-report.json
+                    '''
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'snyk-test-report.json', fingerprint: true, allowEmptyArchive: true
+                }
+            }
         }
-    }
-}
 
         stage('Test Phase') {
             when {
