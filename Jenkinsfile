@@ -84,34 +84,29 @@ pipeline {
                         sh '''
                             curl -sSL https://static.snyk.io/cli/latest/snyk-linux -o snyk
                             chmod +x snyk
+                            chmod +x mvnw
                         '''
-                        
-                        // Fix lỗi "Cannot build Maven dependency tree" bằng cách install parent và common-library
-                        echo "--- Installing parent and common-library to fix Snyk dependency tree issues ---"
-                        sh "chmod +x mvnw || true"
+
+                        // Pre-install parent POM và common-library để Snyk có thể resolve dependency tree
+                        echo "--- Pre-installing Maven parent and common-library ---"
                         sh "./mvnw install -N -DskipTests -Drevision=1.0-SNAPSHOT"
                         sh "./mvnw install -pl common-library -am -DskipTests -Drevision=1.0-SNAPSHOT"
-                        
-                        // Đưa thư mục gốc vào PATH để Snyk tìm thấy 'snyk' và 'mvnw' ở mọi nơi
-                        withEnv(["PATH+EXTRA=${env.WORKSPACE}"]) {
-                            def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                            services.each { svc ->
-                                echo "--- Snyk scanning service: ${svc} ---"
-                                dir("${svc}") {
-                                    // Cấp quyền thực thi cho mvnw tại chỗ hoặc ở gốc
-                                    def hasLocalMvnw = fileExists('mvnw')
-                                    if (hasLocalMvnw) {
-                                        sh "chmod +x ./mvnw || true"
-                                    }
 
-                                    // Lệnh Snyk gọn gàng hơn nhờ đã có PATH
-                                    def snykCmd = "snyk test --severity-threshold=high --json-file-output=${env.WORKSPACE}/snyk-${svc}-report.json"
-                                    if (fileExists('pom.xml')) {
-                                        snykCmd += " --command=${hasLocalMvnw ? './mvnw' : 'mvnw'}"
-                                    }
+                        // Quét từng service TỪ THƯ MỤC GỐC (nơi có sẵn mvnw)
+                        // Dùng --file thay vì cd vào thư mục con để tránh lỗi "mvnw not found"
+                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                        services.each { svc ->
+                            echo "--- Snyk scanning service: ${svc} ---"
+                            def reportFile = "${env.WORKSPACE}/snyk-${svc}-report.json"
 
-                                    sh "${snykCmd}"
-                                }
+                            if (fileExists("${svc}/pom.xml")) {
+                                // Java service: quét bằng Maven từ thư mục gốc
+                                sh "./snyk test --file=${svc}/pom.xml --severity-threshold=high --command=./mvnw --json-file-output=${reportFile} || true"
+                            } else if (fileExists("${svc}/package-lock.json")) {
+                                // Node.js service: quét bằng npm
+                                sh "./snyk test --file=${svc}/package-lock.json --severity-threshold=high --json-file-output=${reportFile} || true"
+                            } else {
+                                echo "Skipping ${svc}: no known manifest file found."
                             }
                         }
                     }
