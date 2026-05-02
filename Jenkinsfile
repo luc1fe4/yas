@@ -101,7 +101,10 @@ pipeline {
             post {
                 always {
                     script {
-                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                        def services = (env.CHANGED_SERVICES ?: '')
+                            .split(',')
+                            .collect { it.trim() }
+                            .findAll { it && it != 'none' }
                         services.each { svc ->
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
