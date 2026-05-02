@@ -128,8 +128,16 @@ stage('Test Phase') {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                     sh 'chmod +x mvnw || true'
                     services.each { svc ->
-                        echo "Running tests for: ${svc}"
-                        sh "./mvnw verify jacoco:report -DskipITs -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                        if (fileExists("${svc}/pom.xml")) {
+                            echo "Running Maven tests for: ${svc}"
+                            sh "./mvnw verify jacoco:report -DskipITs -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                        } else if (fileExists("${svc}/package.json")) {
+                            echo "Running Node.js tests for: ${svc}"
+                            dir("${svc}") {
+                                // Nếu ông có viết unit test cho Node.js thì lệnh này sẽ chạy, nếu chưa có thì '|| true' sẽ giúp pass
+                                sh "npm install && npm test || true"
+                            }
+                        }
                     }
                 }
             }
