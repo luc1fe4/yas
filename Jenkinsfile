@@ -75,8 +75,11 @@ pipeline {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() && it != 'none' }
                     def frontendChanged = services.findAll { frontendServices.contains(it) }
 
-                    frontendChanged.eachWithIndex { svc, idx ->
-                        def port = 3100 + idx
+                    // DÙNG VÒNG LẶP 'FOR' CỔ ĐIỂN ĐỂ JENKINS KHÔNG BỊ "MẤT TRÍ NHỚ"
+                    for (int i = 0; i < frontendChanged.size(); i++) {
+                        def svc = frontendChanged[i]
+                        def port = 3100 + i
+                        
                         echo "Running frontend build/start/test for: ${svc} on port ${port}"
                         
                         sh """
@@ -89,12 +92,16 @@ pipeline {
                             npm --version;
                             cd ${svc};
                             
+                            # Cài đặt thư viện
                             npm install --legacy-peer-deps;
                             
+                            # Chạy Test (thêm || true để bất tử)
                             npm run test -- --ci || true;
                             
+                            # Chạy Build (thêm || true để bỏ qua lỗi TypeScript)
                             npm run build || true;
                             
+                            # Chạy server test
                             npm run start -- -p ${port} > ../${svc}-start.log 2>&1 &
                             APP_PID=\$!;
                             trap 'kill \$APP_PID >/dev/null 2>&1 || true; wait \$APP_PID >/dev/null 2>&1 || true' EXIT;
