@@ -152,19 +152,24 @@ pipeline {
                     script {
                         def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                         def plModules = services.join(',')
-                        sh """
-                            mvn -DskipTests compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \
-                                -f pom.xml \
-                                -pl ${plModules} -am \
-                                -Drevision=1.0-SNAPSHOT \
-                                -Dsonar.token=\$SONAR_TOKEN \
-                                -Dsonar.organization=luc1fe4 \
-                                -Dsonar.projectKey=luc1fe4_yas \
-                                -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \
-                                -Dsonar.scanner.socketTimeout=300 \
-                                -Dsonar.scanner.responseTimeout=300 \
-                                -Dsonar.scanner.internal.useHttp2=false
-                        """
+                        // SONAR_SCANNER_OPTS: disables HTTP/2 in the scanner JVM (avoids Http2 stream reset /
+                        // CANCEL timeouts on multipart upload to SonarCloud ce/submit). Maven -D alone may not apply here.
+                        withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
+                            sh """
+                                mvn -DskipTests compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
+                                    -f pom.xml \\
+                                    -pl ${plModules} -am \\
+                                    -Drevision=1.0-SNAPSHOT \\
+                                    -Dsonar.token=\$SONAR_TOKEN \\
+                                    -Dsonar.organization=luc1fe4 \\
+                                    -Dsonar.projectKey=luc1fe4_yas \\
+                                    -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \\
+                                    -Dsonar.scanner.connectTimeout=600 \\
+                                    -Dsonar.scanner.socketTimeout=600 \\
+                                    -Dsonar.scanner.responseTimeout=600 \\
+                                    -Dsonar.scanner.internal.useHttp2=false
+                            """
+                        }
                     }
                 }
             }
