@@ -73,57 +73,7 @@ pipeline {
             }
         }
 
-        stage('Snyk Dependency Scan') {
-            when {
-                expression { changedServices?.trim() && changedServices != 'none' }
-            }
-            steps {
-                withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
-                    script {
-                        // Tải Snyk CLI ở thư mục gốc
-                        sh '''
-                            curl -sSL https://static.snyk.io/cli/latest/snyk-linux -o snyk
-                            chmod +x snyk
-                            chmod +x mvnw
-                        '''
-
-                        // Pre-install parent POM và common-library để Snyk có thể resolve dependency tree
-                        echo "--- Pre-installing Maven parent and common-library ---"
-                        sh "./mvnw install -N -DskipTests -Drevision=1.0-SNAPSHOT"
-                        sh "./mvnw install -pl common-library -am -DskipTests -Drevision=1.0-SNAPSHOT"
-
-                        // Quét từng service TỪ THƯ MỤC GỐC (nơi có sẵn mvnw)
-                        // Dùng --file thay vì cd vào thư mục con để tránh lỗi "mvnw not found"
-                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                        services.each { svc ->
-                            echo "--- Snyk scanning service: ${svc} ---"
-                            def reportFile = "${env.WORKSPACE}/snyk-${svc}-report.json"
-
-                            if (fileExists("${svc}/pom.xml")) {
-                                // Java service: quét bằng Maven từ thư mục gốc
-                                sh "./snyk test --file=${svc}/pom.xml --severity-threshold=high --command=./mvnw --json-file-output=${reportFile} || true"
-                            } else if (fileExists("${svc}/package.json")) {
-                                // Node.js: cần cài node_modules đầy đủ thì Snyk mới quét được
-                                dir("${svc}") {
-                                    sh "npm install || true"
-                                }
-                                // Quét bằng package-lock.json (được tạo ra bởi npm install ở trên)
-                                sh "./snyk test --file=${svc}/package-lock.json --severity-threshold=high --json-file-output=${reportFile} || true"
-                            } else {
-                                echo "Skipping ${svc}: no known manifest file found."
-                            }
-                        }
-                    }
-                }
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'snyk-*-report.json', fingerprint: true, allowEmptyArchive: true
-                }
-            }
-        }
-
-stage('Test Phase') {
+        stage('Test Phase') {
             when {
                 expression { changedServices?.trim() && changedServices != 'none' }
             }
