@@ -3,11 +3,6 @@ def changedServices = 'none'
 pipeline {
     agent any
 
-    environment {
-        // Lấy Snyk Token từ Jenkins Credentials (loại Secret text)
-        SNYK_TOKEN = credentials('snyk-token')
-    }
-
     stages {
 
         stage('Detect Changed Services') {
