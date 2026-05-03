@@ -307,8 +307,10 @@ pipeline {
                             error("[${svc}] Jest coverage report missing. Ensure 'npm run test:coverage' generated it.")
                         }
                         
-                        // Use Node.js to parse JSON (since we know node is available)
+                        // Use Node.js to parse JSON (ensure PATH is set)
+                        // Use Node.js to parse JSON (ensure PATH is set using WORKSPACE)
                         def coverage = sh(script: """
+                            export PATH=${env.WORKSPACE}/node-v20.12.2-linux-x64/bin:\$PATH
                             node -e "const fs = require('fs'); const data = JSON.parse(fs.readFileSync('${reportPath}', 'utf8')); console.log(Math.floor(data.total.lines.pct));"
                         """, returnStdout: true).trim().toInteger()
 
