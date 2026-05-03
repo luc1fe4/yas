@@ -7,9 +7,13 @@ class MessagesUtilsTest {
 
     @Test
     void getMessage_withExistingCode_shouldReturnMessage() {
-        // This depends on the existence of messages.properties in resources
-        // If it doesn't exist, it returns the code itself.
         String result = MessagesUtils.getMessage("test.code");
         assertEquals("test.code", result);
+    }
+
+    @Test
+    void getMessage_withMissingCode_shouldReturnCodeItself() {
+        String result = MessagesUtils.getMessage("non.existent.code");
+        assertEquals("non.existent.code", result);
     }
 }
