@@ -192,9 +192,9 @@ pipeline {
                 script {
                     def fe = ['backoffice', 'storefront']
                     def allBackendServices = [
-                        'cart', 'customer', 'delivery', 'inventory', 'location',
-                        'media', 'order', 'payment', 'payment-paypal', 'product',
-                        'promotion', 'rating', 'recommendation', 'search', 'tax',
+                        // 'cart', 'customer', 'delivery', 'inventory', 'location',
+                        // 'media', 'order', 'payment', 'payment-paypal', 'product',
+                        // 'promotion', 'rating', 'recommendation', 'search', 'tax',
                         'backoffice-bff', 'storefront-bff', 'identity',
                         'sampledata', 'webhook'
                     ]
@@ -261,9 +261,9 @@ pipeline {
                 script {
                     def fe = ['backoffice', 'storefront']
                     def allBackendServices = [
-                        'cart', 'customer', 'delivery', 'inventory', 'location',
-                        'media', 'order', 'payment', 'payment-paypal', 'product',
-                        'promotion', 'rating', 'recommendation', 'search', 'tax',
+                        // 'cart', 'customer', 'delivery', 'inventory', 'location',
+                        // 'media', 'order', 'payment', 'payment-paypal', 'product',
+                        // 'promotion', 'rating', 'recommendation', 'search', 'tax',
                         'backoffice-bff', 'storefront-bff', 'identity',
                         'sampledata', 'webhook'
                     ]
@@ -377,9 +377,9 @@ pipeline {
                 script {
                     def fe = ['backoffice', 'storefront']
                     def allBackendServices = [
-                        'cart', 'customer', 'delivery', 'inventory', 'location',
-                        'media', 'order', 'payment', 'payment-paypal', 'product',
-                        'promotion', 'rating', 'recommendation', 'search', 'tax',
+                        // 'cart', 'customer', 'delivery', 'inventory', 'location',
+                        // 'media', 'order', 'payment', 'payment-paypal', 'product',
+                        // 'promotion', 'rating', 'recommendation', 'search', 'tax',
                         'backoffice-bff', 'storefront-bff', 'identity',
                         'sampledata', 'webhook'
                     ]
@@ -410,9 +410,9 @@ pipeline {
                     script {
                         def fe = ['backoffice', 'storefront']
                         def allBackendServices = [
-                            'cart', 'customer', 'delivery', 'inventory', 'location',
-                            'media', 'order', 'payment', 'payment-paypal', 'product',
-                            'promotion', 'rating', 'recommendation', 'search', 'tax',
+                            // 'cart', 'customer', 'delivery', 'inventory', 'location',
+                            // 'media', 'order', 'payment', 'payment-paypal', 'product',
+                            // 'promotion', 'rating', 'recommendation', 'search', 'tax',
                             'backoffice-bff', 'storefront-bff', 'identity',
                             'sampledata', 'webhook'
                         ]

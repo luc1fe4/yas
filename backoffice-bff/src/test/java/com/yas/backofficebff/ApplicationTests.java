@@ -6,7 +6,8 @@ import org.springframework.security.oauth2.client.registration.ReactiveClientReg
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest(properties = {
-    "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.oauth2.client.reactive.ReactiveOAuth2ClientAutoConfiguration",
+    "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.security.oauth2.client.reactive.ReactiveOAuth2ClientAutoConfiguration,org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration",
+    "spring.security.oauth2.client.provider.keycloak.issuer-uri=",
     "spring.data.redis.host=localhost",
     "spring.data.redis.port=6379"
 })
