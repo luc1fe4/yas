@@ -38,7 +38,14 @@ class WebhookControllerTest {
 
     @Test
     void getPageableWebhooks_shouldReturnOk() throws Exception {
-        WebhookListGetVm response = new WebhookListGetVm(Collections.emptyList(), 0, 0, 0, 0, false);
+        WebhookListGetVm response = WebhookListGetVm.builder()
+                .webhooks(Collections.emptyList())
+                .pageNo(0)
+                .pageSize(0)
+                .totalElements(0)
+                .totalPages(0)
+                .isLast(false)
+                .build();
         when(webhookService.getPageableWebhooks(anyInt(), anyInt())).thenReturn(response);
 
         mockMvc.perform(get("/backoffice/webhooks/paging")
@@ -58,7 +65,8 @@ class WebhookControllerTest {
 
     @Test
     void getWebhook_shouldReturnOk() throws Exception {
-        WebhookDetailVm response = WebhookDetailVm.builder().id(1L).build();
+        WebhookDetailVm response = new WebhookDetailVm();
+        response.setId(1L);
         when(webhookService.findById(anyLong())).thenReturn(response);
 
         mockMvc.perform(get("/backoffice/webhooks/1"))
@@ -68,7 +76,8 @@ class WebhookControllerTest {
 
     @Test
     void createWebhook_shouldReturnCreated() throws Exception {
-        WebhookDetailVm response = WebhookDetailVm.builder().id(1L).build();
+        WebhookDetailVm response = new WebhookDetailVm();
+        response.setId(1L);
         when(webhookService.create(any(WebhookPostVm.class))).thenReturn(response);
 
         mockMvc.perform(post("/backoffice/webhooks")
