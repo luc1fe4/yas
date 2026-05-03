@@ -37,15 +37,22 @@ class SqlScriptExecutorTest {
     }
 
     @Test
+    void executeScriptsForSchema_withResources_shouldExecuteSuccessfully() throws SQLException {
+        // When
+        sqlScriptExecutor.executeScriptsForSchema(dataSource, "public", "classpath:db/test.sql");
+
+        // Then
+        verify(dataSource, atLeastOnce()).getConnection();
+        verify(connection, atLeastOnce()).setSchema("public");
+    }
+
+    @Test
     void executeScriptsForSchema_withSQLException_shouldHandleGracefully() throws SQLException {
         // Given
         when(dataSource.getConnection()).thenThrow(new SQLException("Test exception"));
 
         // When
-        // We use a path that might actually exist in the classpath or just mock the resolver if possible
-        // But the resolver is created with 'new' inside the method.
-        // Let's use a path that returns nothing to avoid complex mocking of static/new.
-        sqlScriptExecutor.executeScriptsForSchema(dataSource, "public", "non-existent/*.sql");
+        sqlScriptExecutor.executeScriptsForSchema(dataSource, "public", "classpath:db/test.sql");
 
         // Then
         // Handled gracefully

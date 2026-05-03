@@ -18,11 +18,12 @@ class ViewModelTest {
     @Test
     void testErrorVm() {
         ErrorVm vm1 = new ErrorVm("400", "Bad Request", "Detail");
-        ErrorVm vm2 = new ErrorVm("400", "Bad Request", "Detail");
+        ErrorVm vm2 = new ErrorVm("400", "Bad Request", "Detail", java.util.Collections.emptyList());
         assertEquals("400", vm1.statusCode());
         assertEquals("Bad Request", vm1.title());
         assertEquals("Detail", vm1.detail());
-        // For regular classes, equals/hashCode might not be overridden, but we still cover them
+        assertTrue(vm1.fieldErrors().isEmpty());
+        assertEquals(vm1.statusCode(), vm2.statusCode());
         assertNotNull(vm1.toString());
     }
 }
