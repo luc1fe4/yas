@@ -377,7 +377,7 @@ pipeline {
                         if (mavenModules) {
                             def plModules = mavenModules.join(',')
                             sh """
-                                mvn -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
+                                ./mvnw -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
                                     -f pom.xml \\
                                     -pl ${plModules} -am \\
                                     -Drevision=1.0-SNAPSHOT \\
