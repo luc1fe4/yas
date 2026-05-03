@@ -75,9 +75,8 @@ pipeline {
                     services.any { frontendServices.contains(it) }
                 }
             }
-            tools {
-                nodejs 'nodejs'
-            }
+            // NodeJS Jenkins Tool plugin not installed on this controller — use node/npm from agent PATH.
+            // To use tools { nodejs '...' }, install "NodeJS" plugin and add a NodeJS installation in Global Tool Configuration.
             steps {
                 script {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
@@ -89,6 +88,7 @@ pipeline {
 
                         sh """
                             set -e;
+                            command -v node >/dev/null 2>&1 || { echo "node not found on PATH; install Node.js on the agent or add NodeJS plugin."; exit 127; }
                             apt-get update -y || true;
                             apt-get install -y libatomic1 || true;
                             node --version;
