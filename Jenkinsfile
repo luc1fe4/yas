@@ -324,6 +324,13 @@ pipeline {
                     }
                 }
             }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'sonarqube-test-report.json',
+                                    fingerprint: true,
+                                    allowEmptyArchive: true
+                }
+            }
         }
 
         stage('Build Phase') {
