@@ -384,8 +384,6 @@ pipeline {
                                         -pl ${plModules} -am \\
                                         -Drevision=1.0-SNAPSHOT \\
                                         -Dsonar.token=\$SONAR_TOKEN \\
-                                        -Dsonar.organization=luc1fe4 \\
-                                        -Dsonar.projectKey=luc1fe4_yas \\
                                         -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \\
                                         -Dsonar.host.url=https://sonarcloud.io \\
                                         -Dsonar.scanner.internal.useHttp2=false \\
