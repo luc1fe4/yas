@@ -22,4 +22,5 @@ module.exports = {
     '^@webhookServices/(.*)$': '<rootDir>/modules/webhook/services/$1',
     '^@webhookModels/(.*)$': '<rootDir>/modules/webhook/models/$1',
   },
+  modulePathIgnorePatterns: ['<rootDir>/.next/'],
 };
