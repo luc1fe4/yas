@@ -5,9 +5,6 @@ pipeline {
         string(name: 'DIFF_BASE_BRANCH', defaultValue: 'main', description: 'Nhanh goc de diff (non-PR); PR dung CHANGE_TARGET.')
     }
 
-    environment {
-        // Removed global CHANGED_SERVICES to allow dynamic update
-    }
 
     options {
         skipDefaultCheckout()
