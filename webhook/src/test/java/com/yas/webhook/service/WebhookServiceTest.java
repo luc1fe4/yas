@@ -11,6 +11,7 @@ import com.yas.webhook.model.dto.WebhookEventNotificationDto;
 import com.yas.webhook.model.mapper.WebhookMapper;
 import com.yas.webhook.model.viewmodel.webhook.WebhookDetailVm;
 import com.yas.webhook.repository.WebhookEventNotificationRepository;
+import com.yas.webhook.repository.WebhookEventRepository;
 import com.yas.webhook.repository.WebhookRepository;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,8 @@ class WebhookServiceTest {
     WebhookRepository webhookRepository;
     @Mock
     WebhookMapper webhookMapper;
+    @Mock
+    WebhookEventRepository webhookEventRepository;
     @Mock
     WebhookEventNotificationRepository webhookEventNotificationRepository;
     @Mock
