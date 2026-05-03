@@ -135,7 +135,7 @@ pipeline {
                             APP_PID=\$!;
                             trap 'kill \$APP_PID >/dev/null 2>&1 || true; wait \$APP_PID >/dev/null 2>&1 || true' EXIT;
                             sleep 15;
-                            npm run test -- --ci;
+                            npm run test:coverage -- --ci;
                         """
                     }
                 }
