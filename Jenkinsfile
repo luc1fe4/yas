@@ -140,49 +140,52 @@ pipeline {
         }
 
         stage('Snyk Dependency Scan') {
+            // Chỉ thực hiện quét khi có sự thay đổi mã nguồn trong các service cụ thể
             when {
                 expression { changedServices?.trim() && changedServices != 'none' }
             }
             steps {
+                // Sử dụng định danh snyk-token đã cấu hình trong Jenkins Credentials
                 withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
                     script {
-                        // Tải Snyk CLI ở thư mục gốc
+                        // 1. Khởi tạo môi trường: Tải Snyk CLI binary và cấp quyền thực thi
+                        echo "--- Initializing Snyk CLI Environment ---"
                         sh '''
                             curl -sSL https://static.snyk.io/cli/latest/snyk-linux -o snyk
                             chmod +x snyk
                             chmod +x mvnw
                         '''
-
-                        // Pre-install parent POM và common-library để Snyk có thể resolve dependency tree
-                        echo "--- Pre-installing Maven parent and common-library ---"
+                        // 2. Tiền xử lý (Pre-processing): Cài đặt Parent POM và thư viện dùng chung (common-library)
+                        // Bước này bắt buộc đối với kiến trúc Multi-module Maven để Snyk có thể phân tích cây phụ thuộc (Dependency Tree)
+                        echo "--- Pre-installing Maven Parent and Common-library ---"
                         sh "./mvnw install -N -DskipTests -Drevision=1.0-SNAPSHOT"
                         sh "./mvnw install -pl common-library -am -DskipTests -Drevision=1.0-SNAPSHOT"
 
-                        // Quét từng service TỪ THƯ MỤC GỐC (nơi có sẵn mvnw)
-                        // Dùng --file thay vì cd vào thư mục con để tránh lỗi "mvnw not found"
+                        // 3. Phân tích chi tiết từng Service có sự thay đổi (Changed Services)
                         def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
-                            echo "--- Snyk scanning service: ${svc} ---"
+                            echo "--- Executing Snyk Scan for: ${svc} ---"
                             def reportFile = "${env.WORKSPACE}/snyk-${svc}-report.json"
-
+                            // Kiểm tra loại Project để áp dụng chiến lược quét tương ứng
                             if (fileExists("${svc}/pom.xml")) {
-                                // Java service: quét bằng Maven từ thư mục gốc
+                                // Đối với Java Service: Sử dụng Maven Wrapper từ thư mục gốc để đảm bảo tính nhất quán của phiên bản build
                                 sh "./snyk test --file=${svc}/pom.xml --severity-threshold=high --command=./mvnw --json-file-output=${reportFile} || true"
                             } else if (fileExists("${svc}/package.json")) {
-                                // Node.js: cần cài node_modules đầy đủ thì Snyk mới quét được
+                                // Đối với Node.js Service: Thực hiện cài đặt dependencies để tạo cấu trúc node_modules hoàn chỉnh
                                 dir("${svc}") {
                                     sh "npm install || true"
                                 }
-                                // Quét bằng package-lock.json (được tạo ra bởi npm install ở trên)
+                                // Sử dụng package-lock.json để phân tích chính xác các phiên bản thư viện thực tế sẽ được triển khai
                                 sh "./snyk test --file=${svc}/package-lock.json --severity-threshold=high --json-file-output=${reportFile} || true"
                             } else {
-                                echo "Skipping ${svc}: no known manifest file found."
+                                echo "Skipping ${svc}: No valid manifest file (pom.xml/package.json) detected."
                             }
                         }
                     }
                 }
             }
             post {
+                // Hậu xử lý: Luôn lưu trữ báo cáo dưới dạng Artifact để phục vụ công tác thẩm định và truy xuất bảo mật
                 always {
                     // Lưu trữ file báo cáo quét bảo mật sau mỗi lần chạy
                     archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
@@ -191,7 +194,7 @@ pipeline {
             }
         }
 
-stage('Test Phase') {
+    stage('Test Phase') {
             when {
                 expression {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() }
