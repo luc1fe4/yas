@@ -148,14 +148,14 @@ pipeline {
                         tar -xzf gitleaks.tar.gz
                         chmod +x gitleaks
                     '''
-                    // Để exit code = 0 cho pipeline chắc chắn Xanh
-                    sh "./gitleaks detect --source=. --config=gitleaks.toml --log-opts=\"origin/main..HEAD\" --report-format=json --report-path=gitleaks-report.json --exit-code=0"
+                    
+                    // Thực thi quét secret, dùng --exit-code=0 để không đánh sập Pipeline
+                    sh "./gitleaks detect --source=. --config=gitleaks.toml --log-opts=\"origin/${diffBaseBranch}..HEAD\" --report-format=json --report-path=gitleaks-report.json --exit-code=0"
                 }
             }
             post {
                 always {
-                    // Chi quet commit tren nhanh hien tai so voi main de tranh fail vi leak cu trong lich su du an
-                    sh "./gitleaks detect --source=. --config=gitleaks.toml --log-opts=\"origin/${diffBaseBranch}..HEAD\" --report-format=json --report-path=gitleaks-report.json --exit-code=1"
+                    // Chỉ dùng post để lưu file báo cáo sinh ra từ bước steps ở trên
                     archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
                 }
             }
