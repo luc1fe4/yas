@@ -9,7 +9,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest(properties = {
     "spring.main.allow-bean-definition-overriding=true",
-    "spring.autoconfigure.exclude=org.springdoc.webmvc.ui.autoconfigure.SwaggerUiAutoConfiguration"
+    "spring.autoconfigure.exclude=org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration,org.springdoc.webmvc.ui.autoconfigure.SwaggerUiAutoConfiguration"
 })
 @ActiveProfiles("test")
 class ApplicationTests {
