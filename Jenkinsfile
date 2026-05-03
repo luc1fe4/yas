@@ -9,10 +9,6 @@ pipeline {
         CHANGED_SERVICES = 'none'
     }
 
-    tools {
-        maven 'Maven-3.9'
-    }
-
     options {
         skipDefaultCheckout()
     }
@@ -215,7 +211,7 @@ pipeline {
                     backendServices.each { svc ->
                         if (fileExists("${svc}/pom.xml")) {
                             echo "Running Maven tests for: ${svc}"
-                            sh "mvn verify jacoco:report -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                            sh "./mvnw verify jacoco:report -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                         } else if (fileExists("${svc}/package.json")) {
                             echo "Running Node.js tests for: ${svc}"
                             dir("${svc}") {
@@ -330,7 +326,7 @@ pipeline {
                         withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
                             if (plModules) {
                                 sh """
-                                    mvn -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
+                                    ./mvnw -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
                                         -f pom.xml \\
                                         -pl ${plModules} -am \\
                                         -Drevision=1.0-SNAPSHOT \\
@@ -345,7 +341,7 @@ pipeline {
                                 """
                             } else {
                                 sh """
-                                    mvn -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
+                                    ./mvnw -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
                                         -f pom.xml \\
                                         -Drevision=1.0-SNAPSHOT \\
                                         -Dsonar.token=\$SONAR_TOKEN \\
@@ -398,7 +394,7 @@ pipeline {
                     backendServices.each { svc ->
                         if (fileExists("${svc}/pom.xml")) {
                             echo "Building: ${svc}"
-                            sh "mvn clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                            sh "./mvnw clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                         }
                     }
                 }
