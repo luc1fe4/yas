@@ -8,11 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "jest --passWithNoTests",
-<<<<<<< HEAD
-=======
-    "test": "jest",
     "test:coverage": "jest --coverage --coverageReporters='json-summary'",
->>>>>>> 98b948d1aae94fc6825442b6958676e33035ce58
     "format": "npx prettier --write ."
   },
   "dependencies": {
