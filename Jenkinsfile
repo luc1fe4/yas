@@ -307,9 +307,9 @@ pipeline {
                             error("[${svc}] Jest coverage report missing. Ensure 'npm run test:coverage' generated it.")
                         }
                         
-                        // Parse percentage from JSON using shell/python or simple grep/sed
+                        // Parse percentage from JSON focusing on the "total" block
                         def coverage = sh(script: """
-                            cat ${reportPath} | grep -o '"lines":{"total":[0-9]*,"covered":[0-9]*,"skipped":[0-9]*,"pct":[0-9.]*' | grep -o '[0-9.]*\$' || echo 0
+                            cat ${reportPath} | grep -o '"total":{"lines":{"total":[0-9]*,"covered":[0-9]*,"skipped":[0-9]*,"pct":[0-9.]*' | grep -o '[0-9.]*\$' | head -n 1 || echo 0
                         """, returnStdout: true).trim().toFloat().toInteger()
 
                         echo "[${svc}] Frontend Line Coverage: ${coverage}%"
