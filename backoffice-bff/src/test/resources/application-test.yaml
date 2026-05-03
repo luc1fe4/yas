@@ -2,8 +2,12 @@ spring:
   security:
     oauth2:
       client:
-        provider: {}
-        registration: {}
+        provider:
+          keycloak:
+            issuer-uri: ~
+        registration:
+          api-client:
+            provider: keycloak
   data:
     redis:
       host: localhost
