@@ -145,7 +145,7 @@ pipeline {
             }
         }
 
-        stage('Frontend Build Start Test') {
+        stage('Frontend Build') {
             when {
                 expression {
                     def fe = ['backoffice', 'storefront']
@@ -158,28 +158,39 @@ pipeline {
                     def fe = ['backoffice', 'storefront']
                     def frontendChanged = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { fe.contains(it) }
 
-                    // VÒNG LẶP FOR CHỐNG LỖI MẤT TRÍ NHỚ (LOGIC CỦA BẠN)
                     for (int i = 0; i < frontendChanged.size(); i++) {
                         def svc = frontendChanged[i]
-                        def port = 3100 + i
 
-                        echo "Running frontend build/start for: ${svc} on port ${port}"
+                        echo "Building frontend: ${svc}"
 
                         sh """
                             set -e;
                             command -v node >/dev/null 2>&1 || { echo "node not found on PATH"; exit 127; }
-                            apt-get update -y || true;
-                            apt-get install -y libatomic1 || true;
                             node --version;
                             npm --version;
                             cd ${svc};
-                            npm install --legacy-peer-deps;
-                            npm run build || true;
-                            npm run start -- -p ${port} > ../${svc}-start.log 2>&1 &
-                            APP_PID=\$!;
-                            trap 'kill \$APP_PID >/dev/null 2>&1 || true; wait \$APP_PID >/dev/null 2>&1 || true' EXIT;
-                            sleep 15;
+                            if [ -f package-lock.json ]; then
+                              npm ci --legacy-peer-deps;
+                            else
+                              npm install --legacy-peer-deps;
+                            fi
+                            npm run build
                         """
+                    }
+                }
+            }
+            post {
+                success {
+                    script {
+                        def frontendChanged = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { ['backoffice', 'storefront'].contains(it) }
+                        frontendChanged.each { svc ->
+                            // Archive build artifacts if any (e.g., .next, dist)
+                            if (fileExists("${svc}/.next") || fileExists("${svc}/out") || fileExists("${svc}/build")) {
+                                archiveArtifacts artifacts: "${svc}/.next/**,${svc}/out/**,${svc}/build/**",
+                                                 fingerprint: true,
+                                                 allowEmptyArchive: true
+                            }
+                        }
                     }
                 }
             }
