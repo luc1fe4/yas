@@ -71,8 +71,11 @@ pipeline {
 
                     echo "Affected services detected: ${affected}"
 
-                    env.CHANGED_SERVICES = affected.isEmpty() ? 'none' : affected.join(',')
-                    if (env.CHANGED_SERVICES == 'none') {
+                    def result = affected.isEmpty() ? 'none' : affected.join(',')
+                    env.CHANGED_SERVICES = result
+                    echo "Final CHANGED_SERVICES: ${env.CHANGED_SERVICES}"
+
+                    if (result == 'none') {
                         echo 'No service changes detected. Skipping build/test.'
                     } else {
                         echo "Services to build/test: ${env.CHANGED_SERVICES}"
