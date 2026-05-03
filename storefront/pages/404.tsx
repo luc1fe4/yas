@@ -36,3 +36,5 @@ const NotfoundPage = () => {
 };
 
 export default NotfoundPage;
+
+// This file is for the 404 page, which will be displayed when a user tries to access a page that does not exist on the website. The page includes some styling to make it visually appealing and to convey the message that the page was not found.

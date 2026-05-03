@@ -14,3 +14,5 @@ public class PromotionApplication {
         SpringApplication.run(PromotionApplication.class, args);
     }
 }
+
+// add to test

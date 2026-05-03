@@ -13,3 +13,6 @@ public class LocationApplication {
         SpringApplication.run(LocationApplication.class, args);
     }
 }
+
+
+// add to test

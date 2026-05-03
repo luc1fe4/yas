@@ -16,3 +16,5 @@ public class CheckoutIdHelper {
         CheckoutIdHelper.checkoutId = checkoutId;
     }
 }
+
+// add to test

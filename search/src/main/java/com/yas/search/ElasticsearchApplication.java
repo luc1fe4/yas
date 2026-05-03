@@ -15,3 +15,5 @@ public class ElasticsearchApplication {
         SpringApplication.run(ElasticsearchApplication.class, args);
     }
 }
+
+// add to test

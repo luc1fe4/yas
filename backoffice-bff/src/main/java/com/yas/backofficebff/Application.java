@@ -13,3 +13,5 @@ public class Application {
         SpringApplication.run(Application.class, args);
     }
 }
+
+// add to test

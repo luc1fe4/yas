@@ -14,3 +14,5 @@ public class RatingApplication {
         SpringApplication.run(RatingApplication.class, args);
     }
 }
+ 
+// add to test

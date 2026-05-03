@@ -13,3 +13,5 @@ public class InventoryApplication {
         SpringApplication.run(InventoryApplication.class, args);
     }
 }
+
+// add to test
