@@ -66,11 +66,11 @@ pipeline {
                     echo "Changed files:\n${changedFiles}"
 
                     def services = [
-                        // 'cart', 'customer', 'delivery', 'inventory', 'location',
-                        // 'media', 'order', 'payment', 'payment-paypal', 'product',
-                        // 'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        // 'backoffice-bff', 'storefront-bff', 'identity',
-                        // 'sampledata', 'webhook',
+                        'cart', 'customer', 'delivery', 'inventory', 'location',
+                        'media', 'order', 'payment', 'payment-paypal', 'product',
+                        'promotion', 'rating', 'recommendation', 'search', 'tax',
+                        'backoffice-bff', 'storefront-bff', 'identity',
+                        'sampledata', 'webhook',
                         'backoffice',
                         'storefront'
                     ]
@@ -215,11 +215,11 @@ pipeline {
                 script {
                     def fe = ['backoffice', 'storefront']
                     def allBackendServices = [
-                        // 'cart', 'customer', 'delivery', 'inventory', 'location',
-                        // 'media', 'order', 'payment', 'payment-paypal', 'product',
-                        // 'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        // 'backoffice-bff', 'storefront-bff', 'identity',
-                        // 'sampledata', 'webhook'
+                        'cart', 'customer', 'delivery', 'inventory', 'location',
+                        'media', 'order', 'payment', 'payment-paypal', 'product',
+                        'promotion', 'rating', 'recommendation', 'search', 'tax',
+                        'backoffice-bff', 'storefront-bff', 'identity',
+                        'sampledata', 'webhook'
                     ]
 
                     def backendServices
@@ -284,11 +284,11 @@ pipeline {
                 script {
                     def fe = ['backoffice', 'storefront']
                     def allBackendServices = [
-                        // 'cart', 'customer', 'delivery', 'inventory', 'location',
-                        // 'media', 'order', 'payment', 'payment-paypal', 'product',
-                        // 'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        // 'backoffice-bff', 'storefront-bff', 'identity',
-                        // 'sampledata', 'webhook'
+                        'cart', 'customer', 'delivery', 'inventory', 'location',
+                        'media', 'order', 'payment', 'payment-paypal', 'product',
+                        'promotion', 'rating', 'recommendation', 'search', 'tax',
+                        'backoffice-bff', 'storefront-bff', 'identity',
+                        'sampledata', 'webhook'
                     ]
 
                     def feServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && fe.contains(it) }
@@ -428,11 +428,11 @@ pipeline {
                 script {
                     def fe = ['backoffice', 'storefront']
                     def allBackendServices = [
-                        // 'cart', 'customer', 'delivery', 'inventory', 'location',
-                        // 'media', 'order', 'payment', 'payment-paypal', 'product',
-                        // 'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        // 'backoffice-bff', 'storefront-bff', 'identity',
-                        // 'sampledata', 'webhook'
+                        'cart', 'customer', 'delivery', 'inventory', 'location',
+                        'media', 'order', 'payment', 'payment-paypal', 'product',
+                        'promotion', 'rating', 'recommendation', 'search', 'tax',
+                        'backoffice-bff', 'storefront-bff', 'identity',
+                        'sampledata', 'webhook'
                     ]
 
                     def backendServices
@@ -461,11 +461,11 @@ pipeline {
                     script {
                         def fe = ['backoffice', 'storefront']
                         def allBackendServices = [
-                            // 'cart', 'customer', 'delivery', 'inventory', 'location',
-                            // 'media', 'order', 'payment', 'payment-paypal', 'product',
-                            // 'promotion', 'rating', 'recommendation', 'search', 'tax',
-                            // 'backoffice-bff', 'storefront-bff', 'identity',
-                            // 'sampledata', 'webhook'
+                            'cart', 'customer', 'delivery', 'inventory', 'location',
+                            'media', 'order', 'payment', 'payment-paypal', 'product',
+                            'promotion', 'rating', 'recommendation', 'search', 'tax',
+                            'backoffice-bff', 'storefront-bff', 'identity',
+                            'sampledata', 'webhook'
                         ]
 
                         def backendServices
