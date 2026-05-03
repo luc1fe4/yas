@@ -6,7 +6,7 @@ pipeline {
     }
 
     environment {
-        CHANGED_SERVICES = 'none'
+        // Removed global CHANGED_SERVICES to allow dynamic update
     }
 
     options {
@@ -86,7 +86,9 @@ pipeline {
 
                     def result = affected.isEmpty() ? 'none' : affected.join(',')
                     env.CHANGED_SERVICES = result
-                    echo "Final CHANGED_SERVICES: ${env.CHANGED_SERVICES}"
+                    echo "Debug - Affected List: ${affected}"
+                    echo "Debug - Result String: ${result}"
+                    echo "Final CHANGED_SERVICES set to: ${env.CHANGED_SERVICES}"
 
                     if (result == 'none') {
                         echo 'No service changes detected. Skipping build/test.'
