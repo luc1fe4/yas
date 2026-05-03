@@ -49,10 +49,9 @@ public class MediaService extends AbstractCircuitBreakFallbackHandler {
             //TODO return default no image url
             return new NoFileMediaVm(null, "", "", "", "");
         }
-        final URI url = UriComponentsBuilder.fromUriString(serviceUrlConfig.media())
-            .path("/medias/{id}").buildAndExpand(id).toUri();
-        return restClient.get()
-                .uri(url)
+            if (id == null) {
+                return new NoFileMediaVm(null, "", "", "", "");
+            }
                 .retrieve()
                 .body(NoFileMediaVm.class);
     }
