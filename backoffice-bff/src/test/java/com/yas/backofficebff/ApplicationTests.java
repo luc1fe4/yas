@@ -7,7 +7,10 @@ import org.springframework.security.oauth2.client.registration.ReactiveClientReg
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-@SpringBootTest(properties = "spring.main.allow-bean-definition-overriding=true")
+@SpringBootTest(properties = {
+    "spring.main.allow-bean-definition-overriding=true",
+    "spring.autoconfigure.exclude=org.springdoc.webmvc.ui.autoconfigure.SwaggerUiAutoConfiguration"
+})
 @ActiveProfiles("test")
 class ApplicationTests {
 
