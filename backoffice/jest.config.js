@@ -22,4 +22,19 @@ module.exports = {
     '^@webhookServices/(.*)$': '<rootDir>/modules/webhook/services/$1',
     '^@webhookModels/(.*)$': '<rootDir>/modules/webhook/models/$1',
   },
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  transformIgnorePatterns: [
+    'node_modules/(?!(next)/)',
+  ],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+  reporters: [
+    'default',
+    ['jest-junit', {
+      outputDirectory: '<rootDir>',
+      outputName: 'junit.xml',
+      classNameTemplate: '{classname}',
+      titleNameTemplate: '{title}',
+      ancestorSeparator: ' > ',
+    }],
+  ],
 };

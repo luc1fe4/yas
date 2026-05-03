@@ -89,6 +89,62 @@ pipeline {
             }
         }
 
+        stage('Frontend Tests') {
+            when {
+                expression {
+                    def fe = ['backoffice', 'storefront']
+                    def svcs = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    svcs.any { fe.contains(it) }
+                }
+            }
+            steps {
+                script {
+                    def fe = ['backoffice', 'storefront']
+                    def frontendChanged = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { fe.contains(it) }
+
+                    for (int i = 0; i < frontendChanged.size(); i++) {
+                        def svc = frontendChanged[i]
+
+                        echo "Running unit tests for: ${svc}"
+
+                        sh """
+                            set -e;
+                            command -v node >/dev/null 2>&1 || { echo "node not found on PATH"; exit 127; }
+                            node --version;
+                            npm --version;
+                            cd ${svc};
+                            if [ -f package-lock.json ]; then
+                              npm ci --legacy-peer-deps;
+                            else
+                              npm install --legacy-peer-deps;
+                            fi
+                            npm run test:ci || {
+                              echo "Tests failed for ${svc}";
+                              exit 1;
+                            }
+                        """
+                    }
+                }
+            }
+            post {
+                always {
+                    script {
+                        def fe = ['backoffice', 'storefront']
+                        def frontendChanged = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { fe.contains(it) }
+                        frontendChanged.each { svc ->
+                            if (fileExists("${svc}/junit.xml")) {
+                                junit testResults: "${svc}/junit.xml", allowEmptyResults: true
+                            }
+                            // Archive coverage reports
+                            if (fileExists("${svc}/coverage/coverage-summary.json")) {
+                                archiveArtifacts artifacts: "${svc}/coverage/**", fingerprint: true, allowEmptyArchive: true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         stage('Frontend Build Start Test') {
             when {
                 expression {
@@ -106,8 +162,8 @@ pipeline {
                     for (int i = 0; i < frontendChanged.size(); i++) {
                         def svc = frontendChanged[i]
                         def port = 3100 + i
-                        
-                        echo "Running frontend build/start/test for: ${svc} on port ${port}"
+
+                        echo "Running frontend build/start for: ${svc} on port ${port}"
 
                         sh """
                             set -e;
@@ -118,7 +174,6 @@ pipeline {
                             npm --version;
                             cd ${svc};
                             npm install --legacy-peer-deps;
-                            npm run test -- --ci || true;
                             npm run build || true;
                             npm run start -- -p ${port} > ../${svc}-start.log 2>&1 &
                             APP_PID=\$!;
