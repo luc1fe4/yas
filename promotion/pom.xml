@@ -13,7 +13,6 @@
     <name>promotion</name>
     <description>YAS Promotion Service</description>
     <properties>
-        <sonar.projectKey>luc1fe4_yas:promotion</sonar.projectKey>
     </properties>
 
     <dependencies>

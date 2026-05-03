@@ -15,7 +15,6 @@
     <name>Common Library</name>
     <description>YAS Common Library service</description>
     <properties>
-        <sonar.projectKey>luc1fe4_yas:common-library</sonar.projectKey>
     </properties>
 
 
