@@ -401,7 +401,7 @@ pipeline {
                                     npx -y @sonarsource/sonar-scanner \\
                                         -Dsonar.token=\$SONAR_TOKEN \\
                                         -Dsonar.organization=luc1fe4 \\
-                                        -Dsonar.projectKey=luc1fe4_yas_${svc} \\
+                                        -Dsonar.projectKey=luc1fe4_yas \\
                                         -Dsonar.sources=. \\
                                         -Dsonar.host.url=https://sonarcloud.io \\
                                         -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \\
