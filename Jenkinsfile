@@ -5,11 +5,13 @@ pipeline {
     agent any
 
     parameters {
-        string(name: 'DIFF_BASE_BRANCH', defaultValue: 'main', description: 'Nhanh goc de so sanh changed files (vd: main, develop)')
+        string(name: 'DIFF_BASE_BRANCH', defaultValue: 'main', description: 'Nhanh goc de diff (chi dung khi khong phai PR; PR dung CHANGE_TARGET tu GitHub)')
     }
 
     environment {
-        DIFF_BASE_BRANCH = "${params.DIFF_BASE_BRANCH ?: 'main'}"
+        // Multibranch PR: Jenkins GitHub Branch Source sets CHANGE_TARGET = base branch (e.g. main).
+        // Branch builds: fall back to parameter or main (params can be null on first run).
+        DIFF_BASE_BRANCH = "${(env.CHANGE_TARGET?.trim() ?: (params?.DIFF_BASE_BRANCH?.trim() ?: 'main'))}"
     }
 
     stages {
