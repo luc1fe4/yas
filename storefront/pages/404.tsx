@@ -36,3 +36,5 @@ const NotfoundPage = () => {
 };
 
 export default NotfoundPage;
+
+// This file is for the 404 page, which will be displayed when a user tries to access a page that does not exist. The page includes two large "4" characters and two cog wheels, along with a message indicating that the page was not found. The styles for the page are defined in the '404.module.css' file.
