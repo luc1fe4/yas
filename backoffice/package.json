@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest --passWithNoTests"
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "test:coverage": "jest --coverage --coverageReporters='json-summary'"
   },
   "dependencies": {
@@ -39,6 +38,8 @@
     "yup": "^0.32.11"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/jest": "^29.5.12",
     "@types/node": "18.0.0",
     "@types/react": "18.0.14",

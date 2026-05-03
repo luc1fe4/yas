@@ -5,13 +5,6 @@ pipeline {
         string(name: 'DIFF_BASE_BRANCH', defaultValue: 'main', description: 'Nhanh goc de diff (non-PR); PR dung CHANGE_TARGET.')
     }
 
-    environment {
-        CHANGED_SERVICES = 'none'
-    }
-
-    tools {
-        maven 'Maven-3.9'
-    }
 
     options {
         skipDefaultCheckout()
@@ -23,6 +16,7 @@ pipeline {
             steps {
                 cleanWs()
                 checkout scm
+                sh 'chmod +x mvnw'
             }
         }
 
@@ -46,11 +40,24 @@ pipeline {
 
                     def changedFiles = sh(
                         script: """
+                            # Try diff with base branch first
+                            FILES=""
                             if git rev-parse --verify ${diffBaseRef} >/dev/null 2>&1; then
-                                git diff --name-only ${diffBaseRef}...HEAD
+                                FILES=\$(git diff --name-only ${diffBaseRef}...HEAD)
+                            fi
+                            
+                            # If no files found (base same as HEAD), fallback to last commit
+                            if [ -z "\$FILES" ]; then
+                                echo "No changes found vs ${diffBaseRef}, falling back to last commit diff" >&2
+                                FILES=\$(git diff --name-only HEAD~1..HEAD)
+                            fi
+                            
+                            # If still no files, list all files (safest fallback)
+                            if [ -z "\$FILES" ]; then
+                                echo "Still no changes found, using git ls-files" >&2
+                                git ls-files
                             else
-                                echo "${diffBaseRef} not found, fallback to latest commit diff" >&2
-                                git diff --name-only HEAD~1..HEAD || git ls-files
+                                echo "\$FILES"
                             fi
                         """,
                         returnStdout: true
@@ -63,7 +70,9 @@ pipeline {
                         'media', 'order', 'payment', 'payment-paypal', 'product',
                         'promotion', 'rating', 'recommendation', 'search', 'tax',
                         'backoffice-bff', 'storefront-bff', 'identity',
-                        'backoffice', 'storefront'
+                        'sampledata', 'webhook',
+                        'backoffice',
+                        'storefront'
                     ]
 
                     def affected = services.findAll { svc ->
@@ -72,8 +81,13 @@ pipeline {
 
                     echo "Affected services detected: ${affected}"
 
-                    env.CHANGED_SERVICES = affected.isEmpty() ? 'none' : affected.join(',')
-                    if (env.CHANGED_SERVICES == 'none') {
+                    def result = affected.isEmpty() ? 'none' : affected.join(',')
+                    env.CHANGED_SERVICES = result
+                    echo "Debug - Affected List: ${affected}"
+                    echo "Debug - Result String: ${result}"
+                    echo "Final CHANGED_SERVICES set to: ${env.CHANGED_SERVICES}"
+
+                    if (result == 'none') {
                         echo 'No service changes detected. Skipping build/test.'
                     } else {
                         echo "Services to build/test: ${env.CHANGED_SERVICES}"
@@ -101,19 +115,27 @@ pipeline {
 
                         sh """
                             set -e;
-                            command -v node >/dev/null 2>&1 || { echo "node not found on PATH"; exit 127; }
-                            apt-get update -y || true;
-                            apt-get install -y libatomic1 || true;
+                            if ! command -v node >/dev/null 2>&1; then
+                                if [ ! -d "node-v20.12.2-linux-x64" ]; then
+                                    echo "Node not found, downloading binary..."
+                                    curl -sSL https://nodejs.org/dist/v20.12.2/node-v20.12.2-linux-x64.tar.gz -o node.tar.gz
+                                    tar -xzf node.tar.gz
+                                fi
+                                export PATH=\$PWD/node-v20.12.2-linux-x64/bin:\$PATH
+                            fi
+                            
                             node --version;
                             npm --version;
                             cd ${svc};
-                            npm ci;
+                            echo "Current directory: \$(pwd)"
+                            ls -la
+                            npm install;
                             npm run build;
                             npm run start -- -p ${port} > ../${svc}-start.log 2>&1 &
                             APP_PID=\$!;
                             trap 'kill \$APP_PID >/dev/null 2>&1 || true; wait \$APP_PID >/dev/null 2>&1 || true' EXIT;
                             sleep 15;
-                            npm run test -- --ci;
+                            npm run test:coverage -- --coverageReporters='text' --coverageReporters='json-summary' --ci;
                         """
                     }
                 }
@@ -196,7 +218,8 @@ pipeline {
                         'cart', 'customer', 'delivery', 'inventory', 'location',
                         'media', 'order', 'payment', 'payment-paypal', 'product',
                         'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        'backoffice-bff', 'storefront-bff', 'identity'
+                        'backoffice-bff', 'storefront-bff', 'identity',
+                        'sampledata', 'webhook'
                     ]
 
                     def backendServices
@@ -215,7 +238,7 @@ pipeline {
                     backendServices.each { svc ->
                         if (fileExists("${svc}/pom.xml")) {
                             echo "Running Maven tests for: ${svc}"
-                            sh "mvn verify jacoco:report -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                            sh "./mvnw verify jacoco:report -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                         } else if (fileExists("${svc}/package.json")) {
                             echo "Running Node.js tests for: ${svc}"
                             dir("${svc}") {
@@ -264,33 +287,51 @@ pipeline {
                         'cart', 'customer', 'delivery', 'inventory', 'location',
                         'media', 'order', 'payment', 'payment-paypal', 'product',
                         'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        'backoffice-bff', 'storefront-bff', 'identity'
+                        'backoffice-bff', 'storefront-bff', 'identity',
+                        'sampledata', 'webhook'
                     ]
 
-                    def backendServices
-                    if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
-                        backendServices = allBackendServices
-                    } else {
-                        backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
-                    }
+                    def feServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && fe.contains(it) }
+                    def beServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && !fe.contains(it) }
 
-                    if (backendServices.isEmpty()) {
-                        echo 'No backend services to check coverage for. Skipping.'
+                    if (feServices.isEmpty() && beServices.isEmpty()) {
+                        echo 'No changed services to check coverage for. Skipping.'
                         return
                     }
 
-                    backendServices.each { svc ->
+                    // --- Frontend Coverage (Jest) ---
+                    feServices.each { svc ->
+                        def reportPath = "${svc}/coverage/coverage-summary.json"
+                        if (!fileExists(reportPath)) {
+                            echo "[${svc}] WARNING: Jest coverage summary not found at ${reportPath}"
+                            error("[${svc}] Jest coverage report missing. Ensure 'npm run test:coverage' generated it.")
+                        }
+                        
+                        // Use Node.js to parse JSON (ensure PATH is set)
+                        // Use Node.js to parse JSON (ensure PATH is set using WORKSPACE)
+                        def coverage = sh(script: """
+                            export PATH=${env.WORKSPACE}/node-v20.12.2-linux-x64/bin:\$PATH
+                            node -e "const fs = require('fs'); const data = JSON.parse(fs.readFileSync('${reportPath}', 'utf8')); console.log(Math.floor(data.total.lines.pct));"
+                        """, returnStdout: true).trim().toInteger()
+
+                        echo "[${svc}] Extracted Coverage: ${coverage}%"
+
+                        echo "[${svc}] Frontend Line Coverage: ${coverage}%"
+                        if (coverage <= 70) {
+                            error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
+                        }
+                    }
+
+                    // --- Backend Coverage (JaCoCo) ---
+                    beServices.each { svc ->
                         if (!fileExists("${svc}/pom.xml")) {
                             echo "[${svc}] Skipping coverage check for non-Maven service."
                             return
                         }
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
-                        def jacocoPresent = sh(script: "test -f ${reportPath} && echo 'yes' || echo 'no'", returnStdout: true).trim()
-
-                        if (jacocoPresent == 'no') {
+                        if (!fileExists(reportPath)) {
                             echo "[${svc}] WARNING: jacoco.csv not found at ${reportPath}"
-                            sh "find ${svc}/target -name '*.csv' -o -name 'jacoco*' 2>/dev/null || echo 'No jacoco files found'"
                             error("[${svc}] JaCoCo report missing - check jacoco-maven-plugin in ${svc}/pom.xml")
                         }
 
@@ -306,7 +347,7 @@ pipeline {
                             }' ${reportPath}
                         """, returnStdout: true).trim().toInteger()
 
-                        echo "[${svc}] Line Coverage: ${coverage}%"
+                        echo "[${svc}] Backend Line Coverage: ${coverage}%"
 
                         if (coverage <= 70) {
                             error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
@@ -316,60 +357,71 @@ pipeline {
             }
         }
 
-        stage('SonarQube Scan') {
-            steps {
-                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                    script {
-                        def services = (env.CHANGED_SERVICES ?: '')
-                            .split(',')
-                            .collect { it.trim() }
-                            .findAll { it && it != 'none' }
-                        def mavenModules = services.findAll { svc -> fileExists("${svc}/pom.xml") }
-                        def plModules = mavenModules ? mavenModules.join(',') : ''
+            stage('SonarQube Scan') {
+        steps {
+            withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                script {
+                    def services = (env.CHANGED_SERVICES ?: '')
+                        .split(',')
+                        .collect { it.trim() }
+                        .findAll { it && it != 'none' }
 
-                        withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
-                            if (plModules) {
-                                sh """
-                                    mvn -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
-                                        -f pom.xml \\
-                                        -pl ${plModules} -am \\
-                                        -Drevision=1.0-SNAPSHOT \\
-                                        -Dsonar.token=\$SONAR_TOKEN \\
-                                        -Dsonar.organization=luc1fe4 \\
-                                        -Dsonar.projectKey=luc1fe4_yas \\
-                                        -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \\
-                                        -Dsonar.scanner.connectTimeout=600 \\
-                                        -Dsonar.scanner.socketTimeout=600 \\
-                                        -Dsonar.scanner.responseTimeout=600 \\
-                                        -Dsonar.scanner.internal.useHttp2=false
-                                """
-                            } else {
-                                sh """
-                                    mvn -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
-                                        -f pom.xml \\
-                                        -Drevision=1.0-SNAPSHOT \\
-                                        -Dsonar.token=\$SONAR_TOKEN \\
-                                        -Dsonar.organization=luc1fe4 \\
-                                        -Dsonar.projectKey=luc1fe4_yas \\
-                                        -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \\
-                                        -Dsonar.scanner.connectTimeout=600 \\
-                                        -Dsonar.scanner.socketTimeout=600 \\
-                                        -Dsonar.scanner.responseTimeout=600 \\
-                                        -Dsonar.scanner.internal.useHttp2=false
-                                """
-                            }
+                    // Phân loại
+                    def mavenModules = services.findAll { svc -> fileExists("${svc}/pom.xml") }
+                    def frontendModules = services.findAll { svc ->
+                        fileExists("${svc}/package.json") && !fileExists("${svc}/pom.xml")
+                    }
+
+                    withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
+
+                        if (mavenModules) {
+                            def plModules = mavenModules.join(',')
+                            sh """
+                                mvn -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
+                                    -f pom.xml \\
+                                    -pl ${plModules} -am \\
+                                    -Drevision=1.0-SNAPSHOT \\
+                                    -Dsonar.token=\$SONAR_TOKEN \\
+                                    -Dsonar.organization=luc1fe4 \\
+                                    -Dsonar.projectKey=luc1fe4_yas \\
+                                    -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \\
+                                    -Dsonar.scanner.connectTimeout=600 \\
+                                    -Dsonar.scanner.socketTimeout=600 \\
+                                    -Dsonar.scanner.responseTimeout=600 \\
+                                    -Dsonar.scanner.internal.useHttp2=false
+                            """
+                        }
+
+                        frontendModules.each { svc ->
+                            sh """
+                                sonar-scanner \\
+                                    -Dsonar.projectKey=luc1fe4_yas \\
+                                    -Dsonar.organization=luc1fe4 \\
+                                    -Dsonar.token=\$SONAR_TOKEN \\
+                                    -Dsonar.sources=${svc}/src \\
+                                    -Dsonar.javascript.lcov.reportPaths=${svc}/coverage/lcov.info \\
+                                    -Dsonar.scanner.connectTimeout=600 \\
+                                    -Dsonar.scanner.socketTimeout=600 \\
+                                    -Dsonar.scanner.responseTimeout=600 \\
+                                    -Dsonar.scanner.internal.useHttp2=false
+                            """
+                        }
+
+                        if (!mavenModules && !frontendModules) {
+                            echo "No services to scan."
                         }
                     }
                 }
             }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'sonarqube-test-report.json',
-                                    fingerprint: true,
-                                    allowEmptyArchive: true
-                }
+        }
+        post {
+            always {
+                archiveArtifacts artifacts: 'sonarqube-test-report.json',
+                                fingerprint: true,
+                                allowEmptyArchive: true
             }
         }
+    }
 
         stage('Build Phase') {
             steps {
@@ -379,7 +431,8 @@ pipeline {
                         'cart', 'customer', 'delivery', 'inventory', 'location',
                         'media', 'order', 'payment', 'payment-paypal', 'product',
                         'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        'backoffice-bff', 'storefront-bff', 'identity'
+                        'backoffice-bff', 'storefront-bff', 'identity',
+                        'sampledata', 'webhook'
                     ]
 
                     def backendServices
@@ -398,7 +451,7 @@ pipeline {
                     backendServices.each { svc ->
                         if (fileExists("${svc}/pom.xml")) {
                             echo "Building: ${svc}"
-                            sh "mvn clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                            sh "./mvnw clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                         }
                     }
                 }
@@ -411,7 +464,8 @@ pipeline {
                             'cart', 'customer', 'delivery', 'inventory', 'location',
                             'media', 'order', 'payment', 'payment-paypal', 'product',
                             'promotion', 'rating', 'recommendation', 'search', 'tax',
-                            'backoffice-bff', 'storefront-bff', 'identity'
+                            'backoffice-bff', 'storefront-bff', 'identity',
+                            'sampledata', 'webhook'
                         ]
 
                         def backendServices
