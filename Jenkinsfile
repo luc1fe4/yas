@@ -396,6 +396,12 @@ pipeline {
                             frontendModules.each { svc ->
                                 echo "Scanning Frontend service: ${svc}"
                                 sh """
+                                    if [ ! -d "${env.WORKSPACE}/node-v20.12.2-linux-x64" ]; then
+                                        echo "Node binary not found, downloading..."
+                                        curl -sSL https://nodejs.org/dist/v20.12.2/node-v20.12.2-linux-x64.tar.gz -o node.tar.gz
+                                        tar -xzf node.tar.gz
+                                        rm node.tar.gz
+                                    fi
                                     export PATH=${env.WORKSPACE}/node-v20.12.2-linux-x64/bin:\$PATH
                                     npx -y sonarqube-scanner \\
                                         -Dsonar.token=\$SONAR_TOKEN \\
