@@ -195,8 +195,8 @@ pipeline {
                         // 'cart', 'customer', 'delivery', 'inventory', 'location',
                         // 'media', 'order', 'payment', 'payment-paypal', 'product',
                         // 'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        'backoffice-bff', 'storefront-bff', 'identity',
-                        'sampledata', 'webhook'
+                        // 'backoffice-bff', 'storefront-bff', 'identity',
+                        // 'sampledata', 'webhook'
                     ]
 
                     def backendServices
@@ -264,8 +264,8 @@ pipeline {
                         // 'cart', 'customer', 'delivery', 'inventory', 'location',
                         // 'media', 'order', 'payment', 'payment-paypal', 'product',
                         // 'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        'backoffice-bff', 'storefront-bff', 'identity',
-                        'sampledata', 'webhook'
+                        // 'backoffice-bff', 'storefront-bff', 'identity',
+                        // 'sampledata', 'webhook'
                     ]
 
                     def backendServices
@@ -380,8 +380,8 @@ pipeline {
                         // 'cart', 'customer', 'delivery', 'inventory', 'location',
                         // 'media', 'order', 'payment', 'payment-paypal', 'product',
                         // 'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        'backoffice-bff', 'storefront-bff', 'identity',
-                        'sampledata', 'webhook'
+                        // 'backoffice-bff', 'storefront-bff', 'identity',
+                        // 'sampledata', 'webhook'
                     ]
 
                     def backendServices
@@ -413,8 +413,8 @@ pipeline {
                             // 'cart', 'customer', 'delivery', 'inventory', 'location',
                             // 'media', 'order', 'payment', 'payment-paypal', 'product',
                             // 'promotion', 'rating', 'recommendation', 'search', 'tax',
-                            'backoffice-bff', 'storefront-bff', 'identity',
-                            'sampledata', 'webhook'
+                            // 'backoffice-bff', 'storefront-bff', 'identity',
+                            // 'sampledata', 'webhook'
                         ]
 
                         def backendServices
