@@ -1,9 +1,6 @@
 services:
   jenkins:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: yas-jenkins-node:lts
+    image: jenkins/jenkins:lts
     container_name: jenkins_master
     privileged: true
     user: root # Chạy quyền root để có thể truy cập docker.sock của host

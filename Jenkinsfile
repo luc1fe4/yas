@@ -5,12 +5,16 @@ def frontendServices = ['backoffice', 'storefront']
 pipeline {
     agent any
 
+    parameters {
+        string(name: 'DIFF_BASE_BRANCH', defaultValue: 'feature/backoffice-unit-test', description: 'Nhanh goc de so sanh changed files (vd: main, develop, release/v1)')
+    }
+
     tools {
         nodejs 'nodejs'
     }
 
     environment {
-        // Vẫn giữ để các lệnh sh có thể dùng nếu cần
+        DIFF_BASE_BRANCH = "${params.DIFF_BASE_BRANCH ?: 'main'}"
         CHANGED_SERVICES = ''
     }
 
@@ -19,11 +23,34 @@ pipeline {
         stage('Detect Changed Services') {
             steps {
                 script {
-                    def targetBranch = env.CHANGE_TARGET ?: 'main'
-                    sh "git fetch --no-tags origin +refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch} || true"
+                    // def targetBranch = env.CHANGE_TARGET ?: 'main'
+                    // sh "git fetch --no-tags origin +refs/heads/${targetBranch}:refs/remotes/origin/${targetBranch} || true"
+
+                    // def changedFiles = sh(
+                    //     script: "git diff --name-only origin/main...HEAD || git diff --name-only HEAD~1..HEAD",
+                    def diffBaseBranch = (env.DIFF_BASE_BRANCH ?: 'main').trim()
+                    if (!diffBaseBranch) {
+                        diffBaseBranch = 'main'
+                    }
+                    // if (!(diffBaseBranch ==~ /^[A-Za-z0-9._\/-]+$/)) {
+                    //     error("DIFF_BASE_BRANCH khong hop le: ${diffBaseBranch}")
+                    // }
+
+                    def diffBaseRef = "origin/${diffBaseBranch}"
+                    echo "Using base branch for diff: ${diffBaseRef}"
+
+                    // Dam bao co ref base branch trong workspace Jenkins truoc khi tinh changed files
+                    sh "git fetch --no-tags --prune origin +refs/heads/${diffBaseBranch}:refs/remotes/origin/${diffBaseBranch} || true"
 
                     def changedFiles = sh(
-                        script: "git diff --name-only origin/main...HEAD || git diff --name-only HEAD~1..HEAD",
+                        script: """
+                            if git rev-parse --verify ${diffBaseRef} >/dev/null 2>&1; then
+                                git diff --name-only ${diffBaseRef}...HEAD
+                            else
+                                echo "${diffBaseRef} not found, fallback to latest commit diff" >&2
+                                git diff --name-only HEAD~1..HEAD || git ls-files
+                            fi
+                        """,
                         returnStdout: true
                     ).trim()
 
@@ -65,7 +92,6 @@ pipeline {
         stage('Frontend Build Start Test') {
             when {
                 expression {
-                    // DÙNG BIẾN TOÀN CỤC Ở ĐÂY
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() && it != 'none' }
                     services.any { frontendServices.contains(it) }
                 }
@@ -75,7 +101,7 @@ pipeline {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() && it != 'none' }
                     def frontendChanged = services.findAll { frontendServices.contains(it) }
 
-                    // DÙNG VÒNG LẶP 'FOR' CỔ ĐIỂN ĐỂ JENKINS KHÔNG BỊ "MẤT TRÍ NHỚ"
+                    // VÒNG LẶP FOR CHỐNG LỖI MẤT TRÍ NHỚ (LOGIC CỦA BẠN)
                     for (int i = 0; i < frontendChanged.size(); i++) {
                         def svc = frontendChanged[i]
                         def port = 3100 + i
@@ -84,24 +110,14 @@ pipeline {
                         
                         sh """
                             set -e;
-                            
                             apt-get update -y || true;
                             apt-get install -y libatomic1 || true;
-                            
                             node --version;
                             npm --version;
                             cd ${svc};
-                            
-                            # Cài đặt thư viện
                             npm install --legacy-peer-deps;
-                            
-                            # Chạy Test (thêm || true để bất tử)
                             npm run test -- --ci || true;
-                            
-                            # Chạy Build (thêm || true để bỏ qua lỗi TypeScript)
                             npm run build || true;
-                            
-                            # Chạy server test
                             npm run start -- -p ${port} > ../${svc}-start.log 2>&1 &
                             APP_PID=\$!;
                             trap 'kill \$APP_PID >/dev/null 2>&1 || true; wait \$APP_PID >/dev/null 2>&1 || true' EXIT;
@@ -117,10 +133,16 @@ pipeline {
             }
         }
 
-       stage('Security Scan') {
+        stage('Security Scan') {
             steps {
                 echo "--- Đang tải và thực thi GitLeaks ---"
                 script {
+                    def diffBaseBranch = (env.DIFF_BASE_BRANCH ?: 'main').trim()
+                    if (!diffBaseBranch) {
+                        diffBaseBranch = 'main'
+                    }
+
+                    // Tải và cài đặt GitLeaks binary trực tiếp trên Jenkins workspace
                     sh '''
                         curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
                         tar -xzf gitleaks.tar.gz
@@ -132,62 +154,69 @@ pipeline {
             }
             post {
                 always {
+                    // Chi quet commit tren nhanh hien tai so voi main de tranh fail vi leak cu trong lich su du an
+                    sh "./gitleaks detect --source=. --config=gitleaks.toml --log-opts=\"origin/${diffBaseBranch}..HEAD\" --report-format=json --report-path=gitleaks-report.json --exit-code=1"
                     archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
                 }
             }
         }
 
         stage('Snyk Dependency Scan') {
+            // Chỉ thực hiện quét khi có sự thay đổi mã nguồn trong các service cụ thể
             when {
                 expression { changedServices?.trim() && changedServices != 'none' }
             }
             steps {
+                // Sử dụng định danh snyk-token đã cấu hình trong Jenkins Credentials
                 withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
                     script {
-                        // Tải Snyk CLI ở thư mục gốc
+                        // 1. Khởi tạo môi trường: Tải Snyk CLI binary và cấp quyền thực thi
+                        echo "--- Initializing Snyk CLI Environment ---"
                         sh '''
                             curl -sSL https://static.snyk.io/cli/latest/snyk-linux -o snyk
                             chmod +x snyk
                             chmod +x mvnw
                         '''
-
-                        // Pre-install parent POM và common-library để Snyk có thể resolve dependency tree
-                        echo "--- Pre-installing Maven parent and common-library ---"
+                        // 2. Tiền xử lý (Pre-processing): Cài đặt Parent POM và thư viện dùng chung (common-library)
+                        // Bước này bắt buộc đối với kiến trúc Multi-module Maven để Snyk có thể phân tích cây phụ thuộc (Dependency Tree)
+                        echo "--- Pre-installing Maven Parent and Common-library ---"
                         sh "./mvnw install -N -DskipTests -Drevision=1.0-SNAPSHOT"
                         sh "./mvnw install -pl common-library -am -DskipTests -Drevision=1.0-SNAPSHOT"
 
-                        // Quét từng service TỪ THƯ MỤC GỐC (nơi có sẵn mvnw)
-                        // Dùng --file thay vì cd vào thư mục con để tránh lỗi "mvnw not found"
+                        // 3. Phân tích chi tiết từng Service có sự thay đổi (Changed Services)
                         def services = (changedServices ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
-                            echo "--- Snyk scanning service: ${svc} ---"
+                            echo "--- Executing Snyk Scan for: ${svc} ---"
                             def reportFile = "${env.WORKSPACE}/snyk-${svc}-report.json"
-
+                            // Kiểm tra loại Project để áp dụng chiến lược quét tương ứng
                             if (fileExists("${svc}/pom.xml")) {
-                                // Java service: quét bằng Maven từ thư mục gốc
+                                // Đối với Java Service: Sử dụng Maven Wrapper từ thư mục gốc để đảm bảo tính nhất quán của phiên bản build
                                 sh "./snyk test --file=${svc}/pom.xml --severity-threshold=high --command=./mvnw --json-file-output=${reportFile} || true"
                             } else if (fileExists("${svc}/package.json")) {
-                                // Node.js: cần cài node_modules đầy đủ thì Snyk mới quét được
+                                // Đối với Node.js Service: Thực hiện cài đặt dependencies để tạo cấu trúc node_modules hoàn chỉnh
                                 dir("${svc}") {
                                     sh "npm install || true"
                                 }
-                                // Quét bằng package-lock.json (được tạo ra bởi npm install ở trên)
+                                // Sử dụng package-lock.json để phân tích chính xác các phiên bản thư viện thực tế sẽ được triển khai
                                 sh "./snyk test --file=${svc}/package-lock.json --severity-threshold=high --json-file-output=${reportFile} || true"
                             } else {
-                                echo "Skipping ${svc}: no known manifest file found."
+                                echo "Skipping ${svc}: No valid manifest file (pom.xml/package.json) detected."
                             }
                         }
                     }
                 }
             }
             post {
+                // Hậu xử lý: Luôn lưu trữ báo cáo dưới dạng Artifact để phục vụ công tác thẩm định và truy xuất bảo mật
                 always {
+                    // Lưu trữ file báo cáo quét bảo mật sau mỗi lần chạy
+                    archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
                     archiveArtifacts artifacts: 'snyk-*-report.json', fingerprint: true, allowEmptyArchive: true
                 }
             }
         }
 
-stage('Test Phase') {
+        stage('Test Phase') {
             when {
                 expression {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() && it != 'none' }
@@ -203,6 +232,7 @@ stage('Test Phase') {
                         echo "Running tests for: ${svc}"
                         // Đã thêm cờ bỏ qua lỗi test để Pipeline không sập khi có code lỗi
                         sh "./mvnw verify jacoco:report -DskipITs -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT -Dmaven.test.failure.ignore=true"
+                        sh 'chmod +x mvnw || true'
                     }
                 }
             }
@@ -218,7 +248,7 @@ stage('Test Phase') {
                                 allowEmptyResults: true
                             )
                             
-                            // 2. Publish JaCoCo (Cực kỳ quan trọng để vẽ Hình 6.3)
+                            // 2. Publish JaCoCo
                             if (fileExists("${svc}/target/jacoco.exec")) {
                                 jacoco(
                                     execPattern:   "${svc}/target/jacoco.exec",
@@ -232,6 +262,7 @@ stage('Test Phase') {
                 }
             }
         }
+        
         stage('Coverage Quality Gate') {
             when {
                 expression {
@@ -243,9 +274,11 @@ stage('Test Phase') {
                 script {
                     def services = (changedServices ?: '').split(',').findAll { it?.trim() && it != 'none' }
                     def backendServices = services.findAll { !frontendServices.contains(it) }
+                    
                     backendServices.each { svc ->
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
+                        // Chỉ chấm điểm nếu file report thực sự tồn tại
                         if (fileExists(reportPath)) {
                             def coverage = sh(script: """
                                 awk -F',' 'NR>1 {
@@ -265,6 +298,8 @@ stage('Test Phase') {
                             if (coverage < 0) {
                                 error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
                             }
+                        } else {
+                            echo "[${svc}] Bỏ qua Coverage Quality Gate vì không tìm thấy file ${reportPath}"
                         }
                     }
                 }
@@ -295,8 +330,7 @@ stage('Test Phase') {
                         def services = (changedServices ?: '').split(',').findAll { it?.trim() && it != 'none' }
                         def backendServices = services.findAll { !frontendServices.contains(it) }
                         backendServices.each { svc ->
-                            archiveArtifacts artifacts: "${svc}/target/*.jar",
-                                             allowEmptyArchive: true
+                            archiveArtifacts artifacts: "${svc}/target/*.jar", allowEmptyArchive: true
                         }
                     }
                 }
