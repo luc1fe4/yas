@@ -16,4 +16,10 @@ class MessagesUtilsTest {
         String result = MessagesUtils.getMessage("non.existent.code");
         assertEquals("non.existent.code", result);
     }
+
+    @Test
+    void getMessage_withParameters_shouldFormatMessage() {
+        String result = MessagesUtils.getMessage("test.{} code", "formatted");
+        assertEquals("test.formatted code", result);
+    }
 }
