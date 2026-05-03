@@ -361,10 +361,21 @@ pipeline {
         steps {
             withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                 script {
-                    def services = (env.CHANGED_SERVICES ?: '')
-                        .split(',')
-                        .collect { it.trim() }
-                        .findAll { it && it != 'none' }
+                    def allServices = [
+                        'cart', 'customer', 'delivery', 'inventory', 'location',
+                        'media', 'order', 'payment', 'payment-paypal', 'product',
+                        'promotion', 'rating', 'recommendation', 'search', 'tax',
+                        'backoffice-bff', 'storefront-bff', 'identity',
+                        'sampledata', 'webhook', 'backoffice', 'storefront'
+                    ]
+
+                    def services
+                    if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+                        echo 'No specific service changes detected. Running SonarQube scan for ALL services.'
+                        services = allServices
+                    } else {
+                        services = env.CHANGED_SERVICES.split(',').collect { it.trim() }.findAll { it && it != 'none' }
+                    }
 
                     // Phân loại
                     def mavenModules = services.findAll { svc -> fileExists("${svc}/pom.xml") }
