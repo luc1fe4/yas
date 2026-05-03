@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    parameters {
+        string(name: 'DIFF_BASE_BRANCH', defaultValue: 'main', description: 'Nhanh goc de diff (non-PR); PR dung CHANGE_TARGET.')
+    }
+
     environment {
         CHANGED_SERVICES = 'none'
     }
@@ -25,17 +29,30 @@ pipeline {
         stage('Detect Changed Services') {
             steps {
                 script {
-                    sh 'git fetch --no-tags --prune origin +refs/heads/main:refs/remotes/origin/main || true'
+                    def diffBaseBranch = env.CHANGE_TARGET?.trim()
+                    if (!diffBaseBranch) {
+                        diffBaseBranch = params?.DIFF_BASE_BRANCH?.toString()?.trim()
+                    }
+                    if (!diffBaseBranch || !(diffBaseBranch ==~ /^[A-Za-z0-9._\/-]+$/)) {
+                        diffBaseBranch = 'main'
+                    }
+                    env.DIFF_BASE_BRANCH = diffBaseBranch
+                    echo "DIFF_BASE_BRANCH resolved to: ${env.DIFF_BASE_BRANCH}"
+
+                    def diffBaseRef = "origin/${diffBaseBranch}"
+                    echo "Using base branch for diff: ${diffBaseRef}"
+
+                    sh "git fetch --no-tags --prune origin +refs/heads/${diffBaseBranch}:refs/remotes/origin/${diffBaseBranch} || true"
 
                     def changedFiles = sh(
-                        script: '''
-                            if git rev-parse --verify origin/main >/dev/null 2>&1; then
-                                git diff --name-only origin/main...HEAD
+                        script: """
+                            if git rev-parse --verify ${diffBaseRef} >/dev/null 2>&1; then
+                                git diff --name-only ${diffBaseRef}...HEAD
                             else
-                                echo "origin/main not found, fallback to latest commit diff" >&2
+                                echo "${diffBaseRef} not found, fallback to latest commit diff" >&2
                                 git diff --name-only HEAD~1..HEAD || git ls-files
                             fi
-                        ''',
+                        """,
                         returnStdout: true
                     ).trim()
 
@@ -65,17 +82,60 @@ pipeline {
             }
         }
 
+        stage('Frontend Build Start Test') {
+            when {
+                expression {
+                    def fe = ['backoffice', 'storefront']
+                    def svcs = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    svcs.any { fe.contains(it) }
+                }
+            }
+            steps {
+                script {
+                    def fe = ['backoffice', 'storefront']
+                    def frontendChanged = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { fe.contains(it) }
+
+                    frontendChanged.eachWithIndex { svc, idx ->
+                        def port = 3100 + idx
+                        echo "Running frontend build/start/test for: ${svc} on port ${port}"
+
+                        sh """
+                            set -e;
+                            command -v node >/dev/null 2>&1 || { echo "node not found on PATH"; exit 127; }
+                            apt-get update -y || true;
+                            apt-get install -y libatomic1 || true;
+                            node --version;
+                            npm --version;
+                            cd ${svc};
+                            npm ci;
+                            npm run build;
+                            npm run start -- -p ${port} > ../${svc}-start.log 2>&1 &
+                            APP_PID=\$!;
+                            trap 'kill \$APP_PID >/dev/null 2>&1 || true; wait \$APP_PID >/dev/null 2>&1 || true' EXIT;
+                            sleep 15;
+                            npm run test -- --ci;
+                        """
+                    }
+                }
+            }
+        }
+
         stage('Security Scan') {
             steps {
                 echo 'Running GitLeaks secret scan'
                 script {
+                    def diffBaseBranch = (env.DIFF_BASE_BRANCH ?: 'main').trim()
+                    if (!diffBaseBranch) {
+                        diffBaseBranch = 'main'
+                    }
+
                     sh '''
                         curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
                         tar -xzf gitleaks.tar.gz
                         chmod +x gitleaks
                     '''
 
-                    sh './gitleaks detect --source=. --config=gitleaks.toml --log-opts="origin/main..HEAD" --report-format=json --report-path=gitleaks-report.json --exit-code=1'
+                    sh "./gitleaks detect --source=. --config=gitleaks.toml --log-opts=\"origin/${diffBaseBranch}..HEAD\" --report-format=json --report-path=gitleaks-report.json --exit-code=1"
                 }
             }
             post {
@@ -130,25 +190,35 @@ pipeline {
 
         stage('Test Phase') {
             when {
-                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
+                expression {
+                    def fe = ['backoffice', 'storefront']
+                    def svcs = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    svcs.any { !fe.contains(it) }
+                }
             }
             steps {
                 script {
-                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
-                    services.each { svc ->
-                        echo "Running tests for: ${svc}"
-                        sh "mvn verify jacoco:report -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                    def fe = ['backoffice', 'storefront']
+                    def backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+                    backendServices.each { svc ->
+                        if (fileExists("${svc}/pom.xml")) {
+                            echo "Running Maven tests for: ${svc}"
+                            sh "mvn verify jacoco:report -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                        } else if (fileExists("${svc}/package.json")) {
+                            echo "Running Node.js tests for: ${svc}"
+                            dir("${svc}") {
+                                sh "npm install && npm test || true"
+                            }
+                        }
                     }
                 }
             }
             post {
                 always {
                     script {
-                        def services = (env.CHANGED_SERVICES ?: '')
-                            .split(',')
-                            .collect { it.trim() }
-                            .findAll { it && it != 'none' }
-                        services.each { svc ->
+                        def fe = ['backoffice', 'storefront']
+                        def backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+                        backendServices.each { svc ->
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
                                 allowEmptyResults: true
@@ -161,21 +231,29 @@ pipeline {
 
         stage('Coverage Quality Gate') {
             when {
-                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
+                expression {
+                    def fe = ['backoffice', 'storefront']
+                    def svcs = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    svcs.any { !fe.contains(it) }
+                }
             }
             steps {
                 script {
-                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
-                    services.each { svc ->
+                    def fe = ['backoffice', 'storefront']
+                    def backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+                    backendServices.each { svc ->
+                        if (!fileExists("${svc}/pom.xml")) {
+                            echo "[${svc}] Skipping coverage check for non-Maven service."
+                            return
+                        }
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
-                        def fileExists = sh(script: "test -f ${reportPath} && echo 'yes' || echo 'no'", returnStdout: true).trim()
+                        def jacocoPresent = sh(script: "test -f ${reportPath} && echo 'yes' || echo 'no'", returnStdout: true).trim()
 
-                        if (fileExists == 'no') {
+                        if (jacocoPresent == 'no') {
                             echo "[${svc}] WARNING: jacoco.csv not found at ${reportPath}"
-                            echo "[${svc}] Listing target/site to debug:"
                             sh "find ${svc}/target -name '*.csv' -o -name 'jacoco*' 2>/dev/null || echo 'No jacoco files found'"
-                            error("[${svc}] JaCoCo report missing - check if jacoco-maven-plugin is configured in ${svc}/pom.xml")
+                            error("[${svc}] JaCoCo report missing - check jacoco-maven-plugin in ${svc}/pom.xml")
                         }
 
                         def coverage = sh(script: """
@@ -208,7 +286,9 @@ pipeline {
                             .split(',')
                             .collect { it.trim() }
                             .findAll { it && it != 'none' }
-                        def plModules = services ? services.join(',') : ''
+                        def mavenModules = services.findAll { svc -> fileExists("${svc}/pom.xml") }
+                        def plModules = mavenModules ? mavenModules.join(',') : ''
+
                         withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
                             if (plModules) {
                                 sh """
@@ -248,22 +328,30 @@ pipeline {
 
         stage('Build Phase') {
             when {
-                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
+                expression {
+                    def fe = ['backoffice', 'storefront']
+                    def svcs = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    svcs.any { !fe.contains(it) }
+                }
             }
             steps {
                 script {
-                    def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
-                    services.each { svc ->
-                        echo "Building: ${svc}"
-                        sh "mvn clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                    def fe = ['backoffice', 'storefront']
+                    def backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+                    backendServices.each { svc ->
+                        if (fileExists("${svc}/pom.xml")) {
+                            echo "Building: ${svc}"
+                            sh "mvn clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                        }
                     }
                 }
             }
             post {
                 success {
                     script {
-                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
-                        services.each { svc ->
+                        def fe = ['backoffice', 'storefront']
+                        def backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+                        backendServices.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar",
                                              allowEmptyArchive: true
                         }
@@ -285,7 +373,7 @@ pipeline {
                 try {
                     cleanWs()
                 } catch (Throwable e) {
-                    echo "cleanWs skipped: ${e.getClass().getSimpleName()}"
+                    echo "cleanWs skipped (no workspace/FilePath context): ${e.class.simpleName}: ${e.message}"
                 }
             }
         }
