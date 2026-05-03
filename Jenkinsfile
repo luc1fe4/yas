@@ -379,7 +379,7 @@ pipeline {
                                 def plModules = mavenModules.join(',')
                                 echo "Scanning Backend modules: ${plModules}"
                                 sh """
-                                    ./mvnw -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
+                                    ./mvnw -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:4.0.0.4121:sonar \\
                                         -f pom.xml \\
                                         -pl ${plModules} -am \\
                                         -Drevision=1.0-SNAPSHOT \\
