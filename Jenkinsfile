@@ -265,7 +265,7 @@ pipeline {
                         // 'media', 'order', 'payment', 'payment-paypal', 'product',
                         // 'promotion', 'rating', 'recommendation', 'search', 'tax',
                         'backoffice-bff', 'storefront-bff', 'identity',
-                        'webhook'
+                        'sampledata', 'webhook'
                     ]
 
                     def backendServices
