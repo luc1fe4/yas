@@ -10,10 +10,6 @@ pipeline {
         skipDefaultCheckout()
     }
 
-    tools {
-        nodejs 'node'
-    }
-
     stages {
 
         stage('Checkout') {
@@ -119,8 +115,15 @@ pipeline {
 
                         sh """
                             set -e;
-                            apt-get update -y || true;
-                            apt-get install -y libatomic1 || true;
+                            if ! command -v node >/dev/null 2>&1; then
+                                if [ ! -d "node-v18.17.1-linux-x64" ]; then
+                                    echo "Node not found, downloading binary..."
+                                    curl -sSL https://nodejs.org/dist/v18.17.1/node-v18.17.1-linux-x64.tar.xz -o node.tar.xz
+                                    tar -xJf node.tar.xz
+                                fi
+                                export PATH=\$PWD/node-v18.17.1-linux-x64/bin:\$PATH
+                            fi
+                            
                             node --version;
                             npm --version;
                             cd ${svc};
