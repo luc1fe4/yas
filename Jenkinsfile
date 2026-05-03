@@ -189,17 +189,29 @@ pipeline {
         }
 
         stage('Test Phase') {
-            when {
-                expression {
-                    def fe = ['backoffice', 'storefront']
-                    def svcs = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
-                    svcs.any { !fe.contains(it) }
-                }
-            }
             steps {
                 script {
                     def fe = ['backoffice', 'storefront']
-                    def backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+                    def allBackendServices = [
+                        'cart', 'customer', 'delivery', 'inventory', 'location',
+                        'media', 'order', 'payment', 'payment-paypal', 'product',
+                        'promotion', 'rating', 'recommendation', 'search', 'tax',
+                        'backoffice-bff', 'storefront-bff', 'identity'
+                    ]
+
+                    def backendServices
+                    if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+                        echo 'No specific service changes detected. Running tests for ALL backend services (full coverage for main branch).'
+                        backendServices = allBackendServices
+                    } else {
+                        backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+                    }
+
+                    if (backendServices.isEmpty()) {
+                        echo 'No backend services to test (only frontend changes). Skipping.'
+                        return
+                    }
+
                     backendServices.each { svc ->
                         if (fileExists("${svc}/pom.xml")) {
                             echo "Running Maven tests for: ${svc}"
@@ -217,12 +229,27 @@ pipeline {
                 always {
                     script {
                         def fe = ['backoffice', 'storefront']
-                        def backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+                        def allBackendServices = [
+                            'cart', 'customer', 'delivery', 'inventory', 'location',
+                            'media', 'order', 'payment', 'payment-paypal', 'product',
+                            'promotion', 'rating', 'recommendation', 'search', 'tax',
+                            'backoffice-bff', 'storefront-bff', 'identity'
+                        ]
+
+                        def backendServices
+                        if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+                            backendServices = allBackendServices
+                        } else {
+                            backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+                        }
+
                         backendServices.each { svc ->
-                            junit(
-                                testResults: "${svc}/target/surefire-reports/*.xml",
-                                allowEmptyResults: true
-                            )
+                            if (fileExists("${svc}/target/surefire-reports")) {
+                                junit(
+                                    testResults: "${svc}/target/surefire-reports/*.xml",
+                                    allowEmptyResults: true
+                                )
+                            }
                         }
                     }
                 }
@@ -230,17 +257,28 @@ pipeline {
         }
 
         stage('Coverage Quality Gate') {
-            when {
-                expression {
-                    def fe = ['backoffice', 'storefront']
-                    def svcs = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
-                    svcs.any { !fe.contains(it) }
-                }
-            }
             steps {
                 script {
                     def fe = ['backoffice', 'storefront']
-                    def backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+                    def allBackendServices = [
+                        'cart', 'customer', 'delivery', 'inventory', 'location',
+                        'media', 'order', 'payment', 'payment-paypal', 'product',
+                        'promotion', 'rating', 'recommendation', 'search', 'tax',
+                        'backoffice-bff', 'storefront-bff', 'identity'
+                    ]
+
+                    def backendServices
+                    if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+                        backendServices = allBackendServices
+                    } else {
+                        backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+                    }
+
+                    if (backendServices.isEmpty()) {
+                        echo 'No backend services to check coverage for. Skipping.'
+                        return
+                    }
+
                     backendServices.each { svc ->
                         if (!fileExists("${svc}/pom.xml")) {
                             echo "[${svc}] Skipping coverage check for non-Maven service."
@@ -334,17 +372,29 @@ pipeline {
         }
 
         stage('Build Phase') {
-            when {
-                expression {
-                    def fe = ['backoffice', 'storefront']
-                    def svcs = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
-                    svcs.any { !fe.contains(it) }
-                }
-            }
             steps {
                 script {
                     def fe = ['backoffice', 'storefront']
-                    def backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+                    def allBackendServices = [
+                        'cart', 'customer', 'delivery', 'inventory', 'location',
+                        'media', 'order', 'payment', 'payment-paypal', 'product',
+                        'promotion', 'rating', 'recommendation', 'search', 'tax',
+                        'backoffice-bff', 'storefront-bff', 'identity'
+                    ]
+
+                    def backendServices
+                    if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+                        echo 'No specific service changes detected. Building ALL backend services (main branch full build).'
+                        backendServices = allBackendServices
+                    } else {
+                        backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+                    }
+
+                    if (backendServices.isEmpty()) {
+                        echo 'No backend services to build (only frontend changes). Skipping.'
+                        return
+                    }
+
                     backendServices.each { svc ->
                         if (fileExists("${svc}/pom.xml")) {
                             echo "Building: ${svc}"
@@ -357,10 +407,25 @@ pipeline {
                 success {
                     script {
                         def fe = ['backoffice', 'storefront']
-                        def backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+                        def allBackendServices = [
+                            'cart', 'customer', 'delivery', 'inventory', 'location',
+                            'media', 'order', 'payment', 'payment-paypal', 'product',
+                            'promotion', 'rating', 'recommendation', 'search', 'tax',
+                            'backoffice-bff', 'storefront-bff', 'identity'
+                        ]
+
+                        def backendServices
+                        if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+                            backendServices = allBackendServices
+                        } else {
+                            backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+                        }
+
                         backendServices.each { svc ->
-                            archiveArtifacts artifacts: "${svc}/target/*.jar",
-                                             allowEmptyArchive: true
+                            if (fileExists("${svc}/target")) {
+                                archiveArtifacts artifacts: "${svc}/target/*.jar",
+                                                 allowEmptyArchive: true
+                            }
                         }
                     }
                 }
