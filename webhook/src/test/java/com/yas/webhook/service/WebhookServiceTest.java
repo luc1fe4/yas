@@ -12,6 +12,7 @@ import com.yas.webhook.integration.api.WebhookApi;
 import com.yas.webhook.model.Webhook;
 import com.yas.webhook.model.WebhookEventNotification;
 import com.yas.webhook.model.dto.WebhookEventNotificationDto;
+import com.yas.webhook.model.enums.EventName;
 import com.yas.webhook.model.enums.NotificationStatus;
 import com.yas.webhook.model.mapper.WebhookMapper;
 import com.yas.webhook.model.viewmodel.webhook.EventVm;
@@ -36,6 +37,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class WebhookServiceTest {
@@ -62,7 +65,14 @@ class WebhookServiceTest {
         int pageSize = 10;
         PageRequest pageRequest = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "id"));
         Page<Webhook> webhooks = new PageImpl<>(List.of(new Webhook()));
-        WebhookListGetVm webhookListGetVm = new WebhookListGetVm(List.of(), 1, 1, 1, 0, 10, false, false, true, false);
+        WebhookListGetVm webhookListGetVm = WebhookListGetVm.builder()
+            .webhooks(List.of())
+            .pageNo(0)
+            .pageSize(10)
+            .totalElements(1L)
+            .totalPages(1L)
+            .isLast(true)
+            .build();
 
         when(webhookRepository.findAll(pageRequest)).thenReturn(webhooks);
         when(webhookMapper.toWebhookListGetVm(webhooks, pageNo, pageSize)).thenReturn(webhookListGetVm);
@@ -75,7 +85,12 @@ class WebhookServiceTest {
     @Test
     void test_findAllWebhooks_shouldReturnWebhookVmList() {
         Webhook webhook = new Webhook();
-        WebhookVm webhookVm = new WebhookVm(1L, "url", "secret", true);
+        WebhookVm webhookVm = new WebhookVm();
+        webhookVm.setId(1L);
+        webhookVm.setPayloadUrl("url");
+        webhookVm.setSecret("secret");
+        webhookVm.setIsActive(true);
+
         when(webhookRepository.findAll(Sort.by(Sort.Direction.DESC, "id"))).thenReturn(List.of(webhook));
         when(webhookMapper.toWebhookVm(webhook)).thenReturn(webhookVm);
 
@@ -106,7 +121,7 @@ class WebhookServiceTest {
 
     @Test
     void test_create_shouldReturnWebhookDetailVm() {
-        WebhookPostVm webhookPostVm = new WebhookPostVm("url", "secret", true, List.of(new EventVm(1L, "name")));
+        WebhookPostVm webhookPostVm = new WebhookPostVm("url", "secret", "application/json", true, List.of(new EventVm(1L, EventName.ON_PRODUCT_UPDATED)));
         Webhook createdWebhook = new Webhook();
         createdWebhook.setId(1L);
         WebhookDetailVm webhookDetailVm = new WebhookDetailVm();
@@ -125,7 +140,7 @@ class WebhookServiceTest {
 
     @Test
     void test_create_withoutEvents_shouldReturnWebhookDetailVm() {
-        WebhookPostVm webhookPostVm = new WebhookPostVm("url", "secret", true, null);
+        WebhookPostVm webhookPostVm = new WebhookPostVm("url", "secret", "application/json", true, null);
         Webhook createdWebhook = new Webhook();
         createdWebhook.setId(1L);
         WebhookDetailVm webhookDetailVm = new WebhookDetailVm();
@@ -143,7 +158,7 @@ class WebhookServiceTest {
     @Test
     void test_update_shouldUpdateWebhook() {
         Long id = 1L;
-        WebhookPostVm webhookPostVm = new WebhookPostVm("url", "secret", true, List.of(new EventVm(1L, "name")));
+        WebhookPostVm webhookPostVm = new WebhookPostVm("url", "secret", "application/json", true, List.of(new EventVm(1L, EventName.ON_PRODUCT_UPDATED)));
         Webhook existedWebhook = new Webhook();
         existedWebhook.setWebhookEvents(Set.of());
         Webhook updatedWebhook = new Webhook();
@@ -163,7 +178,7 @@ class WebhookServiceTest {
     @Test
     void test_update_shouldThrowNotFoundException() {
         Long id = 1L;
-        WebhookPostVm webhookPostVm = new WebhookPostVm("url", "secret", true, null);
+        WebhookPostVm webhookPostVm = new WebhookPostVm("url", "secret", "application/json", true, null);
         when(webhookRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> webhookService.update(webhookPostVm, id));
@@ -189,13 +204,15 @@ class WebhookServiceTest {
     @Test
     @SuppressWarnings("unchecked")
     void test_notifyToWebhook_ShouldNotException() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode payload = objectMapper.createObjectNode();
 
         WebhookEventNotificationDto notificationDto = WebhookEventNotificationDto
             .builder()
             .notificationId(1L)
             .url("http://test.com")
             .secret("secret")
-            .payload("payload")
+            .payload(payload)
             .build();
 
         WebhookEventNotification notification = new WebhookEventNotification();
@@ -219,7 +236,7 @@ class WebhookServiceTest {
 
     @Test
     void test_initializeWebhookEvents_shouldThrowNotFoundExceptionWhenEventNotFound() {
-        WebhookPostVm webhookPostVm = new WebhookPostVm("url", "secret", true, List.of(new EventVm(1L, "name")));
+        WebhookPostVm webhookPostVm = new WebhookPostVm("url", "secret", "application/json", true, List.of(new EventVm(1L, EventName.ON_PRODUCT_UPDATED)));
         Webhook createdWebhook = new Webhook();
         createdWebhook.setId(1L);
 
