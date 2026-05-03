@@ -23,3 +23,8 @@ Jenkinsfile hiện tại có thể chạy npm cho các service frontend. Để J
    - `docker exec -it jenkins_master npm -v`
 
 Sau đó chạy lại pipeline, frontend services (`backoffice`, `storefront`) sẽ không còn bị skip do thiếu npm.
+   - Tên đăng nhập admin    
+   - Mật khẩu 123456
+3. Nhấn nút "Đăng nhập" để hoàn tất quá trình đăng nhập.
+
+Nếu bạn quên mật khẩu, bạn có thể sử dụng chức năng "Quên mật khẩu" để khôi phục lại mật khẩu của mình.
