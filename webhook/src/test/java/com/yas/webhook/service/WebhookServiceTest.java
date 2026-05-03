@@ -57,7 +57,7 @@ class WebhookServiceTest {
     @Test
     void test_findById_shouldReturnWebhookDetailVm() {
         Webhook webhook = new Webhook();
-        WebhookDetailVm webhookDetailVm = WebhookDetailVm.builder().build();
+        WebhookDetailVm webhookDetailVm = new WebhookDetailVm();
         when(webhookRepository.findById(1L)).thenReturn(Optional.of(webhook));
         when(webhookMapper.toWebhookDetailVm(webhook)).thenReturn(webhookDetailVm);
 
