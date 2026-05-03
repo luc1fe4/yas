@@ -59,9 +59,9 @@ pipeline {
                         // 'cart', 'customer', 'delivery', 'inventory', 'location',
                         // 'media', 'order', 'payment', 'payment-paypal', 'product',
                         // 'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        'backoffice-bff', 'storefront-bff', 'identity',
-                        'sampledata', 'webhook',
-                        // 'backoffice',
+                        // 'backoffice-bff', 'storefront-bff', 'identity',
+                        // 'sampledata', 'webhook',
+                        'backoffice',
                         'storefront'
                     ]
 
