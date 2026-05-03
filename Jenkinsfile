@@ -127,7 +127,9 @@ pipeline {
                             node --version;
                             npm --version;
                             cd ${svc};
-                            npm ci;
+                            echo "Current directory: \$(pwd)"
+                            ls -la
+                            npm install;
                             npm run build;
                             npm run start -- -p ${port} > ../${svc}-start.log 2>&1 &
                             APP_PID=\$!;
