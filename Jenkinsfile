@@ -398,7 +398,7 @@ pipeline {
                                 sh """
                                     export PATH=${env.WORKSPACE}/node-v20.12.2-linux-x64/bin:\$PATH
                                     cd ${svc}
-                                    npx -y @sonarsource/sonar-scanner \\
+                                    npx -y sonarqube-scanner \\
                                         -Dsonar.token=\$SONAR_TOKEN \\
                                         -Dsonar.organization=luc1fe4 \\
                                         -Dsonar.projectKey=luc1fe4_yas \\
