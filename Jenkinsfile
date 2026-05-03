@@ -10,6 +10,10 @@ pipeline {
         skipDefaultCheckout()
     }
 
+    tools {
+        nodejs 'node'
+    }
+
     stages {
 
         stage('Checkout') {
@@ -115,7 +119,6 @@ pipeline {
 
                         sh """
                             set -e;
-                            command -v node >/dev/null 2>&1 || { echo "node not found on PATH"; exit 127; }
                             apt-get update -y || true;
                             apt-get install -y libatomic1 || true;
                             node --version;
