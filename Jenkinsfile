@@ -401,7 +401,8 @@ pipeline {
                                         -Dsonar.token=\$SONAR_TOKEN \\
                                         -Dsonar.organization=luc1fe4 \\
                                         -Dsonar.projectKey=luc1fe4_yas \\
-                                        -Dsonar.sources=${svc}/src,${svc}/pages,${svc}/common \\
+                                        -Dsonar.sources=${svc} \\
+                                        -Dsonar.exclusions=**/node_modules/**,**/.next/**,**/__tests__/** \\
                                         -Dsonar.host.url=https://sonarcloud.io \\
                                         -Dsonar.javascript.lcov.reportPaths=${svc}/coverage/lcov.info \\
                                         -Dsonar.scanner.internal.useHttp2=false
