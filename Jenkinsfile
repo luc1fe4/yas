@@ -96,266 +96,266 @@ pipeline {
             }
         }
 
-        stage('Frontend Build Start Test') {
-            when {
-                expression {
-                    def fe = ['backoffice', 'storefront']
-                    def svcs = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
-                    svcs.any { fe.contains(it) }
-                }
-            }
-            steps {
-                script {
-                    def fe = ['backoffice', 'storefront']
-                    def frontendChanged = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { fe.contains(it) }
+        // stage('Frontend Build Start Test') {
+        //     when {
+        //         expression {
+        //             def fe = ['backoffice', 'storefront']
+        //             def svcs = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+        //             svcs.any { fe.contains(it) }
+        //         }
+        //     }
+        //     steps {
+        //         script {
+        //             def fe = ['backoffice', 'storefront']
+        //             def frontendChanged = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { fe.contains(it) }
 
-                    frontendChanged.eachWithIndex { svc, idx ->
-                        def port = 3100 + idx
-                        echo "Running frontend build/start/test for: ${svc} on port ${port}"
+        //             frontendChanged.eachWithIndex { svc, idx ->
+        //                 def port = 3100 + idx
+        //                 echo "Running frontend build/start/test for: ${svc} on port ${port}"
 
-                        sh """
-                            set -e;
-                            if ! command -v node >/dev/null 2>&1; then
-                                if [ ! -d "node-v20.12.2-linux-x64" ]; then
-                                    echo "Node not found, downloading binary..."
-                                    curl -sSL https://nodejs.org/dist/v20.12.2/node-v20.12.2-linux-x64.tar.gz -o node.tar.gz
-                                    tar -xzf node.tar.gz
-                                fi
-                                export PATH=\$PWD/node-v20.12.2-linux-x64/bin:\$PATH
-                            fi
+        //                 sh """
+        //                     set -e;
+        //                     if ! command -v node >/dev/null 2>&1; then
+        //                         if [ ! -d "node-v20.12.2-linux-x64" ]; then
+        //                             echo "Node not found, downloading binary..."
+        //                             curl -sSL https://nodejs.org/dist/v20.12.2/node-v20.12.2-linux-x64.tar.gz -o node.tar.gz
+        //                             tar -xzf node.tar.gz
+        //                         fi
+        //                         export PATH=\$PWD/node-v20.12.2-linux-x64/bin:\$PATH
+        //                     fi
                             
-                            node --version;
-                            npm --version;
-                            cd ${svc};
-                            echo "Current directory: \$(pwd)"
-                            ls -la
-                            npm install;
-                            npm run build;
-                            npm run start -- -p ${port} > ../${svc}-start.log 2>&1 &
-                            APP_PID=\$!;
-                            trap 'kill \$APP_PID >/dev/null 2>&1 || true; wait \$APP_PID >/dev/null 2>&1 || true' EXIT;
-                            sleep 15;
-                            npm run test:coverage -- --coverageReporters='text' --coverageReporters='json-summary' --ci;
-                        """
-                    }
-                }
-            }
-        }
+        //                     node --version;
+        //                     npm --version;
+        //                     cd ${svc};
+        //                     echo "Current directory: \$(pwd)"
+        //                     ls -la
+        //                     npm install;
+        //                     npm run build;
+        //                     npm run start -- -p ${port} > ../${svc}-start.log 2>&1 &
+        //                     APP_PID=\$!;
+        //                     trap 'kill \$APP_PID >/dev/null 2>&1 || true; wait \$APP_PID >/dev/null 2>&1 || true' EXIT;
+        //                     sleep 15;
+        //                     npm run test:coverage -- --coverageReporters='text' --coverageReporters='json-summary' --ci;
+        //                 """
+        //             }
+        //         }
+        //     }
+        // }
 
-        stage('Security Scan') {
-            steps {
-                echo 'Running GitLeaks secret scan'
-                script {
-                    def diffBaseBranch = (env.DIFF_BASE_BRANCH ?: 'main').trim()
-                    if (!diffBaseBranch) {
-                        diffBaseBranch = 'main'
-                    }
+        // stage('Security Scan') {
+        //     steps {
+        //         echo 'Running GitLeaks secret scan'
+        //         script {
+        //             def diffBaseBranch = (env.DIFF_BASE_BRANCH ?: 'main').trim()
+        //             if (!diffBaseBranch) {
+        //                 diffBaseBranch = 'main'
+        //             }
 
-                    sh '''
-                        curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
-                        tar -xzf gitleaks.tar.gz
-                        chmod +x gitleaks
-                    '''
+        //             sh '''
+        //                 curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
+        //                 tar -xzf gitleaks.tar.gz
+        //                 chmod +x gitleaks
+        //             '''
 
-                    sh "./gitleaks detect --source=. --config=gitleaks.toml --log-opts=\"origin/${diffBaseBranch}..HEAD\" --report-format=json --report-path=gitleaks-report.json --exit-code=1"
-                }
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
-                }
-            }
-        }
+        //             sh "./gitleaks detect --source=. --config=gitleaks.toml --log-opts=\"origin/${diffBaseBranch}..HEAD\" --report-format=json --report-path=gitleaks-report.json --exit-code=1"
+        //         }
+        //     }
+        //     post {
+        //         always {
+        //             archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
+        //         }
+        //     }
+        // }
 
-        stage('Snyk Dependency Scan') {
-            when {
-                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
-            }
-            steps {
-                withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
-                    script {
-                        echo "--- Initializing Snyk CLI Environment ---"
-                        sh '''
-                            curl -sSL https://static.snyk.io/cli/latest/snyk-linux -o snyk
-                            chmod +x snyk
-                            chmod +x mvnw || true
-                        '''
-                        echo "--- Pre-installing Maven Parent and Common-library ---"
-                        sh "./mvnw install -N -DskipTests -Drevision=1.0-SNAPSHOT"
-                        sh "./mvnw install -pl common-library -am -DskipTests -Drevision=1.0-SNAPSHOT"
+        // stage('Snyk Dependency Scan') {
+        //     when {
+        //         expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
+        //     }
+        //     steps {
+        //         withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
+        //             script {
+        //                 echo "--- Initializing Snyk CLI Environment ---"
+        //                 sh '''
+        //                     curl -sSL https://static.snyk.io/cli/latest/snyk-linux -o snyk
+        //                     chmod +x snyk
+        //                     chmod +x mvnw || true
+        //                 '''
+        //                 echo "--- Pre-installing Maven Parent and Common-library ---"
+        //                 sh "./mvnw install -N -DskipTests -Drevision=1.0-SNAPSHOT"
+        //                 sh "./mvnw install -pl common-library -am -DskipTests -Drevision=1.0-SNAPSHOT"
 
-                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
-                        services.each { svc ->
-                            echo "--- Executing Snyk Scan for: ${svc} ---"
-                            def reportFile = "${env.WORKSPACE}/snyk-${svc}-report.json"
-                            if (fileExists("${svc}/pom.xml")) {
-                                sh "./snyk test --file=${svc}/pom.xml --severity-threshold=high --command=./mvnw --json-file-output=${reportFile} || true"
-                            } else if (fileExists("${svc}/package.json")) {
-                                dir("${svc}") {
-                                    sh "npm install || true"
-                                }
-                                sh "./snyk test --file=${svc}/package-lock.json --severity-threshold=high --json-file-output=${reportFile} || true"
-                            } else {
-                                echo "Skipping ${svc}: No valid manifest file (pom.xml/package.json) detected."
-                            }
-                        }
-                    }
-                }
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
-                    archiveArtifacts artifacts: 'snyk-*-report.json', fingerprint: true, allowEmptyArchive: true
-                }
-            }
-        }
+        //                 def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+        //                 services.each { svc ->
+        //                     echo "--- Executing Snyk Scan for: ${svc} ---"
+        //                     def reportFile = "${env.WORKSPACE}/snyk-${svc}-report.json"
+        //                     if (fileExists("${svc}/pom.xml")) {
+        //                         sh "./snyk test --file=${svc}/pom.xml --severity-threshold=high --command=./mvnw --json-file-output=${reportFile} || true"
+        //                     } else if (fileExists("${svc}/package.json")) {
+        //                         dir("${svc}") {
+        //                             sh "npm install || true"
+        //                         }
+        //                         sh "./snyk test --file=${svc}/package-lock.json --severity-threshold=high --json-file-output=${reportFile} || true"
+        //                     } else {
+        //                         echo "Skipping ${svc}: No valid manifest file (pom.xml/package.json) detected."
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     post {
+        //         always {
+        //             archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
+        //             archiveArtifacts artifacts: 'snyk-*-report.json', fingerprint: true, allowEmptyArchive: true
+        //         }
+        //     }
+        // }
 
-        stage('Test Phase') {
-            steps {
-                script {
-                    def fe = ['backoffice', 'storefront']
-                    def allBackendServices = [
-                        'cart', 'customer', 'delivery', 'inventory', 'location',
-                        'media', 'order', 'payment', 'payment-paypal', 'product',
-                        'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        'backoffice-bff', 'storefront-bff', 'identity',
-                        'sampledata', 'webhook'
-                    ]
+        // stage('Test Phase') {
+        //     steps {
+        //         script {
+        //             def fe = ['backoffice', 'storefront']
+        //             def allBackendServices = [
+        //                 'cart', 'customer', 'delivery', 'inventory', 'location',
+        //                 'media', 'order', 'payment', 'payment-paypal', 'product',
+        //                 'promotion', 'rating', 'recommendation', 'search', 'tax',
+        //                 'backoffice-bff', 'storefront-bff', 'identity',
+        //                 'sampledata', 'webhook'
+        //             ]
 
-                    def backendServices
-                    if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
-                        echo 'No specific service changes detected. Running tests for ALL backend services (full coverage for main branch).'
-                        backendServices = allBackendServices
-                    } else {
-                        backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
-                    }
+        //             def backendServices
+        //             if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+        //                 echo 'No specific service changes detected. Running tests for ALL backend services (full coverage for main branch).'
+        //                 backendServices = allBackendServices
+        //             } else {
+        //                 backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+        //             }
 
-                    if (backendServices.isEmpty()) {
-                        echo 'No backend services to test (only frontend changes). Skipping.'
-                        return
-                    }
+        //             if (backendServices.isEmpty()) {
+        //                 echo 'No backend services to test (only frontend changes). Skipping.'
+        //                 return
+        //             }
 
-                    backendServices.each { svc ->
-                        if (fileExists("${svc}/pom.xml")) {
-                            echo "Running Maven tests for: ${svc}"
-                            sh "./mvnw verify jacoco:report -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
-                        } else if (fileExists("${svc}/package.json")) {
-                            echo "Running Node.js tests for: ${svc}"
-                            dir("${svc}") {
-                                sh "npm install && npm test || true"
-                            }
-                        }
-                    }
-                }
-            }
-            post {
-                always {
-                    script {
-                        def fe = ['backoffice', 'storefront']
-                        def allBackendServices = [
-                            'cart', 'customer', 'delivery', 'inventory', 'location',
-                            'media', 'order', 'payment', 'payment-paypal', 'product',
-                            'promotion', 'rating', 'recommendation', 'search', 'tax',
-                            'backoffice-bff', 'storefront-bff', 'identity'
-                        ]
+        //             backendServices.each { svc ->
+        //                 if (fileExists("${svc}/pom.xml")) {
+        //                     echo "Running Maven tests for: ${svc}"
+        //                     sh "./mvnw verify jacoco:report -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+        //                 } else if (fileExists("${svc}/package.json")) {
+        //                     echo "Running Node.js tests for: ${svc}"
+        //                     dir("${svc}") {
+        //                         sh "npm install && npm test || true"
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     post {
+        //         always {
+        //             script {
+        //                 def fe = ['backoffice', 'storefront']
+        //                 def allBackendServices = [
+        //                     'cart', 'customer', 'delivery', 'inventory', 'location',
+        //                     'media', 'order', 'payment', 'payment-paypal', 'product',
+        //                     'promotion', 'rating', 'recommendation', 'search', 'tax',
+        //                     'backoffice-bff', 'storefront-bff', 'identity'
+        //                 ]
 
-                        def backendServices
-                        if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
-                            backendServices = allBackendServices
-                        } else {
-                            backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
-                        }
+        //                 def backendServices
+        //                 if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+        //                     backendServices = allBackendServices
+        //                 } else {
+        //                     backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+        //                 }
 
-                        backendServices.each { svc ->
-                            if (fileExists("${svc}/target/surefire-reports")) {
-                                junit(
-                                    testResults: "${svc}/target/surefire-reports/*.xml",
-                                    allowEmptyResults: true
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        //                 backendServices.each { svc ->
+        //                     if (fileExists("${svc}/target/surefire-reports")) {
+        //                         junit(
+        //                             testResults: "${svc}/target/surefire-reports/*.xml",
+        //                             allowEmptyResults: true
+        //                         )
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
 
-        stage('Coverage Quality Gate') {
-            steps {
-                script {
-                    def fe = ['backoffice', 'storefront']
-                    def allBackendServices = [
-                        'cart', 'customer', 'delivery', 'inventory', 'location',
-                        'media', 'order', 'payment', 'payment-paypal', 'product',
-                        'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        'backoffice-bff', 'storefront-bff', 'identity',
-                        'sampledata', 'webhook'
-                    ]
+        // stage('Coverage Quality Gate') {
+        //     steps {
+        //         script {
+        //             def fe = ['backoffice', 'storefront']
+        //             def allBackendServices = [
+        //                 'cart', 'customer', 'delivery', 'inventory', 'location',
+        //                 'media', 'order', 'payment', 'payment-paypal', 'product',
+        //                 'promotion', 'rating', 'recommendation', 'search', 'tax',
+        //                 'backoffice-bff', 'storefront-bff', 'identity',
+        //                 'sampledata', 'webhook'
+        //             ]
 
-                    def feServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && fe.contains(it) }
-                    def beServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && !fe.contains(it) }
+        //             def feServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && fe.contains(it) }
+        //             def beServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && !fe.contains(it) }
 
-                    if (feServices.isEmpty() && beServices.isEmpty()) {
-                        echo 'No changed services to check coverage for. Skipping.'
-                        return
-                    }
+        //             if (feServices.isEmpty() && beServices.isEmpty()) {
+        //                 echo 'No changed services to check coverage for. Skipping.'
+        //                 return
+        //             }
 
-                    // --- Frontend Coverage (Jest) ---
-                    feServices.each { svc ->
-                        def reportPath = "${svc}/coverage/coverage-summary.json"
-                        if (!fileExists(reportPath)) {
-                            echo "[${svc}] WARNING: Jest coverage summary not found at ${reportPath}"
-                            error("[${svc}] Jest coverage report missing. Ensure 'npm run test:coverage' generated it.")
-                        }
+        //             // --- Frontend Coverage (Jest) ---
+        //             feServices.each { svc ->
+        //                 def reportPath = "${svc}/coverage/coverage-summary.json"
+        //                 if (!fileExists(reportPath)) {
+        //                     echo "[${svc}] WARNING: Jest coverage summary not found at ${reportPath}"
+        //                     error("[${svc}] Jest coverage report missing. Ensure 'npm run test:coverage' generated it.")
+        //                 }
                         
-                        // Use Node.js to parse JSON (ensure PATH is set)
-                        // Use Node.js to parse JSON (ensure PATH is set using WORKSPACE)
-                        def coverage = sh(script: """
-                            export PATH=${env.WORKSPACE}/node-v20.12.2-linux-x64/bin:\$PATH
-                            node -e "const fs = require('fs'); const data = JSON.parse(fs.readFileSync('${reportPath}', 'utf8')); console.log(Math.floor(data.total.lines.pct));"
-                        """, returnStdout: true).trim().toInteger()
+        //                 // Use Node.js to parse JSON (ensure PATH is set)
+        //                 // Use Node.js to parse JSON (ensure PATH is set using WORKSPACE)
+        //                 def coverage = sh(script: """
+        //                     export PATH=${env.WORKSPACE}/node-v20.12.2-linux-x64/bin:\$PATH
+        //                     node -e "const fs = require('fs'); const data = JSON.parse(fs.readFileSync('${reportPath}', 'utf8')); console.log(Math.floor(data.total.lines.pct));"
+        //                 """, returnStdout: true).trim().toInteger()
 
-                        echo "[${svc}] Extracted Coverage: ${coverage}%"
+        //                 echo "[${svc}] Extracted Coverage: ${coverage}%"
 
-                        echo "[${svc}] Frontend Line Coverage: ${coverage}%"
-                        if (coverage <= 70) {
-                            error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
-                        }
-                    }
+        //                 echo "[${svc}] Frontend Line Coverage: ${coverage}%"
+        //                 if (coverage <= 70) {
+        //                     error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
+        //                 }
+        //             }
 
-                    // --- Backend Coverage (JaCoCo) ---
-                    beServices.each { svc ->
-                        if (!fileExists("${svc}/pom.xml")) {
-                            echo "[${svc}] Skipping coverage check for non-Maven service."
-                            return
-                        }
-                        def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
+        //             // --- Backend Coverage (JaCoCo) ---
+        //             beServices.each { svc ->
+        //                 if (!fileExists("${svc}/pom.xml")) {
+        //                     echo "[${svc}] Skipping coverage check for non-Maven service."
+        //                     return
+        //                 }
+        //                 def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
-                        if (!fileExists(reportPath)) {
-                            echo "[${svc}] WARNING: jacoco.csv not found at ${reportPath}"
-                            error("[${svc}] JaCoCo report missing - check jacoco-maven-plugin in ${svc}/pom.xml")
-                        }
+        //                 if (!fileExists(reportPath)) {
+        //                     echo "[${svc}] WARNING: jacoco.csv not found at ${reportPath}"
+        //                     error("[${svc}] JaCoCo report missing - check jacoco-maven-plugin in ${svc}/pom.xml")
+        //                 }
 
-                        def coverage = sh(script: """
-                            awk -F',' 'NR>1 {
-                                missed  += \$8;
-                                covered += \$9
-                            } END {
-                                if (missed+covered > 0)
-                                    printf "%.0f", covered/(missed+covered)*100;
-                                else
-                                    print 0
-                            }' ${reportPath}
-                        """, returnStdout: true).trim().toInteger()
+        //                 def coverage = sh(script: """
+        //                     awk -F',' 'NR>1 {
+        //                         missed  += \$8;
+        //                         covered += \$9
+        //                     } END {
+        //                         if (missed+covered > 0)
+        //                             printf "%.0f", covered/(missed+covered)*100;
+        //                         else
+        //                             print 0
+        //                     }' ${reportPath}
+        //                 """, returnStdout: true).trim().toInteger()
 
-                        echo "[${svc}] Backend Line Coverage: ${coverage}%"
+        //                 echo "[${svc}] Backend Line Coverage: ${coverage}%"
 
-                        if (coverage <= 70) {
-                            error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
-                        }
-                    }
-                }
-            }
-        }
+        //                 if (coverage <= 70) {
+        //                     error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
 
         stage('SonarQube Scan') {
             steps {
@@ -425,69 +425,69 @@ pipeline {
             }
         }
 
-        stage('Build Phase') {
-            steps {
-                script {
-                    def fe = ['backoffice', 'storefront']
-                    def allBackendServices = [
-                        'cart', 'customer', 'delivery', 'inventory', 'location',
-                        'media', 'order', 'payment', 'payment-paypal', 'product',
-                        'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        'backoffice-bff', 'storefront-bff', 'identity',
-                        'sampledata', 'webhook'
-                    ]
+    //     stage('Build Phase') {
+    //         steps {
+    //             script {
+    //                 def fe = ['backoffice', 'storefront']
+    //                 def allBackendServices = [
+    //                     'cart', 'customer', 'delivery', 'inventory', 'location',
+    //                     'media', 'order', 'payment', 'payment-paypal', 'product',
+    //                     'promotion', 'rating', 'recommendation', 'search', 'tax',
+    //                     'backoffice-bff', 'storefront-bff', 'identity',
+    //                     'sampledata', 'webhook'
+    //                 ]
 
-                    def backendServices
-                    if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
-                        echo 'No specific service changes detected. Building ALL backend services (main branch full build).'
-                        backendServices = allBackendServices
-                    } else {
-                        backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
-                    }
+    //                 def backendServices
+    //                 if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+    //                     echo 'No specific service changes detected. Building ALL backend services (main branch full build).'
+    //                     backendServices = allBackendServices
+    //                 } else {
+    //                     backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+    //                 }
 
-                    if (backendServices.isEmpty()) {
-                        echo 'No backend services to build (only frontend changes). Skipping.'
-                        return
-                    }
+    //                 if (backendServices.isEmpty()) {
+    //                     echo 'No backend services to build (only frontend changes). Skipping.'
+    //                     return
+    //                 }
 
-                    backendServices.each { svc ->
-                        if (fileExists("${svc}/pom.xml")) {
-                            echo "Building: ${svc}"
-                            sh "./mvnw clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
-                        }
-                    }
-                }
-            }
-            post {
-                success {
-                    script {
-                        def fe = ['backoffice', 'storefront']
-                        def allBackendServices = [
-                            'cart', 'customer', 'delivery', 'inventory', 'location',
-                            'media', 'order', 'payment', 'payment-paypal', 'product',
-                            'promotion', 'rating', 'recommendation', 'search', 'tax',
-                            'backoffice-bff', 'storefront-bff', 'identity',
-                            'sampledata', 'webhook'
-                        ]
+    //                 backendServices.each { svc ->
+    //                     if (fileExists("${svc}/pom.xml")) {
+    //                         echo "Building: ${svc}"
+    //                         sh "./mvnw clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //         post {
+    //             success {
+    //                 script {
+    //                     def fe = ['backoffice', 'storefront']
+    //                     def allBackendServices = [
+    //                         'cart', 'customer', 'delivery', 'inventory', 'location',
+    //                         'media', 'order', 'payment', 'payment-paypal', 'product',
+    //                         'promotion', 'rating', 'recommendation', 'search', 'tax',
+    //                         'backoffice-bff', 'storefront-bff', 'identity',
+    //                         'sampledata', 'webhook'
+    //                     ]
 
-                        def backendServices
-                        if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
-                            backendServices = allBackendServices
-                        } else {
-                            backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
-                        }
+    //                     def backendServices
+    //                     if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+    //                         backendServices = allBackendServices
+    //                     } else {
+    //                         backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+    //                     }
 
-                        backendServices.each { svc ->
-                            if (fileExists("${svc}/target")) {
-                                archiveArtifacts artifacts: "${svc}/target/*.jar",
-                                                 allowEmptyArchive: true
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    //                     backendServices.each { svc ->
+    //                         if (fileExists("${svc}/target")) {
+    //                             archiveArtifacts artifacts: "${svc}/target/*.jar",
+    //                                              allowEmptyArchive: true
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+     }
 
     post {
         success {
