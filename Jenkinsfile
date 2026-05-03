@@ -1,20 +1,34 @@
-def changedServices = 'none'
-def frontendServices = ['backoffice', 'storefront']
-
 pipeline {
     agent any
 
     parameters {
-        string(name: 'DIFF_BASE_BRANCH', defaultValue: 'main', description: 'Nhanh goc de diff (chi dung khi khong phai PR; PR dung CHANGE_TARGET tu GitHub)')
+        string(name: 'DIFF_BASE_BRANCH', defaultValue: 'main', description: 'Nhanh goc de diff (non-PR); PR dung CHANGE_TARGET.')
+    }
+
+    environment {
+        CHANGED_SERVICES = 'none'
+    }
+
+    tools {
+        maven 'Maven-3.9'
+    }
+
+    options {
+        skipDefaultCheckout()
     }
 
     stages {
 
+        stage('Checkout') {
+            steps {
+                cleanWs()
+                checkout scm
+            }
+        }
+
         stage('Detect Changed Services') {
             steps {
                 script {
-                    // Khong dat DIFF_BASE_BRANCH trong khoi environment {} — Declarative validate env rat chat;
-                    // params/CHANGE_TARGET co the gay IllegalArgumentException ("issues with their values").
                     def diffBaseBranch = env.CHANGE_TARGET?.trim()
                     if (!diffBaseBranch) {
                         diffBaseBranch = params?.DIFF_BASE_BRANCH?.toString()?.trim()
@@ -58,11 +72,11 @@ pipeline {
 
                     echo "Affected services detected: ${affected}"
 
-                    changedServices = affected.isEmpty() ? 'none' : affected.join(',')
-                    if (changedServices == 'none') {
-                        echo "No service changes detected. Skipping build/test."
+                    env.CHANGED_SERVICES = affected.isEmpty() ? 'none' : affected.join(',')
+                    if (env.CHANGED_SERVICES == 'none') {
+                        echo 'No service changes detected. Skipping build/test.'
                     } else {
-                        echo "Services to build/test: ${changedServices}"
+                        echo "Services to build/test: ${env.CHANGED_SERVICES}"
                     }
                 }
             }
@@ -71,16 +85,15 @@ pipeline {
         stage('Frontend Build Start Test') {
             when {
                 expression {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                    services.any { frontendServices.contains(it) }
+                    def fe = ['backoffice', 'storefront']
+                    def svcs = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    svcs.any { fe.contains(it) }
                 }
             }
-            // NodeJS Jenkins Tool plugin not installed on this controller — use node/npm from agent PATH.
-            // To use tools { nodejs '...' }, install "NodeJS" plugin and add a NodeJS installation in Global Tool Configuration.
             steps {
                 script {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                    def frontendChanged = services.findAll { frontendServices.contains(it) }
+                    def fe = ['backoffice', 'storefront']
+                    def frontendChanged = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { fe.contains(it) }
 
                     frontendChanged.eachWithIndex { svc, idx ->
                         def port = 3100 + idx
@@ -88,7 +101,7 @@ pipeline {
 
                         sh """
                             set -e;
-                            command -v node >/dev/null 2>&1 || { echo "node not found on PATH; install Node.js on the agent or add NodeJS plugin."; exit 127; }
+                            command -v node >/dev/null 2>&1 || { echo "node not found on PATH"; exit 127; }
                             apt-get update -y || true;
                             apt-get install -y libatomic1 || true;
                             node --version;
@@ -109,7 +122,7 @@ pipeline {
 
         stage('Security Scan') {
             steps {
-                echo "--- Dang tai va thuc thi GitLeaks ---"
+                echo 'Running GitLeaks secret scan'
                 script {
                     def diffBaseBranch = (env.DIFF_BASE_BRANCH ?: 'main').trim()
                     if (!diffBaseBranch) {
@@ -134,7 +147,7 @@ pipeline {
 
         stage('Snyk Dependency Scan') {
             when {
-                expression { changedServices?.trim() && changedServices != 'none' }
+                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
             }
             steps {
                 withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
@@ -143,13 +156,13 @@ pipeline {
                         sh '''
                             curl -sSL https://static.snyk.io/cli/latest/snyk-linux -o snyk
                             chmod +x snyk
-                            chmod +x mvnw
+                            chmod +x mvnw || true
                         '''
                         echo "--- Pre-installing Maven Parent and Common-library ---"
                         sh "./mvnw install -N -DskipTests -Drevision=1.0-SNAPSHOT"
                         sh "./mvnw install -pl common-library -am -DskipTests -Drevision=1.0-SNAPSHOT"
 
-                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
+                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
                             echo "--- Executing Snyk Scan for: ${svc} ---"
                             def reportFile = "${env.WORKSPACE}/snyk-${svc}-report.json"
@@ -178,19 +191,19 @@ pipeline {
         stage('Test Phase') {
             when {
                 expression {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                    services.any { !frontendServices.contains(it) }
+                    def fe = ['backoffice', 'storefront']
+                    def svcs = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    svcs.any { !fe.contains(it) }
                 }
             }
             steps {
                 script {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                    def backendServices = services.findAll { !frontendServices.contains(it) }
-                    sh 'chmod +x mvnw || true'
+                    def fe = ['backoffice', 'storefront']
+                    def backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
                     backendServices.each { svc ->
                         if (fileExists("${svc}/pom.xml")) {
                             echo "Running Maven tests for: ${svc}"
-                            sh "./mvnw verify jacoco:report -DskipITs -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                            sh "mvn verify jacoco:report -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                         } else if (fileExists("${svc}/package.json")) {
                             echo "Running Node.js tests for: ${svc}"
                             dir("${svc}") {
@@ -203,8 +216,8 @@ pipeline {
             post {
                 always {
                     script {
-                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                        def backendServices = services.findAll { !frontendServices.contains(it) }
+                        def fe = ['backoffice', 'storefront']
+                        def backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
                         backendServices.each { svc ->
                             junit(
                                 testResults: "${svc}/target/surefire-reports/*.xml",
@@ -219,25 +232,28 @@ pipeline {
         stage('Coverage Quality Gate') {
             when {
                 expression {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                    services.any { !frontendServices.contains(it) }
+                    def fe = ['backoffice', 'storefront']
+                    def svcs = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    svcs.any { !fe.contains(it) }
                 }
             }
             steps {
                 script {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                    def backendServices = services.findAll { !frontendServices.contains(it) }
+                    def fe = ['backoffice', 'storefront']
+                    def backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
                     backendServices.each { svc ->
                         if (!fileExists("${svc}/pom.xml")) {
                             echo "[${svc}] Skipping coverage check for non-Maven service."
                             return
                         }
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
-                        def reportPresent = sh(script: "test -f ${reportPath} && echo yes || echo no", returnStdout: true).trim()
-                        if (reportPresent != 'yes') {
+
+                        def jacocoPresent = sh(script: "test -f ${reportPath} && echo 'yes' || echo 'no'", returnStdout: true).trim()
+
+                        if (jacocoPresent == 'no') {
                             echo "[${svc}] WARNING: jacoco.csv not found at ${reportPath}"
                             sh "find ${svc}/target -name '*.csv' -o -name 'jacoco*' 2>/dev/null || echo 'No jacoco files found'"
-                            error("[${svc}] JaCoCo report missing — check jacoco-maven-plugin in ${svc}/pom.xml")
+                            error("[${svc}] JaCoCo report missing - check jacoco-maven-plugin in ${svc}/pom.xml")
                         }
 
                         def coverage = sh(script: """
@@ -262,22 +278,70 @@ pipeline {
             }
         }
 
+        stage('SonarQube Scan') {
+            steps {
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    script {
+                        def services = (env.CHANGED_SERVICES ?: '')
+                            .split(',')
+                            .collect { it.trim() }
+                            .findAll { it && it != 'none' }
+                        def mavenModules = services.findAll { svc -> fileExists("${svc}/pom.xml") }
+                        def plModules = mavenModules ? mavenModules.join(',') : ''
+
+                        withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
+                            if (plModules) {
+                                sh """
+                                    mvn -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
+                                        -f pom.xml \\
+                                        -pl ${plModules} -am \\
+                                        -Drevision=1.0-SNAPSHOT \\
+                                        -Dsonar.token=\$SONAR_TOKEN \\
+                                        -Dsonar.organization=luc1fe4 \\
+                                        -Dsonar.projectKey=luc1fe4_yas \\
+                                        -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \\
+                                        -Dsonar.scanner.connectTimeout=600 \\
+                                        -Dsonar.scanner.socketTimeout=600 \\
+                                        -Dsonar.scanner.responseTimeout=600 \\
+                                        -Dsonar.scanner.internal.useHttp2=false
+                                """
+                            } else {
+                                sh """
+                                    mvn -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
+                                        -f pom.xml \\
+                                        -Drevision=1.0-SNAPSHOT \\
+                                        -Dsonar.token=\$SONAR_TOKEN \\
+                                        -Dsonar.organization=luc1fe4 \\
+                                        -Dsonar.projectKey=luc1fe4_yas \\
+                                        -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \\
+                                        -Dsonar.scanner.connectTimeout=600 \\
+                                        -Dsonar.scanner.socketTimeout=600 \\
+                                        -Dsonar.scanner.responseTimeout=600 \\
+                                        -Dsonar.scanner.internal.useHttp2=false
+                                """
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         stage('Build Phase') {
             when {
                 expression {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                    services.any { !frontendServices.contains(it) }
+                    def fe = ['backoffice', 'storefront']
+                    def svcs = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                    svcs.any { !fe.contains(it) }
                 }
             }
             steps {
                 script {
-                    def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                    def backendServices = services.findAll { !frontendServices.contains(it) }
-                    sh 'chmod +x mvnw || true'
+                    def fe = ['backoffice', 'storefront']
+                    def backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
                     backendServices.each { svc ->
                         if (fileExists("${svc}/pom.xml")) {
                             echo "Building: ${svc}"
-                            sh "./mvnw clean package -DskipTests -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                            sh "mvn clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                         }
                     }
                 }
@@ -285,8 +349,8 @@ pipeline {
             post {
                 success {
                     script {
-                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                        def backendServices = services.findAll { !frontendServices.contains(it) }
+                        def fe = ['backoffice', 'storefront']
+                        def backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
                         backendServices.each { svc ->
                             archiveArtifacts artifacts: "${svc}/target/*.jar",
                                              allowEmptyArchive: true
@@ -299,10 +363,10 @@ pipeline {
 
     post {
         success {
-            echo "CI Pipeline PASSED – All stages completed successfully."
+            echo 'CI Pipeline PASSED - All stages completed successfully.'
         }
         failure {
-            echo "CI Pipeline FAILED – Check logs above for details."
+            echo 'CI Pipeline FAILED - Check logs above for details.'
         }
         always {
             script {
