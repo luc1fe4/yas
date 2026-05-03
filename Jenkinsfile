@@ -375,17 +375,20 @@ pipeline {
 
                         withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
                             // --- Backend Scan ---
+                            // --- Backend Scan ---
                             if (mavenModules) {
                                 def plModules = mavenModules.join(',')
                                 echo "Scanning Backend modules: ${plModules}"
                                 sh """
-                                    ./mvnw -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.1.2184:sonar \\
+                                    ./mvnw -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:4.0.0.4121:sonar \\
                                         -f pom.xml \\
                                         -pl ${plModules} -am \\
                                         -Drevision=1.0-SNAPSHOT \\
                                         -Dsonar.token=\$SONAR_TOKEN \\
-                                        -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \\
+                                        -Dsonar.organization=luc1fe4 \\
+                                        -Dsonar.projectKey=luc1fe4_yas \\
                                         -Dsonar.host.url=https://sonarcloud.io \\
+                                        -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \\
                                         -Dsonar.scanner.internal.useHttp2=false \\
                                         -Dsonar.scanner.skipJreProvisioning=true
                                 """
