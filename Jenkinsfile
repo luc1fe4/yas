@@ -43,11 +43,24 @@ pipeline {
 
                     def changedFiles = sh(
                         script: """
+                            # Try diff with base branch first
+                            FILES=""
                             if git rev-parse --verify ${diffBaseRef} >/dev/null 2>&1; then
-                                git diff --name-only ${diffBaseRef}...HEAD
+                                FILES=\$(git diff --name-only ${diffBaseRef}...HEAD)
+                            fi
+                            
+                            # If no files found (base same as HEAD), fallback to last commit
+                            if [ -z "\$FILES" ]; then
+                                echo "No changes found vs ${diffBaseRef}, falling back to last commit diff" >&2
+                                FILES=\$(git diff --name-only HEAD~1..HEAD)
+                            fi
+                            
+                            # If still no files, list all files (safest fallback)
+                            if [ -z "\$FILES" ]; then
+                                echo "Still no changes found, using git ls-files" >&2
+                                git ls-files
                             else
-                                echo "${diffBaseRef} not found, fallback to latest commit diff" >&2
-                                git diff --name-only HEAD~1..HEAD || git ls-files
+                                echo "\$FILES"
                             fi
                         """,
                         returnStdout: true
