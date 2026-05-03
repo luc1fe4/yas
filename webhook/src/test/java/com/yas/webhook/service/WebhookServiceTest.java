@@ -88,7 +88,6 @@ class WebhookServiceTest {
         WebhookVm webhookVm = new WebhookVm();
         webhookVm.setId(1L);
         webhookVm.setPayloadUrl("url");
-        webhookVm.setSecret("secret");
         webhookVm.setIsActive(true);
 
         when(webhookRepository.findAll(Sort.by(Sort.Direction.DESC, "id"))).thenReturn(List.of(webhook));
@@ -160,7 +159,7 @@ class WebhookServiceTest {
         Long id = 1L;
         WebhookPostVm webhookPostVm = new WebhookPostVm("url", "secret", "application/json", true, List.of(new EventVm(1L, EventName.ON_PRODUCT_UPDATED)));
         Webhook existedWebhook = new Webhook();
-        existedWebhook.setWebhookEvents(Set.of());
+        existedWebhook.setWebhookEvents(List.of());
         Webhook updatedWebhook = new Webhook();
         com.yas.webhook.model.Event event = new com.yas.webhook.model.Event();
 
