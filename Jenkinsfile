@@ -135,7 +135,7 @@ pipeline {
                             APP_PID=\$!;
                             trap 'kill \$APP_PID >/dev/null 2>&1 || true; wait \$APP_PID >/dev/null 2>&1 || true' EXIT;
                             sleep 15;
-                            npm run test:coverage -- --ci;
+                            npm run test:coverage -- --coverageReporters='text' --coverageReporters='json-summary' --ci;
                         """
                     }
                 }
@@ -291,30 +291,43 @@ pipeline {
                         // 'sampledata', 'webhook'
                     ]
 
-                    def backendServices
-                    if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
-                        backendServices = allBackendServices
-                    } else {
-                        backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
-                    }
+                    def feServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && fe.contains(it) }
+                    def beServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && !fe.contains(it) }
 
-                    if (backendServices.isEmpty()) {
-                        echo 'No backend services to check coverage for. Skipping.'
+                    if (feServices.isEmpty() && beServices.isEmpty()) {
+                        echo 'No changed services to check coverage for. Skipping.'
                         return
                     }
 
-                    backendServices.each { svc ->
+                    // --- Frontend Coverage (Jest) ---
+                    feServices.each { svc ->
+                        def reportPath = "${svc}/coverage/coverage-summary.json"
+                        if (!fileExists(reportPath)) {
+                            echo "[${svc}] WARNING: Jest coverage summary not found at ${reportPath}"
+                            error("[${svc}] Jest coverage report missing. Ensure 'npm run test:coverage' generated it.")
+                        }
+                        
+                        // Parse percentage from JSON using shell/python or simple grep/sed
+                        def coverage = sh(script: """
+                            cat ${reportPath} | grep -o '"lines":{"total":[0-9]*,"covered":[0-9]*,"skipped":[0-9]*,"pct":[0-9.]*' | grep -o '[0-9.]*\$' || echo 0
+                        """, returnStdout: true).trim().toFloat().toInteger()
+
+                        echo "[${svc}] Frontend Line Coverage: ${coverage}%"
+                        if (coverage <= 70) {
+                            error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
+                        }
+                    }
+
+                    // --- Backend Coverage (JaCoCo) ---
+                    beServices.each { svc ->
                         if (!fileExists("${svc}/pom.xml")) {
                             echo "[${svc}] Skipping coverage check for non-Maven service."
                             return
                         }
                         def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
-                        def jacocoPresent = sh(script: "test -f ${reportPath} && echo 'yes' || echo 'no'", returnStdout: true).trim()
-
-                        if (jacocoPresent == 'no') {
+                        if (!fileExists(reportPath)) {
                             echo "[${svc}] WARNING: jacoco.csv not found at ${reportPath}"
-                            sh "find ${svc}/target -name '*.csv' -o -name 'jacoco*' 2>/dev/null || echo 'No jacoco files found'"
                             error("[${svc}] JaCoCo report missing - check jacoco-maven-plugin in ${svc}/pom.xml")
                         }
 
@@ -330,7 +343,7 @@ pipeline {
                             }' ${reportPath}
                         """, returnStdout: true).trim().toInteger()
 
-                        echo "[${svc}] Line Coverage: ${coverage}%"
+                        echo "[${svc}] Backend Line Coverage: ${coverage}%"
 
                         if (coverage <= 70) {
                             error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
