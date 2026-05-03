@@ -361,15 +361,20 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     script {
+                        def fe = ['backoffice', 'storefront']
                         def services = (env.CHANGED_SERVICES ?: '')
                             .split(',')
                             .collect { it.trim() }
                             .findAll { it && it != 'none' }
-                        def mavenModules = services.findAll { svc -> fileExists("${svc}/pom.xml") }
-                        def plModules = mavenModules ? mavenModules.join(',') : ''
+                        
+                        def feModules = services.findAll { svc -> fe.contains(svc) }
+                        def beModules = services.findAll { svc -> !fe.contains(svc) && fileExists("${svc}/pom.xml") }
+                        def plModules = beModules ? beModules.join(',') : ''
 
                         withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
+                            // --- Backend Scan ---
                             if (plModules) {
+                                echo "Scanning Backend modules: ${plModules}"
                                 sh """
                                     ./mvnw -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
                                         -f pom.xml \\
@@ -384,18 +389,20 @@ pipeline {
                                         -Dsonar.scanner.responseTimeout=600 \\
                                         -Dsonar.scanner.internal.useHttp2=false
                                 """
-                            } else {
+                            }
+
+                            // --- Frontend Scan ---
+                            feModules.each { svc ->
+                                echo "Scanning Frontend service: ${svc}"
                                 sh """
-                                    ./mvnw -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
-                                        -f pom.xml \\
-                                        -Drevision=1.0-SNAPSHOT \\
+                                    export PATH=${env.WORKSPACE}/node-v20.12.2-linux-x64/bin:\$PATH
+                                    cd ${svc}
+                                    npx -y sonar-scanner \\
                                         -Dsonar.token=\$SONAR_TOKEN \\
                                         -Dsonar.organization=luc1fe4 \\
-                                        -Dsonar.projectKey=luc1fe4_yas \\
-                                        -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \\
-                                        -Dsonar.scanner.connectTimeout=600 \\
-                                        -Dsonar.scanner.socketTimeout=600 \\
-                                        -Dsonar.scanner.responseTimeout=600 \\
+                                        -Dsonar.projectKey=luc1fe4_yas_${svc} \\
+                                        -Dsonar.sources=. \\
+                                        -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \\
                                         -Dsonar.scanner.internal.useHttp2=false
                                 """
                             }
