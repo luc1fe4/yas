@@ -8,24 +8,22 @@ pipeline {
         string(name: 'DIFF_BASE_BRANCH', defaultValue: 'main', description: 'Nhanh goc de diff (chi dung khi khong phai PR; PR dung CHANGE_TARGET tu GitHub)')
     }
 
-    environment {
-        // Multibranch PR: Jenkins GitHub Branch Source sets CHANGE_TARGET = base branch (e.g. main).
-        // Branch builds: fall back to parameter or main (params can be null on first run).
-        DIFF_BASE_BRANCH = "${(env.CHANGE_TARGET?.trim() ?: (params?.DIFF_BASE_BRANCH?.trim() ?: 'main'))}"
-    }
-
     stages {
 
         stage('Detect Changed Services') {
             steps {
                 script {
-                    def diffBaseBranch = (env.DIFF_BASE_BRANCH ?: 'main').trim()
+                    // Khong dat DIFF_BASE_BRANCH trong khoi environment {} — Declarative validate env rat chat;
+                    // params/CHANGE_TARGET co the gay IllegalArgumentException ("issues with their values").
+                    def diffBaseBranch = env.CHANGE_TARGET?.trim()
                     if (!diffBaseBranch) {
+                        diffBaseBranch = params?.DIFF_BASE_BRANCH?.toString()?.trim()
+                    }
+                    if (!diffBaseBranch || !(diffBaseBranch ==~ /^[A-Za-z0-9._\/-]+$/)) {
                         diffBaseBranch = 'main'
                     }
-                    if (!(diffBaseBranch ==~ /^[A-Za-z0-9._\/-]+$/)) {
-                        error("DIFF_BASE_BRANCH khong hop le: ${diffBaseBranch}")
-                    }
+                    env.DIFF_BASE_BRANCH = diffBaseBranch
+                    echo "DIFF_BASE_BRANCH resolved to: ${env.DIFF_BASE_BRANCH}"
 
                     def diffBaseRef = "origin/${diffBaseBranch}"
                     echo "Using base branch for diff: ${diffBaseRef}"
@@ -307,7 +305,13 @@ pipeline {
             echo "CI Pipeline FAILED – Check logs above for details."
         }
         always {
-            cleanWs()
+            script {
+                try {
+                    cleanWs()
+                } catch (Throwable e) {
+                    echo "cleanWs skipped (no workspace/FilePath context): ${e.class.simpleName}: ${e.message}"
+                }
+            }
         }
     }
 }
