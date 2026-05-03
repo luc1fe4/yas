@@ -116,12 +116,12 @@ pipeline {
                         sh """
                             set -e;
                             if ! command -v node >/dev/null 2>&1; then
-                                if [ ! -d "node-v18.17.1-linux-x64" ]; then
+                                if [ ! -d "node-v20.12.2-linux-x64" ]; then
                                     echo "Node not found, downloading binary..."
-                                    curl -sSL https://nodejs.org/dist/v18.17.1/node-v18.17.1-linux-x64.tar.gz -o node.tar.gz
+                                    curl -sSL https://nodejs.org/dist/v20.12.2/node-v20.12.2-linux-x64.tar.gz -o node.tar.gz
                                     tar -xzf node.tar.gz
                                 fi
-                                export PATH=\$PWD/node-v18.17.1-linux-x64/bin:\$PATH
+                                export PATH=\$PWD/node-v20.12.2-linux-x64/bin:\$PATH
                             fi
                             
                             node --version;
