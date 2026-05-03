@@ -384,6 +384,23 @@ pipeline {
                     }
 
                     withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
+                        def scannerBin = 'sonar-scanner'
+                        if (frontendModules) {
+                            sh '''
+                                if ! command -v sonar-scanner >/dev/null 2>&1; then
+                                    if [ ! -d "sonar-scanner-5.0.1.3006-linux" ]; then
+                                        echo "Sonar Scanner not found, downloading..."
+                                        curl -sSL https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip -o sonar-scanner.zip
+                                        unzip -q sonar-scanner.zip
+                                        chmod +x sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner
+                                        chmod +x sonar-scanner-5.0.1.3006-linux/jre/bin/java
+                                    fi
+                                fi
+                            '''
+                            if (fileExists("${env.WORKSPACE}/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner")) {
+                                scannerBin = "${env.WORKSPACE}/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner"
+                            }
+                        }
 
                         if (mavenModules) {
                             def plModules = mavenModules.join(',')
@@ -405,7 +422,7 @@ pipeline {
 
                         frontendModules.each { svc ->
                             sh """
-                                sonar-scanner \\
+                                ${scannerBin} \\
                                     -Dsonar.projectKey=luc1fe4_yas \\
                                     -Dsonar.organization=luc1fe4 \\
                                     -Dsonar.token=\$SONAR_TOKEN \\
