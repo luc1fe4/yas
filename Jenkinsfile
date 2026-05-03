@@ -85,6 +85,49 @@ pipeline {
             }
         }
 
+        stage('Snyk Dependency Scan') {
+            when {
+                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
+            }
+            steps {
+                withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
+                    script {
+                        echo "--- Initializing Snyk CLI Environment ---"
+                        sh '''
+                            curl -sSL https://static.snyk.io/cli/latest/snyk-linux -o snyk
+                            chmod +x snyk
+                            chmod +x mvnw || true
+                        '''
+                        echo "--- Pre-installing Maven Parent and Common-library ---"
+                        sh "./mvnw install -N -DskipTests -Drevision=1.0-SNAPSHOT"
+                        sh "./mvnw install -pl common-library -am -DskipTests -Drevision=1.0-SNAPSHOT"
+
+                        def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
+                        services.each { svc ->
+                            echo "--- Executing Snyk Scan for: ${svc} ---"
+                            def reportFile = "${env.WORKSPACE}/snyk-${svc}-report.json"
+                            if (fileExists("${svc}/pom.xml")) {
+                                sh "./snyk test --file=${svc}/pom.xml --severity-threshold=high --command=./mvnw --json-file-output=${reportFile} || true"
+                            } else if (fileExists("${svc}/package.json")) {
+                                dir("${svc}") {
+                                    sh "npm install || true"
+                                }
+                                sh "./snyk test --file=${svc}/package-lock.json --severity-threshold=high --json-file-output=${reportFile} || true"
+                            } else {
+                                echo "Skipping ${svc}: No valid manifest file (pom.xml/package.json) detected."
+                            }
+                        }
+                    }
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'snyk-*-report.json', fingerprint: true, allowEmptyArchive: true
+                }
+            }
+        }
+
         stage('Test Phase') {
             when {
                 expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
@@ -94,7 +137,7 @@ pipeline {
                     def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                     services.each { svc ->
                         echo "Running tests for: ${svc}"
-                        sh "mvn verify -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                        sh "mvn verify jacoco:report -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                     }
                 }
             }
@@ -166,8 +209,6 @@ pipeline {
                             .collect { it.trim() }
                             .findAll { it && it != 'none' }
                         def plModules = services ? services.join(',') : ''
-                        // SONAR_SCANNER_OPTS: disables HTTP/2 in the scanner JVM (avoids Http2 stream reset /
-                        // CANCEL timeouts on multipart upload to SonarCloud ce/submit). Maven -D alone may not apply here.
                         withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
                             if (plModules) {
                                 sh """
@@ -201,61 +242,6 @@ pipeline {
                             }
                         }
                     }
-                }
-            }
-        }
-
-        stage('Snyk Dependency Scan') {
-            // Chỉ thực hiện quét khi có sự thay đổi mã nguồn trong các service cụ thể
-            when {
-                expression { changedServices?.trim() && changedServices != 'none' }
-            }
-            steps {
-                // Sử dụng định danh snyk-token đã cấu hình trong Jenkins Credentials
-                withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
-                    script {
-                        // 1. Khởi tạo môi trường: Tải Snyk CLI binary và cấp quyền thực thi
-                        echo "--- Initializing Snyk CLI Environment ---"
-                        sh '''
-                            curl -sSL https://static.snyk.io/cli/latest/snyk-linux -o snyk
-                            chmod +x snyk
-                            chmod +x mvnw
-                        '''
-                        // 2. Tiền xử lý (Pre-processing): Cài đặt Parent POM và thư viện dùng chung (common-library)
-                        // Bước này bắt buộc đối với kiến trúc Multi-module Maven để Snyk có thể phân tích cây phụ thuộc (Dependency Tree)
-                        echo "--- Pre-installing Maven Parent and Common-library ---"
-                        sh "./mvnw install -N -DskipTests -Drevision=1.0-SNAPSHOT"
-                        sh "./mvnw install -pl common-library -am -DskipTests -Drevision=1.0-SNAPSHOT"
-
-                        // 3. Phân tích chi tiết từng Service có sự thay đổi (Changed Services)
-                        def services = (changedServices ?: '').split(',').findAll { it?.trim() }
-                        services.each { svc ->
-                            echo "--- Executing Snyk Scan for: ${svc} ---"
-                            def reportFile = "${env.WORKSPACE}/snyk-${svc}-report.json"
-                            // Kiểm tra loại Project để áp dụng chiến lược quét tương ứng
-                            if (fileExists("${svc}/pom.xml")) {
-                                // Đối với Java Service: Sử dụng Maven Wrapper từ thư mục gốc để đảm bảo tính nhất quán của phiên bản build
-                                sh "./snyk test --file=${svc}/pom.xml --severity-threshold=high --command=./mvnw --json-file-output=${reportFile} || true"
-                            } else if (fileExists("${svc}/package.json")) {
-                                // Đối với Node.js Service: Thực hiện cài đặt dependencies để tạo cấu trúc node_modules hoàn chỉnh
-                                dir("${svc}") {
-                                    sh "npm install || true"
-                                }
-                                // Sử dụng package-lock.json để phân tích chính xác các phiên bản thư viện thực tế sẽ được triển khai
-                                sh "./snyk test --file=${svc}/package-lock.json --severity-threshold=high --json-file-output=${reportFile} || true"
-                            } else {
-                                echo "Skipping ${svc}: No valid manifest file (pom.xml/package.json) detected."
-                            }
-                        }
-                    }
-                }
-            }
-            post {
-                // Hậu xử lý: Luôn lưu trữ báo cáo dưới dạng Artifact để phục vụ công tác thẩm định và truy xuất bảo mật
-                always {
-                    // Lưu trữ file báo cáo quét bảo mật sau mỗi lần chạy
-                    archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
-                    archiveArtifacts artifacts: 'snyk-*-report.json', fingerprint: true, allowEmptyArchive: true
                 }
             }
         }
