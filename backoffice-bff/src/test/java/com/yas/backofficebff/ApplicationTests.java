@@ -5,7 +5,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+    "spring.security.oauth2.client.provider.keycloak.issuer-uri=",
+    "spring.security.oauth2.client.provider.keycloak.authorization-uri=http://localhost:9999/auth",
+    "spring.security.oauth2.client.provider.keycloak.token-uri=http://localhost:9999/token",
+    "spring.security.oauth2.client.provider.keycloak.jwk-set-uri=http://localhost:9999/jwks"
+})
 class ApplicationTests {
 
     @MockitoBean

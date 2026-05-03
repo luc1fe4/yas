@@ -61,8 +61,7 @@ pipeline {
                         'promotion', 'rating', 'recommendation', 'search', 'tax',
                         'backoffice-bff', 'storefront-bff', 'identity',
                         'sampledata', 'webhook',
-                        // 'backoffice'
-                        , 'storefront'
+                        'backoffice', 'storefront'
                     ]
 
                     def affected = services.findAll { svc ->
