@@ -307,10 +307,12 @@ pipeline {
                             error("[${svc}] Jest coverage report missing. Ensure 'npm run test:coverage' generated it.")
                         }
                         
-                        // Robust JSON parsing using Python
+                        // Use Node.js to parse JSON (since we know node is available)
                         def coverage = sh(script: """
-                            python3 -c "import json; f=open('${reportPath}'); data=json.load(f); print(data['total']['lines']['pct']); f.close()" || echo 0
-                        """, returnStdout: true).trim().toFloat().toInteger()
+                            node -e "const fs = require('fs'); const data = JSON.parse(fs.readFileSync('${reportPath}', 'utf8')); console.log(Math.floor(data.total.lines.pct));"
+                        """, returnStdout: true).trim().toInteger()
+
+                        echo "[${svc}] Extracted Coverage: ${coverage}%"
 
                         echo "[${svc}] Frontend Line Coverage: ${coverage}%"
                         if (coverage <= 70) {
