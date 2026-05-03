@@ -357,71 +357,73 @@ pipeline {
             }
         }
 
-            stage('SonarQube Scan') {
-        steps {
-            withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                script {
-                    def services = (env.CHANGED_SERVICES ?: '')
-                        .split(',')
-                        .collect { it.trim() }
-                        .findAll { it && it != 'none' }
+        stage('SonarQube Scan') {
+            steps {
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    script {
+                        def fe = ['backoffice', 'storefront']
+                        def services = (env.CHANGED_SERVICES ?: '')
+                            .split(',')
+                            .collect { it.trim() }
+                            .findAll { it && it != 'none' }
 
-                    // Phân loại
-                    def mavenModules = services.findAll { svc -> fileExists("${svc}/pom.xml") }
-                    def frontendModules = services.findAll { svc ->
-                        fileExists("${svc}/package.json") && !fileExists("${svc}/pom.xml")
-                    }
-
-                    withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
-
-                        if (mavenModules) {
-                            def plModules = mavenModules.join(',')
-                            sh """
-                                mvn -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
-                                    -f pom.xml \\
-                                    -pl ${plModules} -am \\
-                                    -Drevision=1.0-SNAPSHOT \\
-                                    -Dsonar.token=\$SONAR_TOKEN \\
-                                    -Dsonar.organization=luc1fe4 \\
-                                    -Dsonar.projectKey=luc1fe4_yas \\
-                                    -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \\
-                                    -Dsonar.scanner.connectTimeout=600 \\
-                                    -Dsonar.scanner.socketTimeout=600 \\
-                                    -Dsonar.scanner.responseTimeout=600 \\
-                                    -Dsonar.scanner.internal.useHttp2=false
-                            """
+                        // Phân loại
+                        def mavenModules = services.findAll { svc -> fileExists("${svc}/pom.xml") }
+                        def frontendModules = services.findAll { svc ->
+                            fe.contains(svc) && fileExists("${svc}/package.json")
                         }
 
-                        frontendModules.each { svc ->
-                            sh """
-                                sonar-scanner \\
-                                    -Dsonar.projectKey=luc1fe4_yas \\
-                                    -Dsonar.organization=luc1fe4 \\
-                                    -Dsonar.token=\$SONAR_TOKEN \\
-                                    -Dsonar.sources=${svc}/src \\
-                                    -Dsonar.javascript.lcov.reportPaths=${svc}/coverage/lcov.info \\
-                                    -Dsonar.scanner.connectTimeout=600 \\
-                                    -Dsonar.scanner.socketTimeout=600 \\
-                                    -Dsonar.scanner.responseTimeout=600 \\
-                                    -Dsonar.scanner.internal.useHttp2=false
-                            """
-                        }
+                        withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
+                            // --- Backend Scan ---
+                            if (mavenModules) {
+                                def plModules = mavenModules.join(',')
+                                echo "Scanning Backend modules: ${plModules}"
+                                sh """
+                                    ./mvnw -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
+                                        -f pom.xml \\
+                                        -pl ${plModules} -am \\
+                                        -Drevision=1.0-SNAPSHOT \\
+                                        -Dsonar.token=\$SONAR_TOKEN \\
+                                        -Dsonar.organization=luc1fe4 \\
+                                        -Dsonar.projectKey=luc1fe4_yas \\
+                                        -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \\
+                                        -Dsonar.host.url=https://sonarcloud.io \\
+                                        -Dsonar.scanner.internal.useHttp2=false
+                                """
+                            }
 
-                        if (!mavenModules && !frontendModules) {
-                            echo "No services to scan."
+                            // --- Frontend Scan ---
+                            frontendModules.each { svc ->
+                                echo "Scanning Frontend service: ${svc}"
+                                sh """
+                                    export PATH=${env.WORKSPACE}/node-v20.12.2-linux-x64/bin:\$PATH
+                                    npx -y sonarqube-scanner \\
+                                        -Dsonar.token=\$SONAR_TOKEN \\
+                                        -Dsonar.organization=luc1fe4 \\
+                                        -Dsonar.projectKey=luc1fe4_yas \\
+                                        -Dsonar.sources=${svc} \\
+                                        -Dsonar.exclusions=**/node_modules/**,**/.next/**,**/__tests__/** \\
+                                        -Dsonar.host.url=https://sonarcloud.io \\
+                                        -Dsonar.javascript.lcov.reportPaths=${svc}/coverage/lcov.info \\
+                                        -Dsonar.scanner.internal.useHttp2=false
+                                """
+                            }
+
+                            if (!mavenModules && !frontendModules) {
+                                echo "No services to scan."
+                            }
                         }
                     }
                 }
             }
-        }
-        post {
-            always {
-                archiveArtifacts artifacts: 'sonarqube-test-report.json',
-                                fingerprint: true,
-                                allowEmptyArchive: true
+            post {
+                always {
+                    archiveArtifacts artifacts: 'sonarqube-test-report.json',
+                                    fingerprint: true,
+                                    allowEmptyArchive: true
+                }
             }
         }
-    }
 
         stage('Build Phase') {
             steps {
