@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    environment {
+        MAVEN_OPTS = '-Xmx384m -XX:+UseG1GC'
+        NODE_OPTIONS = '--max-old-space-size=512'
+    }
+
     parameters {
         string(name: 'DIFF_BASE_BRANCH', defaultValue: 'main', description: 'Nhanh goc de diff (non-PR); PR dung CHANGE_TARGET.')
     }
