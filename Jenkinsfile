@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    environment {
+        MAVEN_OPTS = '-Xmx384m -XX:+UseG1GC'
+    }
+
     parameters {
         string(name: 'DIFF_BASE_BRANCH', defaultValue: 'main', description: 'Nhanh goc de diff (non-PR); PR dung CHANGE_TARGET.')
     }
@@ -361,10 +365,22 @@ pipeline {
         steps {
             withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                 script {
-                    def services = (env.CHANGED_SERVICES ?: '')
-                        .split(',')
-                        .collect { it.trim() }
-                        .findAll { it && it != 'none' }
+                    def sonarUrl = env.SONAR_HOST_URL ?: 'https://sonarcloud.io'
+                    def allServices = [
+                        'cart', 'customer', 'delivery', 'inventory', 'location',
+                        'media', 'order', 'payment', 'payment-paypal', 'product',
+                        'promotion', 'rating', 'recommendation', 'search', 'tax',
+                        'backoffice-bff', 'storefront-bff', 'identity',
+                        'sampledata', 'webhook', 'backoffice', 'storefront'
+                    ]
+
+                    def services
+                    if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+                        echo 'No specific service changes detected. Running SonarQube scan for ALL services.'
+                        services = allServices
+                    } else {
+                        services = env.CHANGED_SERVICES.split(',').collect { it.trim() }.findAll { it && it != 'none' }
+                    }
 
                     // Phân loại
                     def mavenModules = services.findAll { svc -> fileExists("${svc}/pom.xml") }
@@ -372,15 +388,52 @@ pipeline {
                         fileExists("${svc}/package.json") && !fileExists("${svc}/pom.xml")
                     }
 
+                    if (mavenModules || frontendModules) {
+                        sh """
+                            set -e
+                            echo "Checking SonarQube server at: ${sonarUrl}"
+                            for i in \$(seq 1 30); do
+                              if curl -fsSL "${sonarUrl}" >/dev/null; then
+                                echo "SonarQube is reachable"
+                                break
+                              fi
+                              if [ "\$i" -eq 30 ]; then
+                                echo "ERROR: SonarQube server is not reachable from Jenkins container at ${sonarUrl}"
+                                exit 1
+                              fi
+                              echo "Waiting for SonarQube... attempt \$i/30"
+                              sleep 5
+                            done
+                        """
+                    }
+
                     withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
+                        def scannerBin = 'sonar-scanner'
+                        if (frontendModules) {
+                            sh '''
+                                if ! command -v sonar-scanner >/dev/null 2>&1; then
+                                    if [ ! -d "sonar-scanner-5.0.1.3006-linux" ]; then
+                                        echo "Sonar Scanner not found, downloading..."
+                                        curl -sSL https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip -o sonar-scanner.zip
+                                        unzip -q sonar-scanner.zip
+                                        chmod +x sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner
+                                        chmod +x sonar-scanner-5.0.1.3006-linux/jre/bin/java
+                                    fi
+                                fi
+                            '''
+                            if (fileExists("${env.WORKSPACE}/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner")) {
+                                scannerBin = "${env.WORKSPACE}/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner"
+                            }
+                        }
 
                         if (mavenModules) {
                             def plModules = mavenModules.join(',')
                             sh """
-                                mvn -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
+                                ./mvnw -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
                                     -f pom.xml \\
                                     -pl ${plModules} -am \\
                                     -Drevision=1.0-SNAPSHOT \\
+                                    -Dsonar.host.url="${sonarUrl}" \\
                                     -Dsonar.token=\$SONAR_TOKEN \\
                                     -Dsonar.organization=luc1fe4 \\
                                     -Dsonar.projectKey=luc1fe4_yas \\
@@ -394,11 +447,13 @@ pipeline {
 
                         frontendModules.each { svc ->
                             sh """
-                                sonar-scanner \\
+                                ${scannerBin} \\
+                                    -Dsonar.host.url="${sonarUrl}" \\
                                     -Dsonar.projectKey=luc1fe4_yas \\
                                     -Dsonar.organization=luc1fe4 \\
                                     -Dsonar.token=\$SONAR_TOKEN \\
-                                    -Dsonar.sources=${svc}/src \\
+                                    -Dsonar.sources=${svc} \\
+                                    -Dsonar.exclusions=${svc}/node_modules/**,${svc}/.next/**,${svc}/out/**,${svc}/dist/** \\
                                     -Dsonar.javascript.lcov.reportPaths=${svc}/coverage/lcov.info \\
                                     -Dsonar.scanner.connectTimeout=600 \\
                                     -Dsonar.scanner.socketTimeout=600 \\

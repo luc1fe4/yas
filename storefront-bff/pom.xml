@@ -13,9 +13,6 @@
     <name>storefront-bff</name>
     <description>Back end for Storefront</description>
     <properties>
-        <sonar.organization>nashtech-garage</sonar.organization>
-        <sonar.host.url>https://sonarcloud.io</sonar.host.url>
-        <sonar.projectKey>nashtech-garage_yas-storefront-bff</sonar.projectKey>
         <!-- FIX: default rỗng để @{argLine} không bị literal khi jacoco chưa inject -->
         <argLine></argLine>
     </properties>
