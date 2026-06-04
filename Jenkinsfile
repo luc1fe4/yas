@@ -3,7 +3,6 @@ pipeline {
 
     environment {
         MAVEN_OPTS = '-Xmx384m -XX:+UseG1GC'
-        NODE_OPTIONS = '--max-old-space-size=512'
     }
 
     parameters {
