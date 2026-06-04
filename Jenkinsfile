@@ -448,7 +448,8 @@ pipeline {
                                     -Dsonar.projectKey=luc1fe4_yas \\
                                     -Dsonar.organization=luc1fe4 \\
                                     -Dsonar.token=\$SONAR_TOKEN \\
-                                    -Dsonar.sources=${svc}/src \\
+                                    -Dsonar.sources=${svc} \\
+                                    -Dsonar.exclusions=${svc}/node_modules/**,${svc}/.next/**,${svc}/out/**,${svc}/dist/** \\
                                     -Dsonar.javascript.lcov.reportPaths=${svc}/coverage/lcov.info \\
                                     -Dsonar.scanner.connectTimeout=600 \\
                                     -Dsonar.scanner.socketTimeout=600 \\
