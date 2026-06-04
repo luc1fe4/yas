@@ -361,6 +361,7 @@ pipeline {
         steps {
             withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                 script {
+                    def sonarUrl = env.SONAR_HOST_URL ?: 'https://sonarcloud.io'
                     def allServices = [
                         'cart', 'customer', 'delivery', 'inventory', 'location',
                         'media', 'order', 'payment', 'payment-paypal', 'product',
@@ -381,6 +382,25 @@ pipeline {
                     def mavenModules = services.findAll { svc -> fileExists("${svc}/pom.xml") }
                     def frontendModules = services.findAll { svc ->
                         fileExists("${svc}/package.json") && !fileExists("${svc}/pom.xml")
+                    }
+
+                    if (mavenModules || frontendModules) {
+                        sh """
+                            set -e
+                            echo "Checking SonarQube server at: ${sonarUrl}"
+                            for i in \$(seq 1 30); do
+                              if curl -fsSL "${sonarUrl}" >/dev/null; then
+                                echo "SonarQube is reachable"
+                                break
+                              fi
+                              if [ "\$i" -eq 30 ]; then
+                                echo "ERROR: SonarQube server is not reachable from Jenkins container at ${sonarUrl}"
+                                exit 1
+                              fi
+                              echo "Waiting for SonarQube... attempt \$i/30"
+                              sleep 5
+                            done
+                        """
                     }
 
                     withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
@@ -409,6 +429,7 @@ pipeline {
                                     -f pom.xml \\
                                     -pl ${plModules} -am \\
                                     -Drevision=1.0-SNAPSHOT \\
+                                    -Dsonar.host.url="${sonarUrl}" \\
                                     -Dsonar.token=\$SONAR_TOKEN \\
                                     -Dsonar.organization=luc1fe4 \\
                                     -Dsonar.projectKey=luc1fe4_yas \\
@@ -423,6 +444,7 @@ pipeline {
                         frontendModules.each { svc ->
                             sh """
                                 ${scannerBin} \\
+                                    -Dsonar.host.url="${sonarUrl}" \\
                                     -Dsonar.projectKey=luc1fe4_yas \\
                                     -Dsonar.organization=luc1fe4 \\
                                     -Dsonar.token=\$SONAR_TOKEN \\
