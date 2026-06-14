@@ -4,15 +4,15 @@ This document tracks all required evidence artifacts to verify the implementatio
 
 | Evidence ID | Requirement ID | Evidence Type | Expected Path | Owner | Status | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **EVID-01** | BASIC-03 | Image / Log | `evidence/jenkins/branch-ci-build.png` | Quang Kan | `TODO` | Screenshot of branch CI build log showing dynamic tagging trigger |
-| **EVID-02** | BASIC-03 | Image | `evidence/dockerhub/commit-tag.png` | Quang Kan | `TODO` | Docker Hub registry view showing image with commit-SHA tag |
+| **EVID-01** | BASIC-03 | Image / Log | `evidence/jenkins/branch-ci-build.png` | Quang Kan | `TODO` | Screenshot/log showing branch CI build log, documented in [week2-developer-test-flow.md](file:///d:/Regular_School/N3/HK2/Devops/yas/evidence/jenkins/week2-developer-test-flow.md) |
+| **EVID-02** | BASIC-03 | Image | `evidence/dockerhub/commit-tag.png` | Quang Kan | `TODO` | Docker Hub registry view, documented in [week2-commit-id-image.md](file:///d:/Regular_School/N3/HK2/Devops/yas/evidence/dockerhub/week2-commit-id-image.md) |
 | **EVID-03** | ADV-ARGO-03 | Image | `evidence/dockerhub/release-tag.png` | Quang Kan | `TODO` | Docker Hub registry view showing image with release tag (e.g. v1.2.3) |
 | **EVID-04** | BASIC-04 BASIC-05 | Image | `evidence/jenkins/developer-build-job.png` | Quang Kan | `TODO` | Screenshot of the Jenkins parameterized developer_build configuration screen |
-| **EVID-05** | BASIC-06 | Log | `evidence/jenkins/developer-build-selected-tag-logs.txt` | Quang Kan | `TODO` | Jenkins pipeline log showing resolution of branch commit tag |
-| **EVID-06** | BASIC-01 BASIC-07 | Log | `evidence/k8s/developer-build-pod-images.txt` | Quốc Lộc / Quang Kan | `TODO` | `kubectl describe pods` output verifying selected service tag vs default tags |
+| **EVID-05** | BASIC-06 | Log | `evidence/jenkins/developer-build-selected-tag-logs.txt` | Quang Kan | `TODO` | Jenkins pipeline log showing resolution of branch commit tag, documented in [week2-developer-test-flow.md](file:///d:/Regular_School/N3/HK2/Devops/yas/evidence/jenkins/week2-developer-test-flow.md) |
+| **EVID-06** | BASIC-01 BASIC-07 | Log | `evidence/k8s/developer-build-pod-images.txt` | Quốc Lộc / Quang Kan | `TODO` | `kubectl describe pods` output verifying selected service tag vs default tags, documented in [week2-nodeport-access.md](file:///d:/Regular_School/N3/HK2/Devops/yas/evidence/k8s/week2-nodeport-access.md) |
 | **EVID-07** | BASIC-02 | Image | `evidence/k8s/cluster-nodes.png` | Quốc Lộc | `TODO` | Screenshot of `kubectl get nodes -o wide` verifying Master/Worker architecture |
-| **EVID-08** | BASIC-08 | Log | `evidence/k8s/svc-nodeport.txt` | Quốc Lộc | `TODO` | `kubectl get svc -A` output showing exposed microservices via NodePort |
-| **EVID-09** | BASIC-10 | Log | `evidence/repository/hosts-mapping.txt` | Quốc Lộc | `TODO` | Copy of hosts file showing domain name mapped to Kubernetes Worker IP |
+| **EVID-08** | BASIC-08 | Log | `evidence/k8s/svc-nodeport.txt` | Quốc Lộc | `TODO` | `kubectl get svc -A` output showing exposed microservices via NodePort, documented in [week2-nodeport-access.md](file:///d:/Regular_School/N3/HK2/Devops/yas/evidence/k8s/week2-nodeport-access.md) |
+| **EVID-09** | BASIC-10 | Log | `evidence/repository/hosts-mapping.txt` | Quốc Lộc | `TODO` | Copy of hosts file showing domain name mapped to Kubernetes Worker IP, documented in [week2-nodeport-access.md](file:///d:/Regular_School/N3/HK2/Devops/yas/evidence/k8s/week2-nodeport-access.md) |
 | **EVID-10** | BASIC-09 | Log | `evidence/k8s/ingress-port-mapping.txt` | Quốc Lộc | `TODO` | Port layout and domain mapping details for testing endpoints |
 | **EVID-11** | BASIC-11 | Log | `evidence/jenkins/cleanup-job-logs.txt` | Quang Kan | `TODO` | Execution output of Jenkins job that deletes development namespace deployments |
 | **EVID-12** | ADV-ARGO-01 | Image | `evidence/argocd/argocd-ui-apps.png` | Quốc Lộc | `TODO` | Screenshot of ArgoCD Dashboard displaying dev and staging applications |
