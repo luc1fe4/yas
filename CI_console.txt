@@ -1,9 +1,12 @@
+Push event to branch main
 Started by user Kan Quang
-20:22:59 Connecting to https://api.github.com using chubedan4605/******
-Obtained Jenkinsfile from f4443c443220d812a44d24b67bddbd3ef794343b
+
+20:26:02 Connecting to https://api.github.com using chubedan4605/******
+Obtained Jenkinsfile from cd97bb46ad57ba6fa0bb1eb87a55eaf158e03754
 [Pipeline] Start of Pipeline
 [Pipeline] node
-Running on Jenkins in /var/jenkins_home/workspace/YAS-CI-Pipeline_main
+Running on Jenkins
+ in /var/jenkins_home/workspace/YAS-CI-Pipeline_main
 [Pipeline] {
 [Pipeline] withEnv
 [Pipeline] {
@@ -28,11 +31,11 @@ using GIT_ASKPASS to set credentials
  > git config remote.origin.url https://github.com/chubedan4605/another_yas2.git # timeout=10
  > git config --add remote.origin.fetch +refs/heads/main:refs/remotes/origin/main # timeout=10
 Avoid second fetch
-Checking out Revision f4443c443220d812a44d24b67bddbd3ef794343b (main)
+Checking out Revision cd97bb46ad57ba6fa0bb1eb87a55eaf158e03754 (main)
  > git config core.sparsecheckout # timeout=10
- > git checkout -f f4443c443220d812a44d24b67bddbd3ef794343b # timeout=10
+ > git checkout -f cd97bb46ad57ba6fa0bb1eb87a55eaf158e03754 # timeout=10
 Commit message: "Test Jenkins CI"
- > git rev-list --no-walk 9a55a431d20929255d9d4db93f11217ef49b1f86 # timeout=10
+ > git rev-list --no-walk f4443c443220d812a44d24b67bddbd3ef794343b # timeout=10
 [Pipeline] sh
 + chmod +x mvnw
 [Pipeline] }
@@ -58,22 +61,26 @@ fatal: could not read Username for 'https://github.com': No such device or addre
 + echo No changes found vs origin/main, falling back to last commit diff
 No changes found vs origin/main, falling back to last commit diff
 + git diff --name-only HEAD~1..HEAD
-+ FILES=Jenkinsfile
-+ [ -z Jenkinsfile ]
-+ echo Jenkinsfile
++ FILES=CI_console.txt
+customer/src/main/java/com/yas/customer/CustomerApplication.java
++ [ -z CI_console.txt
+customer/src/main/java/com/yas/customer/CustomerApplication.java ]
++ echo CI_console.txt
+customer/src/main/java/com/yas/customer/CustomerApplication.java
 [Pipeline] echo
 Changed files:
-Jenkinsfile
+CI_console.txt
+customer/src/main/java/com/yas/customer/CustomerApplication.java
 [Pipeline] echo
-Affected services detected: []
+Affected services detected: [customer]
 [Pipeline] echo
-Debug - Affected List: []
+Debug - Affected List: [customer]
 [Pipeline] echo
-Debug - Result String: none
+Debug - Result String: customer
 [Pipeline] echo
-Final CHANGED_SERVICES set to: none
+Final CHANGED_SERVICES set to: customer
 [Pipeline] echo
-No service changes detected. Skipping build/test.
+Services to build/test: customer
 [Pipeline] }
 [Pipeline] // script
 [Pipeline] }
@@ -103,9 +110,9 @@ Running GitLeaks secret scan
     ○ ░
     ░    gitleaks
 
-[90m8:23PM[0m [32mINF[0m 0 commits scanned.
-[90m8:23PM[0m [32mINF[0m scan completed in 7.29ms
-[90m8:23PM[0m [32mINF[0m no leaks found
+[90m8:26PM[0m [32mINF[0m 0 commits scanned.
+[90m8:26PM[0m [32mINF[0m scan completed in 5.33ms
+[90m8:26PM[0m [32mINF[0m no leaks found
 [Pipeline] }
 [Pipeline] // script
 Post stage
@@ -116,13 +123,19 @@ Recording fingerprints
 [Pipeline] // stage
 [Pipeline] stage
 [Pipeline] { (Snyk Dependency Scan)
-Stage "Snyk Dependency Scan" skipped due to when conditional
-[Pipeline] getContext
+[Pipeline] withCredentials
+[Pipeline] // withCredentials
+Post stage
+[Pipeline] archiveArtifacts
+Archiving artifacts
+Recording fingerprints
+[Pipeline] archiveArtifacts
+Archiving artifacts
 [Pipeline] }
 [Pipeline] // stage
 [Pipeline] stage
 [Pipeline] { (Docker Build & Push)
-Stage "Docker Build & Push" skipped due to when conditional
+Stage "Docker Build & Push" skipped due to earlier failure(s)
 [Pipeline] getContext
 [Pipeline] }
 [Pipeline] // stage
@@ -137,7 +150,7 @@ Stage "Docker Build & Push" skipped due to when conditional
 [Pipeline] }
 [Pipeline] // script
 [Pipeline] echo
-CI Pipeline PASSED - All stages completed successfully.
+CI Pipeline FAILED - Check logs above for details.
 [Pipeline] }
 [Pipeline] // stage
 [Pipeline] }
@@ -145,7 +158,8 @@ CI Pipeline PASSED - All stages completed successfully.
 [Pipeline] }
 [Pipeline] // node
 [Pipeline] End of Pipeline
+ERROR: Could not find credentials entry with ID 'snyk-token'
 
 GitHub has been notified of this commit’s build result
 
-Finished: SUCCESS
+Finished: FAILURE
