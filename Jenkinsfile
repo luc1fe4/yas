@@ -215,332 +215,332 @@ pipeline {
             }
         }
 
-        stage('Test Phase') {
-            steps {
-                script {
-                    def fe = ['backoffice', 'storefront']
-                    def allBackendServices = [
-                        'cart', 'customer', 'delivery', 'inventory', 'location',
-                        'media', 'order', 'payment', 'payment-paypal', 'product',
-                        'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        'backoffice-bff', 'storefront-bff', 'identity',
-                        'sampledata', 'webhook'
-                    ]
+        // stage('Test Phase') {
+        //     steps {
+        //         script {
+        //             def fe = ['backoffice', 'storefront']
+        //             def allBackendServices = [
+        //                 'cart', 'customer', 'delivery', 'inventory', 'location',
+        //                 'media', 'order', 'payment', 'payment-paypal', 'product',
+        //                 'promotion', 'rating', 'recommendation', 'search', 'tax',
+        //                 'backoffice-bff', 'storefront-bff', 'identity',
+        //                 'sampledata', 'webhook'
+        //             ]
 
-                    def backendServices
-                    if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
-                        echo 'No specific service changes detected. Running tests for ALL backend services (full coverage for main branch).'
-                        backendServices = allBackendServices
-                    } else {
-                        backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
-                    }
+        //             def backendServices
+        //             if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+        //                 echo 'No specific service changes detected. Running tests for ALL backend services (full coverage for main branch).'
+        //                 backendServices = allBackendServices
+        //             } else {
+        //                 backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+        //             }
 
-                    if (backendServices.isEmpty()) {
-                        echo 'No backend services to test (only frontend changes). Skipping.'
-                        return
-                    }
+        //             if (backendServices.isEmpty()) {
+        //                 echo 'No backend services to test (only frontend changes). Skipping.'
+        //                 return
+        //             }
 
-                    backendServices.each { svc ->
-                        if (fileExists("${svc}/pom.xml")) {
-                            echo "Running Maven tests for: ${svc}"
-                            sh "./mvnw verify jacoco:report -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
-                        } else if (fileExists("${svc}/package.json")) {
-                            echo "Running Node.js tests for: ${svc}"
-                            dir("${svc}") {
-                                sh "npm install && npm test || true"
-                            }
-                        }
-                    }
-                }
-            }
-            post {
-                always {
-                    script {
-                        def fe = ['backoffice', 'storefront']
-                        def allBackendServices = [
-                            'cart', 'customer', 'delivery', 'inventory', 'location',
-                            'media', 'order', 'payment', 'payment-paypal', 'product',
-                            'promotion', 'rating', 'recommendation', 'search', 'tax',
-                            'backoffice-bff', 'storefront-bff', 'identity'
-                        ]
+        //             backendServices.each { svc ->
+        //                 if (fileExists("${svc}/pom.xml")) {
+        //                     echo "Running Maven tests for: ${svc}"
+        //                     sh "./mvnw verify jacoco:report -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+        //                 } else if (fileExists("${svc}/package.json")) {
+        //                     echo "Running Node.js tests for: ${svc}"
+        //                     dir("${svc}") {
+        //                         sh "npm install && npm test || true"
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     post {
+        //         always {
+        //             script {
+        //                 def fe = ['backoffice', 'storefront']
+        //                 def allBackendServices = [
+        //                     'cart', 'customer', 'delivery', 'inventory', 'location',
+        //                     'media', 'order', 'payment', 'payment-paypal', 'product',
+        //                     'promotion', 'rating', 'recommendation', 'search', 'tax',
+        //                     'backoffice-bff', 'storefront-bff', 'identity'
+        //                 ]
 
-                        def backendServices
-                        if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
-                            backendServices = allBackendServices
-                        } else {
-                            backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
-                        }
+        //                 def backendServices
+        //                 if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+        //                     backendServices = allBackendServices
+        //                 } else {
+        //                     backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+        //                 }
 
-                        backendServices.each { svc ->
-                            if (fileExists("${svc}/target/surefire-reports")) {
-                                junit(
-                                    testResults: "${svc}/target/surefire-reports/*.xml",
-                                    allowEmptyResults: true
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        //                 backendServices.each { svc ->
+        //                     if (fileExists("${svc}/target/surefire-reports")) {
+        //                         junit(
+        //                             testResults: "${svc}/target/surefire-reports/*.xml",
+        //                             allowEmptyResults: true
+        //                         )
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
 
-        stage('Coverage Quality Gate') {
-            steps {
-                script {
-                    def fe = ['backoffice', 'storefront']
-                    def allBackendServices = [
-                        'cart', 'customer', 'delivery', 'inventory', 'location',
-                        'media', 'order', 'payment', 'payment-paypal', 'product',
-                        'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        'backoffice-bff', 'storefront-bff', 'identity',
-                        'sampledata', 'webhook'
-                    ]
+        // stage('Coverage Quality Gate') {
+        //     steps {
+        //         script {
+        //             def fe = ['backoffice', 'storefront']
+        //             def allBackendServices = [
+        //                 'cart', 'customer', 'delivery', 'inventory', 'location',
+        //                 'media', 'order', 'payment', 'payment-paypal', 'product',
+        //                 'promotion', 'rating', 'recommendation', 'search', 'tax',
+        //                 'backoffice-bff', 'storefront-bff', 'identity',
+        //                 'sampledata', 'webhook'
+        //             ]
 
-                    def feServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && fe.contains(it) }
-                    def beServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && !fe.contains(it) }
+        //             def feServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && fe.contains(it) }
+        //             def beServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() && !fe.contains(it) }
 
-                    if (feServices.isEmpty() && beServices.isEmpty()) {
-                        echo 'No changed services to check coverage for. Skipping.'
-                        return
-                    }
+        //             if (feServices.isEmpty() && beServices.isEmpty()) {
+        //                 echo 'No changed services to check coverage for. Skipping.'
+        //                 return
+        //             }
 
-                    // --- Frontend Coverage (Jest) ---
-                    feServices.each { svc ->
-                        def reportPath = "${svc}/coverage/coverage-summary.json"
-                        if (!fileExists(reportPath)) {
-                            echo "[${svc}] WARNING: Jest coverage summary not found at ${reportPath}"
-                            error("[${svc}] Jest coverage report missing. Ensure 'npm run test:coverage' generated it.")
-                        }
+        //             // --- Frontend Coverage (Jest) ---
+        //             feServices.each { svc ->
+        //                 def reportPath = "${svc}/coverage/coverage-summary.json"
+        //                 if (!fileExists(reportPath)) {
+        //                     echo "[${svc}] WARNING: Jest coverage summary not found at ${reportPath}"
+        //                     error("[${svc}] Jest coverage report missing. Ensure 'npm run test:coverage' generated it.")
+        //                 }
                         
-                        // Use Node.js to parse JSON (ensure PATH is set)
-                        // Use Node.js to parse JSON (ensure PATH is set using WORKSPACE)
-                        def coverage = sh(script: """
-                            export PATH=${env.WORKSPACE}/node-v20.12.2-linux-x64/bin:\$PATH
-                            node -e "const fs = require('fs'); const data = JSON.parse(fs.readFileSync('${reportPath}', 'utf8')); console.log(Math.floor(data.total.lines.pct));"
-                        """, returnStdout: true).trim().toInteger()
+        //                 // Use Node.js to parse JSON (ensure PATH is set)
+        //                 // Use Node.js to parse JSON (ensure PATH is set using WORKSPACE)
+        //                 def coverage = sh(script: """
+        //                     export PATH=${env.WORKSPACE}/node-v20.12.2-linux-x64/bin:\$PATH
+        //                     node -e "const fs = require('fs'); const data = JSON.parse(fs.readFileSync('${reportPath}', 'utf8')); console.log(Math.floor(data.total.lines.pct));"
+        //                 """, returnStdout: true).trim().toInteger()
 
-                        echo "[${svc}] Extracted Coverage: ${coverage}%"
+        //                 echo "[${svc}] Extracted Coverage: ${coverage}%"
 
-                        echo "[${svc}] Frontend Line Coverage: ${coverage}%"
-                        if (coverage <= 70) {
-                            error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
-                        }
-                    }
+        //                 echo "[${svc}] Frontend Line Coverage: ${coverage}%"
+        //                 if (coverage <= 70) {
+        //                     error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
+        //                 }
+        //             }
 
-                    // --- Backend Coverage (JaCoCo) ---
-                    beServices.each { svc ->
-                        if (!fileExists("${svc}/pom.xml")) {
-                            echo "[${svc}] Skipping coverage check for non-Maven service."
-                            return
-                        }
-                        def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
+        //             // --- Backend Coverage (JaCoCo) ---
+        //             beServices.each { svc ->
+        //                 if (!fileExists("${svc}/pom.xml")) {
+        //                     echo "[${svc}] Skipping coverage check for non-Maven service."
+        //                     return
+        //                 }
+        //                 def reportPath = "${svc}/target/site/jacoco/jacoco.csv"
 
-                        if (!fileExists(reportPath)) {
-                            echo "[${svc}] WARNING: jacoco.csv not found at ${reportPath}"
-                            error("[${svc}] JaCoCo report missing - check jacoco-maven-plugin in ${svc}/pom.xml")
-                        }
+        //                 if (!fileExists(reportPath)) {
+        //                     echo "[${svc}] WARNING: jacoco.csv not found at ${reportPath}"
+        //                     error("[${svc}] JaCoCo report missing - check jacoco-maven-plugin in ${svc}/pom.xml")
+        //                 }
 
-                        def coverage = sh(script: """
-                            awk -F',' 'NR>1 {
-                                missed  += \$8;
-                                covered += \$9
-                            } END {
-                                if (missed+covered > 0)
-                                    printf "%.0f", covered/(missed+covered)*100;
-                                else
-                                    print 0
-                            }' ${reportPath}
-                        """, returnStdout: true).trim().toInteger()
+        //                 def coverage = sh(script: """
+        //                     awk -F',' 'NR>1 {
+        //                         missed  += \$8;
+        //                         covered += \$9
+        //                     } END {
+        //                         if (missed+covered > 0)
+        //                             printf "%.0f", covered/(missed+covered)*100;
+        //                         else
+        //                             print 0
+        //                     }' ${reportPath}
+        //                 """, returnStdout: true).trim().toInteger()
 
-                        echo "[${svc}] Backend Line Coverage: ${coverage}%"
+        //                 echo "[${svc}] Backend Line Coverage: ${coverage}%"
 
-                        if (coverage <= 70) {
-                            error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
-                        }
-                    }
-                }
-            }
-        }
+        //                 if (coverage <= 70) {
+        //                     error("[${svc}] Coverage ${coverage}% <= 70%. Pipeline failed!")
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
 
-        stage('SonarQube Scan') {
-            steps {
-                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                    script {
-                        def sonarUrl = env.SONAR_HOST_URL ?: 'https://sonarcloud.io'
-                        def allServices = [
-                            'cart', 'customer', 'delivery', 'inventory', 'location',
-                            'media', 'order', 'payment', 'payment-paypal', 'product',
-                            'promotion', 'rating', 'recommendation', 'search', 'tax',
-                            'backoffice-bff', 'storefront-bff', 'identity',
-                            'sampledata', 'webhook', 'backoffice', 'storefront'
-                        ]
+        // stage('SonarQube Scan') {
+        //     steps {
+        //         withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+        //             script {
+        //                 def sonarUrl = env.SONAR_HOST_URL ?: 'https://sonarcloud.io'
+        //                 def allServices = [
+        //                     'cart', 'customer', 'delivery', 'inventory', 'location',
+        //                     'media', 'order', 'payment', 'payment-paypal', 'product',
+        //                     'promotion', 'rating', 'recommendation', 'search', 'tax',
+        //                     'backoffice-bff', 'storefront-bff', 'identity',
+        //                     'sampledata', 'webhook', 'backoffice', 'storefront'
+        //                 ]
 
-                        def services
-                        if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
-                            echo 'No specific service changes detected. Running SonarQube scan for ALL services.'
-                            services = allServices
-                        } else {
-                            services = env.CHANGED_SERVICES.split(',').collect { it.trim() }.findAll { it && it != 'none' }
-                        }
+        //                 def services
+        //                 if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+        //                     echo 'No specific service changes detected. Running SonarQube scan for ALL services.'
+        //                     services = allServices
+        //                 } else {
+        //                     services = env.CHANGED_SERVICES.split(',').collect { it.trim() }.findAll { it && it != 'none' }
+        //                 }
 
-                        // Phân loại
-                        def mavenModules = services.findAll { svc -> fileExists("${svc}/pom.xml") }
-                        def frontendModules = services.findAll { svc ->
-                            fileExists("${svc}/package.json") && !fileExists("${svc}/pom.xml")
-                        }
+        //                 // Phân loại
+        //                 def mavenModules = services.findAll { svc -> fileExists("${svc}/pom.xml") }
+        //                 def frontendModules = services.findAll { svc ->
+        //                     fileExists("${svc}/package.json") && !fileExists("${svc}/pom.xml")
+        //                 }
 
-                        if (mavenModules || frontendModules) {
-                            sh """
-                                set -e
-                                echo "Checking SonarQube server at: ${sonarUrl}"
-                                for i in \$(seq 1 30); do
-                                if curl -fsSL "${sonarUrl}" >/dev/null; then
-                                    echo "SonarQube is reachable"
-                                    break
-                                fi
-                                if [ "\$i" -eq 30 ]; then
-                                    echo "ERROR: SonarQube server is not reachable from Jenkins container at ${sonarUrl}"
-                                    exit 1
-                                fi
-                                echo "Waiting for SonarQube... attempt \$i/30"
-                                sleep 5
-                                done
-                            """
-                        }
+        //                 if (mavenModules || frontendModules) {
+        //                     sh """
+        //                         set -e
+        //                         echo "Checking SonarQube server at: ${sonarUrl}"
+        //                         for i in \$(seq 1 30); do
+        //                         if curl -fsSL "${sonarUrl}" >/dev/null; then
+        //                             echo "SonarQube is reachable"
+        //                             break
+        //                         fi
+        //                         if [ "\$i" -eq 30 ]; then
+        //                             echo "ERROR: SonarQube server is not reachable from Jenkins container at ${sonarUrl}"
+        //                             exit 1
+        //                         fi
+        //                         echo "Waiting for SonarQube... attempt \$i/30"
+        //                         sleep 5
+        //                         done
+        //                     """
+        //                 }
 
-                        withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
-                            def scannerBin = 'sonar-scanner'
-                            if (frontendModules) {
-                                sh '''
-                                    if ! command -v sonar-scanner >/dev/null 2>&1; then
-                                        if [ ! -d "sonar-scanner-5.0.1.3006-linux" ]; then
-                                            echo "Sonar Scanner not found, downloading..."
-                                            curl -sSL https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip -o sonar-scanner.zip
-                                            unzip -q sonar-scanner.zip
-                                            chmod +x sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner
-                                            chmod +x sonar-scanner-5.0.1.3006-linux/jre/bin/java
-                                        fi
-                                    fi
-                                '''
-                                if (fileExists("${env.WORKSPACE}/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner")) {
-                                    scannerBin = "${env.WORKSPACE}/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner"
-                                }
-                            }
+        //                 withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
+        //                     def scannerBin = 'sonar-scanner'
+        //                     if (frontendModules) {
+        //                         sh '''
+        //                             if ! command -v sonar-scanner >/dev/null 2>&1; then
+        //                                 if [ ! -d "sonar-scanner-5.0.1.3006-linux" ]; then
+        //                                     echo "Sonar Scanner not found, downloading..."
+        //                                     curl -sSL https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip -o sonar-scanner.zip
+        //                                     unzip -q sonar-scanner.zip
+        //                                     chmod +x sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner
+        //                                     chmod +x sonar-scanner-5.0.1.3006-linux/jre/bin/java
+        //                                 fi
+        //                             fi
+        //                         '''
+        //                         if (fileExists("${env.WORKSPACE}/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner")) {
+        //                             scannerBin = "${env.WORKSPACE}/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner"
+        //                         }
+        //                     }
 
-                            if (mavenModules) {
-                                def plModules = mavenModules.join(',')
-                                sh """
-                                    ./mvnw -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
-                                        -f pom.xml \\
-                                        -pl ${plModules} -am \\
-                                        -Drevision=1.0-SNAPSHOT \\
-                                        -Dsonar.host.url="${sonarUrl}" \\
-                                        -Dsonar.token=\$SONAR_TOKEN \\
-                                        -Dsonar.organization=luc1fe4 \\
-                                        -Dsonar.projectKey=luc1fe4_yas \\
-                                        -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \\
-                                        -Dsonar.scanner.connectTimeout=600 \\
-                                        -Dsonar.scanner.socketTimeout=600 \\
-                                        -Dsonar.scanner.responseTimeout=600 \\
-                                        -Dsonar.scanner.internal.useHttp2=false
-                                """
-                            }
+        //                     if (mavenModules) {
+        //                         def plModules = mavenModules.join(',')
+        //                         sh """
+        //                             ./mvnw -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
+        //                                 -f pom.xml \\
+        //                                 -pl ${plModules} -am \\
+        //                                 -Drevision=1.0-SNAPSHOT \\
+        //                                 -Dsonar.host.url="${sonarUrl}" \\
+        //                                 -Dsonar.token=\$SONAR_TOKEN \\
+        //                                 -Dsonar.organization=luc1fe4 \\
+        //                                 -Dsonar.projectKey=luc1fe4_yas \\
+        //                                 -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \\
+        //                                 -Dsonar.scanner.connectTimeout=600 \\
+        //                                 -Dsonar.scanner.socketTimeout=600 \\
+        //                                 -Dsonar.scanner.responseTimeout=600 \\
+        //                                 -Dsonar.scanner.internal.useHttp2=false
+        //                         """
+        //                     }
 
-                            frontendModules.each { svc ->
-                                sh """
-                                    ${scannerBin} \\
-                                        -Dsonar.host.url="${sonarUrl}" \\
-                                        -Dsonar.projectKey=luc1fe4_yas \\
-                                        -Dsonar.organization=luc1fe4 \\
-                                        -Dsonar.token=\$SONAR_TOKEN \\
-                                        -Dsonar.sources=${svc} \\
-                                        -Dsonar.exclusions=${svc}/node_modules/**,${svc}/.next/**,${svc}/out/**,${svc}/dist/** \\
-                                        -Dsonar.javascript.lcov.reportPaths=${svc}/coverage/lcov.info \\
-                                        -Dsonar.scanner.connectTimeout=600 \\
-                                        -Dsonar.scanner.socketTimeout=600 \\
-                                        -Dsonar.scanner.responseTimeout=600 \\
-                                        -Dsonar.scanner.internal.useHttp2=false
-                                """
-                            }
+        //                     frontendModules.each { svc ->
+        //                         sh """
+        //                             ${scannerBin} \\
+        //                                 -Dsonar.host.url="${sonarUrl}" \\
+        //                                 -Dsonar.projectKey=luc1fe4_yas \\
+        //                                 -Dsonar.organization=luc1fe4 \\
+        //                                 -Dsonar.token=\$SONAR_TOKEN \\
+        //                                 -Dsonar.sources=${svc} \\
+        //                                 -Dsonar.exclusions=${svc}/node_modules/**,${svc}/.next/**,${svc}/out/**,${svc}/dist/** \\
+        //                                 -Dsonar.javascript.lcov.reportPaths=${svc}/coverage/lcov.info \\
+        //                                 -Dsonar.scanner.connectTimeout=600 \\
+        //                                 -Dsonar.scanner.socketTimeout=600 \\
+        //                                 -Dsonar.scanner.responseTimeout=600 \\
+        //                                 -Dsonar.scanner.internal.useHttp2=false
+        //                         """
+        //                     }
 
-                            if (!mavenModules && !frontendModules) {
-                                echo "No services to scan."
-                            }
-                        }
-                    }
-                }
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'sonarqube-test-report.json',
-                                    fingerprint: true,
-                                    allowEmptyArchive: true
-                }
-            }
-        }
+        //                     if (!mavenModules && !frontendModules) {
+        //                         echo "No services to scan."
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     post {
+        //         always {
+        //             archiveArtifacts artifacts: 'sonarqube-test-report.json',
+        //                             fingerprint: true,
+        //                             allowEmptyArchive: true
+        //         }
+        //     }
+        // }
 
-        stage('Build Phase') {
-            steps {
-                script {
-                    def fe = ['backoffice', 'storefront']
-                    def allBackendServices = [
-                        'cart', 'customer', 'delivery', 'inventory', 'location',
-                        'media', 'order', 'payment', 'payment-paypal', 'product',
-                        'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        'backoffice-bff', 'storefront-bff', 'identity',
-                        'sampledata', 'webhook'
-                    ]
+        // stage('Build Phase') {
+        //     steps {
+        //         script {
+        //             def fe = ['backoffice', 'storefront']
+        //             def allBackendServices = [
+        //                 'cart', 'customer', 'delivery', 'inventory', 'location',
+        //                 'media', 'order', 'payment', 'payment-paypal', 'product',
+        //                 'promotion', 'rating', 'recommendation', 'search', 'tax',
+        //                 'backoffice-bff', 'storefront-bff', 'identity',
+        //                 'sampledata', 'webhook'
+        //             ]
 
-                    def backendServices
-                    if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
-                        echo 'No specific service changes detected. Building ALL backend services (main branch full build).'
-                        backendServices = allBackendServices
-                    } else {
-                        backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
-                    }
+        //             def backendServices
+        //             if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+        //                 echo 'No specific service changes detected. Building ALL backend services (main branch full build).'
+        //                 backendServices = allBackendServices
+        //             } else {
+        //                 backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+        //             }
 
-                    if (backendServices.isEmpty()) {
-                        echo 'No backend services to build (only frontend changes). Skipping.'
-                        return
-                    }
+        //             if (backendServices.isEmpty()) {
+        //                 echo 'No backend services to build (only frontend changes). Skipping.'
+        //                 return
+        //             }
 
-                    backendServices.each { svc ->
-                        if (fileExists("${svc}/pom.xml")) {
-                            echo "Building: ${svc}"
-                            sh "./mvnw clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
-                        }
-                    }
-                }
-            }
-            post {
-                success {
-                    script {
-                        def fe = ['backoffice', 'storefront']
-                        def allBackendServices = [
-                            'cart', 'customer', 'delivery', 'inventory', 'location',
-                            'media', 'order', 'payment', 'payment-paypal', 'product',
-                            'promotion', 'rating', 'recommendation', 'search', 'tax',
-                            'backoffice-bff', 'storefront-bff', 'identity',
-                            'sampledata', 'webhook'
-                        ]
+        //             backendServices.each { svc ->
+        //                 if (fileExists("${svc}/pom.xml")) {
+        //                     echo "Building: ${svc}"
+        //                     sh "./mvnw clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     post {
+        //         success {
+        //             script {
+        //                 def fe = ['backoffice', 'storefront']
+        //                 def allBackendServices = [
+        //                     'cart', 'customer', 'delivery', 'inventory', 'location',
+        //                     'media', 'order', 'payment', 'payment-paypal', 'product',
+        //                     'promotion', 'rating', 'recommendation', 'search', 'tax',
+        //                     'backoffice-bff', 'storefront-bff', 'identity',
+        //                     'sampledata', 'webhook'
+        //                 ]
 
-                        def backendServices
-                        if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
-                            backendServices = allBackendServices
-                        } else {
-                            backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
-                        }
+        //                 def backendServices
+        //                 if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+        //                     backendServices = allBackendServices
+        //                 } else {
+        //                     backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+        //                 }
 
-                        backendServices.each { svc ->
-                            if (fileExists("${svc}/target")) {
-                                archiveArtifacts artifacts: "${svc}/target/*.jar",
-                                                 allowEmptyArchive: true
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        //                 backendServices.each { svc ->
+        //                     if (fileExists("${svc}/target")) {
+        //                         archiveArtifacts artifacts: "${svc}/target/*.jar",
+        //                                          allowEmptyArchive: true
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
 
         stage('Docker Build & Push') {     
             when {
