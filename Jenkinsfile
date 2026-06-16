@@ -101,7 +101,7 @@ pipeline {
             }
         }
 
-        stage('Frontend Build Start Test') {
+        stage('Frontend Build Start Test') { 
             when {
                 expression {
                     def fe = ['backoffice', 'storefront']
