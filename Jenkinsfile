@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         MAVEN_OPTS = '-Xmx384m -XX:+UseG1GC'
+        DOCKER_USERNAME = 'luc1fe4'
     }
 
     parameters {
@@ -100,7 +101,7 @@ pipeline {
             }
         }
 
-        stage('Frontend Build Start Test') {
+        stage('Frontend Build Start Test') { 
             when {
                 expression {
                     def fe = ['backoffice', 'storefront']
@@ -361,122 +362,122 @@ pipeline {
             }
         }
 
-            stage('SonarQube Scan') {
-        steps {
-            withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                script {
-                    def sonarUrl = env.SONAR_HOST_URL ?: 'https://sonarcloud.io'
-                    def allServices = [
-                        'cart', 'customer', 'delivery', 'inventory', 'location',
-                        'media', 'order', 'payment', 'payment-paypal', 'product',
-                        'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        'backoffice-bff', 'storefront-bff', 'identity',
-                        'sampledata', 'webhook', 'backoffice', 'storefront'
-                    ]
+        stage('SonarQube Scan') {
+            steps {
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    script {
+                        def sonarUrl = env.SONAR_HOST_URL ?: 'https://sonarcloud.io'
+                        def allServices = [
+                            'cart', 'customer', 'delivery', 'inventory', 'location',
+                            'media', 'order', 'payment', 'payment-paypal', 'product',
+                            'promotion', 'rating', 'recommendation', 'search', 'tax',
+                            'backoffice-bff', 'storefront-bff', 'identity',
+                            'sampledata', 'webhook', 'backoffice', 'storefront'
+                        ]
 
-                    def services
-                    if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
-                        echo 'No specific service changes detected. Running SonarQube scan for ALL services.'
-                        services = allServices
-                    } else {
-                        services = env.CHANGED_SERVICES.split(',').collect { it.trim() }.findAll { it && it != 'none' }
-                    }
+                        def services
+                        if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+                            echo 'No specific service changes detected. Running SonarQube scan for ALL services.'
+                            services = allServices
+                        } else {
+                            services = env.CHANGED_SERVICES.split(',').collect { it.trim() }.findAll { it && it != 'none' }
+                        }
 
-                    // Phân loại
-                    def mavenModules = services.findAll { svc -> fileExists("${svc}/pom.xml") }
-                    def frontendModules = services.findAll { svc ->
-                        fileExists("${svc}/package.json") && !fileExists("${svc}/pom.xml")
-                    }
+                        // Phân loại
+                        def mavenModules = services.findAll { svc -> fileExists("${svc}/pom.xml") }
+                        def frontendModules = services.findAll { svc ->
+                            fileExists("${svc}/package.json") && !fileExists("${svc}/pom.xml")
+                        }
 
-                    if (mavenModules || frontendModules) {
-                        sh """
-                            set -e
-                            echo "Checking SonarQube server at: ${sonarUrl}"
-                            for i in \$(seq 1 30); do
-                              if curl -fsSL "${sonarUrl}" >/dev/null; then
-                                echo "SonarQube is reachable"
-                                break
-                              fi
-                              if [ "\$i" -eq 30 ]; then
-                                echo "ERROR: SonarQube server is not reachable from Jenkins container at ${sonarUrl}"
-                                exit 1
-                              fi
-                              echo "Waiting for SonarQube... attempt \$i/30"
-                              sleep 5
-                            done
-                        """
-                    }
-
-                    withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
-                        def scannerBin = 'sonar-scanner'
-                        if (frontendModules) {
-                            sh '''
-                                if ! command -v sonar-scanner >/dev/null 2>&1; then
-                                    if [ ! -d "sonar-scanner-5.0.1.3006-linux" ]; then
-                                        echo "Sonar Scanner not found, downloading..."
-                                        curl -sSL https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip -o sonar-scanner.zip
-                                        unzip -q sonar-scanner.zip
-                                        chmod +x sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner
-                                        chmod +x sonar-scanner-5.0.1.3006-linux/jre/bin/java
-                                    fi
+                        if (mavenModules || frontendModules) {
+                            sh """
+                                set -e
+                                echo "Checking SonarQube server at: ${sonarUrl}"
+                                for i in \$(seq 1 30); do
+                                if curl -fsSL "${sonarUrl}" >/dev/null; then
+                                    echo "SonarQube is reachable"
+                                    break
                                 fi
-                            '''
-                            if (fileExists("${env.WORKSPACE}/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner")) {
-                                scannerBin = "${env.WORKSPACE}/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner"
+                                if [ "\$i" -eq 30 ]; then
+                                    echo "ERROR: SonarQube server is not reachable from Jenkins container at ${sonarUrl}"
+                                    exit 1
+                                fi
+                                echo "Waiting for SonarQube... attempt \$i/30"
+                                sleep 5
+                                done
+                            """
+                        }
+
+                        withEnv(['SONAR_SCANNER_OPTS=-Dsonar.scanner.internal.useHttp2=false']) {
+                            def scannerBin = 'sonar-scanner'
+                            if (frontendModules) {
+                                sh '''
+                                    if ! command -v sonar-scanner >/dev/null 2>&1; then
+                                        if [ ! -d "sonar-scanner-5.0.1.3006-linux" ]; then
+                                            echo "Sonar Scanner not found, downloading..."
+                                            curl -sSL https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip -o sonar-scanner.zip
+                                            unzip -q sonar-scanner.zip
+                                            chmod +x sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner
+                                            chmod +x sonar-scanner-5.0.1.3006-linux/jre/bin/java
+                                        fi
+                                    fi
+                                '''
+                                if (fileExists("${env.WORKSPACE}/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner")) {
+                                    scannerBin = "${env.WORKSPACE}/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner"
+                                }
                             }
-                        }
 
-                        if (mavenModules) {
-                            def plModules = mavenModules.join(',')
-                            sh """
-                                ./mvnw -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
-                                    -f pom.xml \\
-                                    -pl ${plModules} -am \\
-                                    -Drevision=1.0-SNAPSHOT \\
-                                    -Dsonar.host.url="${sonarUrl}" \\
-                                    -Dsonar.token=\$SONAR_TOKEN \\
-                                    -Dsonar.organization=luc1fe4 \\
-                                    -Dsonar.projectKey=luc1fe4_yas \\
-                                    -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \\
-                                    -Dsonar.scanner.connectTimeout=600 \\
-                                    -Dsonar.scanner.socketTimeout=600 \\
-                                    -Dsonar.scanner.responseTimeout=600 \\
-                                    -Dsonar.scanner.internal.useHttp2=false
-                            """
-                        }
+                            if (mavenModules) {
+                                def plModules = mavenModules.join(',')
+                                sh """
+                                    ./mvnw -DskipTests -DskipITs compile org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar \\
+                                        -f pom.xml \\
+                                        -pl ${plModules} -am \\
+                                        -Drevision=1.0-SNAPSHOT \\
+                                        -Dsonar.host.url="${sonarUrl}" \\
+                                        -Dsonar.token=\$SONAR_TOKEN \\
+                                        -Dsonar.organization=luc1fe4 \\
+                                        -Dsonar.projectKey=luc1fe4_yas \\
+                                        -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \\
+                                        -Dsonar.scanner.connectTimeout=600 \\
+                                        -Dsonar.scanner.socketTimeout=600 \\
+                                        -Dsonar.scanner.responseTimeout=600 \\
+                                        -Dsonar.scanner.internal.useHttp2=false
+                                """
+                            }
 
-                        frontendModules.each { svc ->
-                            sh """
-                                ${scannerBin} \\
-                                    -Dsonar.host.url="${sonarUrl}" \\
-                                    -Dsonar.projectKey=luc1fe4_yas \\
-                                    -Dsonar.organization=luc1fe4 \\
-                                    -Dsonar.token=\$SONAR_TOKEN \\
-                                    -Dsonar.sources=${svc} \\
-                                    -Dsonar.exclusions=${svc}/node_modules/**,${svc}/.next/**,${svc}/out/**,${svc}/dist/** \\
-                                    -Dsonar.javascript.lcov.reportPaths=${svc}/coverage/lcov.info \\
-                                    -Dsonar.scanner.connectTimeout=600 \\
-                                    -Dsonar.scanner.socketTimeout=600 \\
-                                    -Dsonar.scanner.responseTimeout=600 \\
-                                    -Dsonar.scanner.internal.useHttp2=false
-                            """
-                        }
+                            frontendModules.each { svc ->
+                                sh """
+                                    ${scannerBin} \\
+                                        -Dsonar.host.url="${sonarUrl}" \\
+                                        -Dsonar.projectKey=luc1fe4_yas \\
+                                        -Dsonar.organization=luc1fe4 \\
+                                        -Dsonar.token=\$SONAR_TOKEN \\
+                                        -Dsonar.sources=${svc} \\
+                                        -Dsonar.exclusions=${svc}/node_modules/**,${svc}/.next/**,${svc}/out/**,${svc}/dist/** \\
+                                        -Dsonar.javascript.lcov.reportPaths=${svc}/coverage/lcov.info \\
+                                        -Dsonar.scanner.connectTimeout=600 \\
+                                        -Dsonar.scanner.socketTimeout=600 \\
+                                        -Dsonar.scanner.responseTimeout=600 \\
+                                        -Dsonar.scanner.internal.useHttp2=false
+                                """
+                            }
 
-                        if (!mavenModules && !frontendModules) {
-                            echo "No services to scan."
+                            if (!mavenModules && !frontendModules) {
+                                echo "No services to scan."
+                            }
                         }
                     }
                 }
             }
-        }
-        post {
-            always {
-                archiveArtifacts artifacts: 'sonarqube-test-report.json',
-                                fingerprint: true,
-                                allowEmptyArchive: true
+            post {
+                always {
+                    archiveArtifacts artifacts: 'sonarqube-test-report.json',
+                                    fingerprint: true,
+                                    allowEmptyArchive: true
+                }
             }
         }
-    }
 
         stage('Build Phase') {
             steps {
@@ -534,6 +535,74 @@ pipeline {
                             if (fileExists("${svc}/target")) {
                                 archiveArtifacts artifacts: "${svc}/target/*.jar",
                                                  allowEmptyArchive: true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Docker Build & Push') {     
+            when {
+                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
+            }
+            steps {
+                script {
+                    def commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    echo "Su dung tag commit ID cho Docker image: ${commitId}"
+
+                    def svcs = env.CHANGED_SERVICES.split(',').findAll { it?.trim() }
+                    
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
+                        
+                        svcs.each { svc ->
+                            if (fileExists("${svc}/Dockerfile")) {
+                                echo "Building Docker image cho: ${svc}"
+                                def imageName = "${env.DOCKER_USERNAME}/${svc}:${commitId}"
+                                
+                                sh "docker build -t ${imageName} ./${svc}"
+                                
+                                echo "Pushing Docker image len Docker Hub: ${imageName}"
+                                sh "docker push ${imageName}"
+                                
+                                sh "docker rmi ${imageName} || true"
+                            } else {
+                                echo "Bo qua ${svc}: Khong tim thay Dockerfile."
+            allowEmptyArchive: true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        stage('Docker Build & Push') {
+            when {
+                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
+            }
+            steps {
+                script {
+                    def commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    echo "Su dung tag commit ID cho Docker image: ${commitId}"
+
+                    def svcs = env.CHANGED_SERVICES.split(',').findAll { it?.trim() }
+                    
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
+                        
+                        svcs.each { svc ->
+                            if (fileExists("${svc}/Dockerfile")) {
+                                echo "Building Docker image cho: ${svc}"
+                                def imageName = "${env.DOCKER_USERNAME}/${svc}:${commitId}"
+                                
+                                sh "docker build -t ${imageName} ./${svc}"
+                                
+                                echo "Pushing Docker image len Docker Hub: ${imageName}"
+                                sh "docker push ${imageName}"
+                                
+                                sh "docker rmi ${imageName} || true"
+                            } else {
+                                echo "Bo qua ${svc}: Khong tim thay Dockerfile."
                             }
                         }
                     }
