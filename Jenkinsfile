@@ -541,7 +541,9 @@ pipeline {
         //         }
         //     }
         // }
+        
 
+        //demo 
         stage('Docker Build & Push') {
             when {
                 expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
