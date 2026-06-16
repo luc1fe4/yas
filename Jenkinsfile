@@ -576,39 +576,6 @@ pipeline {
                 }
             }
         }
-        stage('Docker Build & Push') {
-            when {
-                expression { env.CHANGED_SERVICES?.trim() && env.CHANGED_SERVICES != 'none' }
-            }
-            steps {
-                script {
-                    def commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-                    echo "Su dung tag commit ID cho Docker image: ${commitId}"
-
-                    def svcs = env.CHANGED_SERVICES.split(',').findAll { it?.trim() }
-                    
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                        sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
-                        
-                        svcs.each { svc ->
-                            if (fileExists("${svc}/Dockerfile")) {
-                                echo "Building Docker image cho: ${svc}"
-                                def imageName = "${env.DOCKER_USERNAME}/${svc}:${commitId}"
-                                
-                                sh "docker build -t ${imageName} ./${svc}"
-                                
-                                echo "Pushing Docker image len Docker Hub: ${imageName}"
-                                sh "docker push ${imageName}"
-                                
-                                sh "docker rmi ${imageName} || true"
-                            } else {
-                                echo "Bo qua ${svc}: Khong tim thay Dockerfile."
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 
     post {
