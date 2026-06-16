@@ -1,0 +1,151 @@
+Started by user Kan Quang
+20:22:59 Connecting to https://api.github.com using chubedan4605/******
+Obtained Jenkinsfile from f4443c443220d812a44d24b67bddbd3ef794343b
+[Pipeline] Start of Pipeline
+[Pipeline] node
+Running on Jenkins in /var/jenkins_home/workspace/YAS-CI-Pipeline_main
+[Pipeline] {
+[Pipeline] withEnv
+[Pipeline] {
+[Pipeline] stage
+[Pipeline] { (Checkout)
+[Pipeline] cleanWs
+[WS-CLEANUP] Deleting project workspace...
+[WS-CLEANUP] Deferred wipeout is used...
+[WS-CLEANUP] done
+[Pipeline] checkout
+The recommended git tool is: NONE
+using credential dockerhub-credentials
+Cloning the remote Git repository
+Cloning with configured refspecs honoured and without tags
+Cloning repository https://github.com/chubedan4605/another_yas2.git
+ > git init /var/jenkins_home/workspace/YAS-CI-Pipeline_main # timeout=10
+Fetching upstream changes from https://github.com/chubedan4605/another_yas2.git
+ > git --version # timeout=10
+ > git --version # 'git version 2.47.3'
+using GIT_ASKPASS to set credentials 
+ > git fetch --no-tags --force --progress -- https://github.com/chubedan4605/another_yas2.git +refs/heads/main:refs/remotes/origin/main # timeout=10
+ > git config remote.origin.url https://github.com/chubedan4605/another_yas2.git # timeout=10
+ > git config --add remote.origin.fetch +refs/heads/main:refs/remotes/origin/main # timeout=10
+Avoid second fetch
+Checking out Revision f4443c443220d812a44d24b67bddbd3ef794343b (main)
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f f4443c443220d812a44d24b67bddbd3ef794343b # timeout=10
+Commit message: "Test Jenkins CI"
+ > git rev-list --no-walk 9a55a431d20929255d9d4db93f11217ef49b1f86 # timeout=10
+[Pipeline] sh
++ chmod +x mvnw
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Detect Changed Services)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] echo
+DIFF_BASE_BRANCH resolved to: main
+[Pipeline] echo
+Using base branch for diff: origin/main
+[Pipeline] sh
++ git fetch --no-tags --prune origin +refs/heads/main:refs/remotes/origin/main
+fatal: could not read Username for 'https://github.com': No such device or address
++ true
+[Pipeline] sh
++ FILES=
++ git rev-parse --verify origin/main
++ git diff --name-only origin/main...HEAD
++ FILES=
++ [ -z  ]
++ echo No changes found vs origin/main, falling back to last commit diff
+No changes found vs origin/main, falling back to last commit diff
++ git diff --name-only HEAD~1..HEAD
++ FILES=Jenkinsfile
++ [ -z Jenkinsfile ]
++ echo Jenkinsfile
+[Pipeline] echo
+Changed files:
+Jenkinsfile
+[Pipeline] echo
+Affected services detected: []
+[Pipeline] echo
+Debug - Affected List: []
+[Pipeline] echo
+Debug - Result String: none
+[Pipeline] echo
+Final CHANGED_SERVICES set to: none
+[Pipeline] echo
+No service changes detected. Skipping build/test.
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Frontend Build Start Test)
+Stage "Frontend Build Start Test" skipped due to when conditional
+[Pipeline] getContext
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Security Scan)
+[Pipeline] echo
+Running GitLeaks secret scan
+[Pipeline] script
+[Pipeline] {
+[Pipeline] sh
++ curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
++ tar -xzf gitleaks.tar.gz
++ chmod +x gitleaks
+[Pipeline] sh
++ ./gitleaks detect --source=. --config=gitleaks.toml --log-opts=origin/main..HEAD --report-format=json --report-path=gitleaks-report.json --exit-code=1
+
+    ○
+    │╲
+    │ ○
+    ○ ░
+    ░    gitleaks
+
+[90m8:23PM[0m [32mINF[0m 0 commits scanned.
+[90m8:23PM[0m [32mINF[0m scan completed in 7.29ms
+[90m8:23PM[0m [32mINF[0m no leaks found
+[Pipeline] }
+[Pipeline] // script
+Post stage
+[Pipeline] archiveArtifacts
+Archiving artifacts
+Recording fingerprints
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Snyk Dependency Scan)
+Stage "Snyk Dependency Scan" skipped due to when conditional
+[Pipeline] getContext
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Docker Build & Push)
+Stage "Docker Build & Push" skipped due to when conditional
+[Pipeline] getContext
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Declarative: Post Actions)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] cleanWs
+[WS-CLEANUP] Deleting project workspace...
+[WS-CLEANUP] Deferred wipeout is used...
+[WS-CLEANUP] done
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] echo
+CI Pipeline PASSED - All stages completed successfully.
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] }
+[Pipeline] // withEnv
+[Pipeline] }
+[Pipeline] // node
+[Pipeline] End of Pipeline
+
+GitHub has been notified of this commit’s build result
+
+Finished: SUCCESS
