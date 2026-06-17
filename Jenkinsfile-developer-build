@@ -1,0 +1,217 @@
+pipeline {
+    agent any
+
+    environment {
+        // Cấu hình thông tin kết nối và định danh
+        DOCKER_USERNAME = 'chubedan4605'
+        DOMAIN = 'yas.local' // Tên miền base cho hệ thống (được ánh xạ qua file hosts của lập trình viên)
+        HELM_TIMEOUT = '5m'
+    }
+
+    parameters {
+        string(name: 'NAMESPACE', defaultValue: 'dev', description: 'K8s Namespace triển khai (Ví dụ: dev, staging, qa)')
+        booleanParam(name: 'DRY_RUN', defaultValue: false, description: 'Chạy mô phỏng (Dry Run) trước. Bỏ check để deploy THỰC TẾ lên K8s.')
+        
+        // --- Danh sách tham số tag của Backend Services ---
+        string(name: 'TAG_cart', defaultValue: 'latest', description: 'Commit ID / Tag cho cart')
+        string(name: 'TAG_customer', defaultValue: 'latest', description: 'Commit ID / Tag cho customer')
+        string(name: 'TAG_delivery', defaultValue: 'latest', description: 'Commit ID / Tag cho delivery')
+        string(name: 'TAG_inventory', defaultValue: 'latest', description: 'Commit ID / Tag cho inventory')
+        string(name: 'TAG_location', defaultValue: 'latest', description: 'Commit ID / Tag cho location')
+        string(name: 'TAG_media', defaultValue: 'latest', description: 'Commit ID / Tag cho media')
+        string(name: 'TAG_order', defaultValue: 'latest', description: 'Commit ID / Tag cho order')
+        string(name: 'TAG_payment', defaultValue: 'latest', description: 'Commit ID / Tag cho payment')
+        string(name: 'TAG_payment_paypal', defaultValue: 'latest', description: 'Commit ID / Tag cho payment-paypal')
+        string(name: 'TAG_product', defaultValue: 'latest', description: 'Commit ID / Tag cho product')
+        string(name: 'TAG_promotion', defaultValue: 'latest', description: 'Commit ID / Tag cho promotion')
+        string(name: 'TAG_rating', defaultValue: 'latest', description: 'Commit ID / Tag cho rating')
+        string(name: 'TAG_search', defaultValue: 'latest', description: 'Commit ID / Tag cho search')
+        string(name: 'TAG_tax', defaultValue: 'latest', description: 'Commit ID / Tag cho tax')
+        string(name: 'TAG_recommendation', defaultValue: 'latest', description: 'Commit ID / Tag cho recommendation')
+        string(name: 'TAG_webhook', defaultValue: 'latest', description: 'Commit ID / Tag cho webhook')
+        string(name: 'TAG_sampledata', defaultValue: 'latest', description: 'Commit ID / Tag cho sampledata')
+
+        // --- Danh sách tham số tag của Frontend & BFF ---
+        string(name: 'TAG_backoffice_bff', defaultValue: 'latest', description: 'Commit ID / Tag cho backoffice-bff')
+        string(name: 'TAG_storefront_bff', defaultValue: 'latest', description: 'Commit ID / Tag cho storefront-bff')
+        string(name: 'TAG_backoffice_ui', defaultValue: 'latest', description: 'Commit ID / Tag cho backoffice-ui (Frontend)')
+        string(name: 'TAG_storefront_ui', defaultValue: 'latest', description: 'Commit ID / Tag cho storefront-ui (Frontend)')
+    }
+
+    stages {
+        stage('Khởi tạo & Checkout') {
+            steps {
+                echo "▶ Đang dọn dẹp thư mục làm việc và tải mã nguồn mới nhất..."
+                cleanWs()
+                checkout scm
+                script {
+                    sh '''
+                        if ! command -v helm >/dev/null 2>&1; then
+                            echo "Helm chưa được cài đặt. Đang tải Helm..."
+                            curl -sSL https://get.helm.sh/helm-v3.14.0-linux-amd64.tar.gz -o helm.tar.gz
+                            tar -xzf helm.tar.gz
+                            mkdir -p bin
+                            mv linux-amd64/helm bin/helm
+                            chmod +x bin/helm
+                        fi
+                    '''
+                }
+            }
+        }
+
+        stage('Cấu hình Helm & Kubernetes') {
+            steps {
+                script {
+                    echo "▶ Thiết lập Helm Repositories..."
+                    // Cần thiết cho các dependency chung (như stakater)
+                    sh "export PATH=\$WORKSPACE/bin:\$PATH; helm repo add stakater https://stakater.github.io/stakater-charts || true"
+                    sh "export PATH=\$WORKSPACE/bin:\$PATH; helm repo update"
+                }
+            }
+        }
+
+        stage('Triển khai (Frontend & BFF)') {
+            steps {
+                script {
+                    def bffServices = ['backoffice-bff', 'storefront-bff']
+                    def uiServices = ['backoffice-ui', 'storefront-ui']
+                    def dryRunFlag = params.DRY_RUN ? "--dry-run" : ""
+                    
+                    echo "=========================================================="
+                    echo "TIẾN HÀNH DEPLOY FRONTEND & BFF (NAMESPACE: ${params.NAMESPACE})"
+                    echo "CHẾ ĐỘ MÔ PHỎNG (DRY_RUN): ${params.DRY_RUN}"
+                    echo "=========================================================="
+
+                    // Deploy BFF
+                    bffServices.each { svc ->
+                        def paramName = "TAG_${svc.replace('-', '_')}"
+                        def tagValue = params."${paramName}"
+                        def imageRepository = "${env.DOCKER_USERNAME}/${svc}"
+                        def hostName = svc.replace('-bff', '')
+                        
+                        echo "----------------------------------------------------------"
+                        if (tagValue == 'latest' || tagValue == 'main') {
+                            echo "✅ [FALLBACK] ${svc}: Sử dụng phiên bản mặc định -> 'latest'"
+                        } else {
+                            echo "🚀 [CUSTOM] ${svc}: Sử dụng phiên bản thử nghiệm (commit) -> '${tagValue}'"
+                        }
+
+                        sh "export PATH=\$WORKSPACE/bin:\$PATH; helm dependency build k8s/charts/${svc}"
+                        sh "export PATH=\$WORKSPACE/bin:\$PATH; helm upgrade --install ${svc} k8s/charts/${svc} " +
+                           "--namespace ${params.NAMESPACE} --create-namespace " +
+                           "--set backend.image.repository=${imageRepository} " +
+                           "--set backend.image.tag=${tagValue} " +
+                           "--set backend.ingress.host=${hostName}.${params.NAMESPACE}.${env.DOMAIN} " +
+                           "--timeout ${env.HELM_TIMEOUT} " +
+                           "${dryRunFlag}"
+                    }
+
+                    // Deploy UI
+                    uiServices.each { svc ->
+                        def paramName = "TAG_${svc.replace('-', '_')}"
+                        def tagValue = params."${paramName}"
+                        def imageRepository = "${env.DOCKER_USERNAME}/${svc.replace('-ui', '')}" // Image thường bỏ hậu tố -ui
+                        
+                        echo "----------------------------------------------------------"
+                        if (tagValue == 'latest' || tagValue == 'main') {
+                            echo "✅ [FALLBACK] ${svc}: Sử dụng phiên bản mặc định -> 'latest'"
+                        } else {
+                            echo "🚀 [CUSTOM] ${svc}: Sử dụng phiên bản thử nghiệm (commit) -> '${tagValue}'"
+                        }
+
+                        sh "export PATH=\$WORKSPACE/bin:\$PATH; helm dependency build k8s/charts/${svc}"
+                        sh "export PATH=\$WORKSPACE/bin:\$PATH; helm upgrade --install ${svc} k8s/charts/${svc} " +
+                           "--namespace ${params.NAMESPACE} --create-namespace " +
+                           "--set ui.image.repository=${imageRepository} " +
+                           "--set ui.image.tag=${tagValue} " +
+                           "--timeout ${env.HELM_TIMEOUT} " +
+                           "${dryRunFlag}"
+                    }
+                    
+                    if (!params.DRY_RUN) {
+                        echo "⏳ Tạm dừng 20s để Frontend ổn định..."
+                        sleep 20
+                    }
+                }
+            }
+        }
+
+        stage('Triển khai Swagger UI') {
+            steps {
+                script {
+                    echo "▶ Deploy Swagger-UI..."
+                    def dryRunFlag = params.DRY_RUN ? "--dry-run" : ""
+                    sh "export PATH=\$WORKSPACE/bin:\$PATH; helm upgrade --install swagger-ui k8s/charts/swagger-ui " +
+                       "--namespace ${params.NAMESPACE} --create-namespace " +
+                       "--set ingress.host=api.${params.NAMESPACE}.${env.DOMAIN} " +
+                       "--timeout ${env.HELM_TIMEOUT} " +
+                       "${dryRunFlag}"
+                       
+                    if (!params.DRY_RUN) {
+                        echo "⏳ Tạm dừng 10s sau khi cài Swagger..."
+                        sleep 10
+                    }
+                }
+            }
+        }
+
+        stage('Triển khai Backend Services') {
+            steps {
+                script {
+                    def backendServices = [
+                        'cart', 'customer', 'inventory', 'location', 'media', 'order', 'payment', 
+                        'payment-paypal', 'product', 'promotion', 'rating', 'search', 'tax', 'recommendation', 
+                        'webhook', 'sampledata'
+                    ]
+                    def dryRunFlag = params.DRY_RUN ? "--dry-run" : ""
+                    
+                    echo "=========================================================="
+                    echo "TIẾN HÀNH DEPLOY BACKEND MICROSERVICES"
+                    echo "=========================================================="
+
+                    backendServices.each { svc ->
+                        def paramName = "TAG_${svc.replace('-', '_')}"
+                        def tagValue = params."${paramName}"
+                        def imageRepository = "${env.DOCKER_USERNAME}/${svc}"
+                        
+                        echo "----------------------------------------------------------"
+                        if (tagValue == 'latest' || tagValue == 'main') {
+                            echo "✅ [FALLBACK] ${svc}: Sử dụng phiên bản mặc định -> 'latest'"
+                        } else {
+                            echo "🚀 [CUSTOM] ${svc}: Sử dụng phiên bản thử nghiệm (commit) -> '${tagValue}'"
+                        }
+                        
+                        sh "export PATH=\$WORKSPACE/bin:\$PATH; helm dependency build k8s/charts/${svc}"
+                        def helmCmd = "export PATH=\$WORKSPACE/bin:\$PATH; helm upgrade --install ${svc} k8s/charts/${svc} " +
+                                      "--namespace ${params.NAMESPACE} --create-namespace " +
+                                      "--set backend.image.repository=${imageRepository} " +
+                                      "--set backend.image.tag=${tagValue} " +
+                                      "--set backend.ingress.host=api.${params.NAMESPACE}.${env.DOMAIN} " +
+                                      "--timeout ${env.HELM_TIMEOUT} " +
+                                      "${dryRunFlag}"
+                        sh "${helmCmd}"
+                    }
+                    
+                    echo "=========================================================="
+                    echo "🎉 HOÀN THÀNH QUÁ TRÌNH TRIỂN KHAI VÀO: ${params.NAMESPACE}"
+                    echo "=========================================================="
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            script {
+                echo "▶ Hoàn tất Pipeline. Dọn dẹp Workspace."
+                cleanWs()
+            }
+        }
+        success {
+            echo "✅ DEVELOPER BUILD COMPLETED SUCCESSFULLY."
+        }
+        failure {
+            echo "❌ DEVELOPER BUILD FAILED. Vui lòng kiểm tra log ở trên để xem chi tiết lỗi Kubernetes/Helm."
+        }
+    }
+}
