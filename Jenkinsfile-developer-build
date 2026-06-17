@@ -44,6 +44,18 @@ pipeline {
                 echo "▶ Đang dọn dẹp thư mục làm việc và tải mã nguồn mới nhất..."
                 cleanWs()
                 checkout scm
+                script {
+                    sh '''
+                        if ! command -v helm >/dev/null 2>&1; then
+                            echo "Helm chưa được cài đặt. Đang tải Helm..."
+                            curl -sSL https://get.helm.sh/helm-v3.14.0-linux-amd64.tar.gz -o helm.tar.gz
+                            tar -xzf helm.tar.gz
+                            mkdir -p bin
+                            mv linux-amd64/helm bin/helm
+                            chmod +x bin/helm
+                        fi
+                    '''
+                }
             }
         }
 
@@ -52,8 +64,8 @@ pipeline {
                 script {
                     echo "▶ Thiết lập Helm Repositories..."
                     // Cần thiết cho các dependency chung (như stakater)
-                    sh "helm repo add stakater https://stakater.github.io/stakater-charts || true"
-                    sh "helm repo update"
+                    sh "export PATH=\$WORKSPACE/bin:\$PATH; helm repo add stakater https://stakater.github.io/stakater-charts || true"
+                    sh "export PATH=\$WORKSPACE/bin:\$PATH; helm repo update"
                 }
             }
         }
@@ -84,8 +96,8 @@ pipeline {
                             echo "🚀 [CUSTOM] ${svc}: Sử dụng phiên bản thử nghiệm (commit) -> '${tagValue}'"
                         }
 
-                        sh "helm dependency build k8s/charts/${svc}"
-                        sh "helm upgrade --install ${svc} k8s/charts/${svc} " +
+                        sh "export PATH=\$WORKSPACE/bin:\$PATH; helm dependency build k8s/charts/${svc}"
+                        sh "export PATH=\$WORKSPACE/bin:\$PATH; helm upgrade --install ${svc} k8s/charts/${svc} " +
                            "--namespace ${params.NAMESPACE} --create-namespace " +
                            "--set backend.image.repository=${imageRepository} " +
                            "--set backend.image.tag=${tagValue} " +
@@ -107,8 +119,8 @@ pipeline {
                             echo "🚀 [CUSTOM] ${svc}: Sử dụng phiên bản thử nghiệm (commit) -> '${tagValue}'"
                         }
 
-                        sh "helm dependency build k8s/charts/${svc}"
-                        sh "helm upgrade --install ${svc} k8s/charts/${svc} " +
+                        sh "export PATH=\$WORKSPACE/bin:\$PATH; helm dependency build k8s/charts/${svc}"
+                        sh "export PATH=\$WORKSPACE/bin:\$PATH; helm upgrade --install ${svc} k8s/charts/${svc} " +
                            "--namespace ${params.NAMESPACE} --create-namespace " +
                            "--set ui.image.repository=${imageRepository} " +
                            "--set ui.image.tag=${tagValue} " +
@@ -129,7 +141,7 @@ pipeline {
                 script {
                     echo "▶ Deploy Swagger-UI..."
                     def dryRunFlag = params.DRY_RUN ? "--dry-run" : ""
-                    sh "helm upgrade --install swagger-ui k8s/charts/swagger-ui " +
+                    sh "export PATH=\$WORKSPACE/bin:\$PATH; helm upgrade --install swagger-ui k8s/charts/swagger-ui " +
                        "--namespace ${params.NAMESPACE} --create-namespace " +
                        "--set ingress.host=api.${params.NAMESPACE}.${env.DOMAIN} " +
                        "--timeout ${env.HELM_TIMEOUT} " +
@@ -169,8 +181,8 @@ pipeline {
                             echo "🚀 [CUSTOM] ${svc}: Sử dụng phiên bản thử nghiệm (commit) -> '${tagValue}'"
                         }
                         
-                        sh "helm dependency build k8s/charts/${svc}"
-                        def helmCmd = "helm upgrade --install ${svc} k8s/charts/${svc} " +
+                        sh "export PATH=\$WORKSPACE/bin:\$PATH; helm dependency build k8s/charts/${svc}"
+                        def helmCmd = "export PATH=\$WORKSPACE/bin:\$PATH; helm upgrade --install ${svc} k8s/charts/${svc} " +
                                       "--namespace ${params.NAMESPACE} --create-namespace " +
                                       "--set backend.image.repository=${imageRepository} " +
                                       "--set backend.image.tag=${tagValue} " +
