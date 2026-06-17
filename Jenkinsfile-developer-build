@@ -1,0 +1,85 @@
+pipeline {
+    agent any
+
+    environment {
+        // Khai báo Docker Hub username của bạn
+        DOCKER_USERNAME = 'chubedan4605'
+    }
+
+    parameters {
+        string(name: 'NAMESPACE', defaultValue: 'dev', description: 'Namespace để deploy (mặc định là dev)')
+        
+        // Các parameter cho từng service, mặc định là latest (hoặc main)
+        string(name: 'TAG_cart', defaultValue: 'latest', description: 'Tag cho cart service')
+        string(name: 'TAG_customer', defaultValue: 'latest', description: 'Tag cho customer service')
+        string(name: 'TAG_delivery', defaultValue: 'latest', description: 'Tag cho delivery service')
+        string(name: 'TAG_inventory', defaultValue: 'latest', description: 'Tag cho inventory service')
+        string(name: 'TAG_location', defaultValue: 'latest', description: 'Tag cho location service')
+        string(name: 'TAG_media', defaultValue: 'latest', description: 'Tag cho media service')
+        string(name: 'TAG_order', defaultValue: 'latest', description: 'Tag cho order service')
+        string(name: 'TAG_payment', defaultValue: 'latest', description: 'Tag cho payment service')
+        string(name: 'TAG_payment_paypal', defaultValue: 'latest', description: 'Tag cho payment-paypal service')
+        string(name: 'TAG_product', defaultValue: 'latest', description: 'Tag cho product service')
+        string(name: 'TAG_promotion', defaultValue: 'latest', description: 'Tag cho promotion service')
+        string(name: 'TAG_rating', defaultValue: 'latest', description: 'Tag cho rating service')
+        string(name: 'TAG_search', defaultValue: 'latest', description: 'Tag cho search service')
+        string(name: 'TAG_tax', defaultValue: 'latest', description: 'Tag cho tax service')
+        string(name: 'TAG_recommendation', defaultValue: 'latest', description: 'Tag cho recommendation service')
+        string(name: 'TAG_webhook', defaultValue: 'latest', description: 'Tag cho webhook service')
+        string(name: 'TAG_sampledata', defaultValue: 'latest', description: 'Tag cho sampledata service')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                cleanWs()
+                checkout scm
+            }
+        }
+
+        stage('Deploy (Developer Build with Fallback)') {
+            steps {
+                script {
+                    def backendServices = [
+                        'cart', 'customer', 'delivery', 'inventory', 'location', 'media', 'order', 'payment', 
+                        'payment-paypal', 'product', 'promotion', 'rating', 'search', 'tax', 'recommendation', 
+                        'webhook', 'sampledata'
+                    ]
+
+                    echo "=========================================================="
+                    echo "BAT DAU DEPLOY VAO KUBERNETES - NAMESPACE: ${params.NAMESPACE}"
+                    echo "=========================================================="
+
+                    backendServices.each { svc ->
+                        // Lấy giá trị tag người dùng nhập từ parameters
+                        def paramName = "TAG_${svc.replace('-', '_')}"
+                        def tagValue = params."${paramName}"
+                        def imageRepository = "${env.DOCKER_USERNAME}/${svc}"
+                        
+                        echo "----------------------------------------------------------"
+                        if (tagValue == 'latest' || tagValue == 'main') {
+                            echo "[FALLBACK] Service '${svc}': Khong thay doi -> Su dung tag mac dinh: '${tagValue}'"
+                        } else {
+                            echo "[CUSTOM] Service '${svc}': Co thay doi -> Su dung commit tag: '${tagValue}'"
+                        }
+                        
+                        // Lệnh mô phỏng deploy thực tế bằng Helm (thêm --dry-run để test, bỏ --dry-run để chạy thật trên K8s)
+                        def helmCmd = "helm upgrade --install ${svc} k8s/charts/${svc} " +
+                                      "--namespace ${params.NAMESPACE} --create-namespace " +
+                                      "--set backend.image.repository=${imageRepository} " +
+                                      "--set backend.image.tag=${tagValue} " +
+                                      "--dry-run"
+                        
+                        echo "Thuc thi lenh: ${helmCmd}"
+                        
+                        // sh "${helmCmd}"
+                    }
+                    
+                    echo "=========================================================="
+                    echo "HOAN THANH DEPLOY!"
+                    echo "=========================================================="
+                }
+            }
+        }
+    }
+}
