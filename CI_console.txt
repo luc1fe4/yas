@@ -1,177 +1,165 @@
-Started by user Kan Quang
-
-02:50:12 Connecting to https://api.github.com using chubedan4605/******
-Obtained Jenkinsfile from 23d1b8146910c878dfac02cc34eb4b27712820d8
-[Pipeline] Start of Pipeline
-[Pipeline] node
-Running on Jenkins
- in /var/jenkins_home/workspace/YAS-CI-Pipeline_main
-[Pipeline] {
-[Pipeline] withEnv
-[Pipeline] {
-[Pipeline] stage
-[Pipeline] { (Checkout)
-[Pipeline] cleanWs
-[WS-CLEANUP] Deleting project workspace...
-[WS-CLEANUP] Deferred wipeout is used...
-[WS-CLEANUP] done
-[Pipeline] checkout
-The recommended git tool is: NONE
-using credential github-credentials
-Cloning the remote Git repository
-Cloning with configured refspecs honoured and without tags
-Cloning repository https://github.com/chubedan4605/another_yas2.git
- > git init /var/jenkins_home/workspace/YAS-CI-Pipeline_main # timeout=10
-Fetching upstream changes from https://github.com/chubedan4605/another_yas2.git
- > git --version # timeout=10
- > git --version # 'git version 2.47.3'
-using GIT_ASKPASS to set credentials 
- > git fetch --no-tags --force --progress -- https://github.com/chubedan4605/another_yas2.git +refs/heads/main:refs/remotes/origin/main # timeout=10
- > git config remote.origin.url https://github.com/chubedan4605/another_yas2.git # timeout=10
- > git config --add remote.origin.fetch +refs/heads/main:refs/remotes/origin/main # timeout=10
-Avoid second fetch
-Checking out Revision 23d1b8146910c878dfac02cc34eb4b27712820d8 (main)
- > git config core.sparsecheckout # timeout=10
- > git checkout -f 23d1b8146910c878dfac02cc34eb4b27712820d8 # timeout=10
-Commit message: "Test Jenkins CI"
- > git rev-list --no-walk 23d1b8146910c878dfac02cc34eb4b27712820d8 # timeout=10
-[Pipeline] sh
-+ chmod +x mvnw
-[Pipeline] }
-[Pipeline] // stage
-[Pipeline] stage
-[Pipeline] { (Detect Changed Services)
-[Pipeline] script
-[Pipeline] {
-[Pipeline] echo
-DIFF_BASE_BRANCH resolved to: main
-[Pipeline] echo
-Using base branch for diff: origin/main
-[Pipeline] sh
-+ git fetch --no-tags --prune origin +refs/heads/main:refs/remotes/origin/main
-fatal: could not read Username for 'https://github.com': No such device or address
-+ true
-[Pipeline] sh
-+ FILES=
-+ git rev-parse --verify origin/main
-+ git diff --name-only origin/main...HEAD
-+ FILES=
-+ [ -z  ]
-+ echo No changes found vs origin/main, falling back to last commit diff
-No changes found vs origin/main, falling back to last commit diff
-+ git diff --name-only HEAD~1..HEAD
-+ FILES=customer/src/main/java/com/yas/customer/CustomerApplication.java
-+ [ -z customer/src/main/java/com/yas/customer/CustomerApplication.java ]
-+ echo customer/src/main/java/com/yas/customer/CustomerApplication.java
-[Pipeline] echo
-Changed files:
-customer/src/main/java/com/yas/customer/CustomerApplication.java
-[Pipeline] echo
-Affected services detected: [customer]
-[Pipeline] echo
-Debug - Affected List: [customer]
-[Pipeline] echo
-Debug - Result String: customer
-[Pipeline] echo
-Final CHANGED_SERVICES set to: customer
-[Pipeline] echo
-Services to build/test: customer
-[Pipeline] }
-[Pipeline] // script
-[Pipeline] }
-[Pipeline] // stage
-[Pipeline] stage
-[Pipeline] { (Frontend Build Start Test)
-Stage "Frontend Build Start Test" skipped due to when conditional
-[Pipeline] getContext
-[Pipeline] }
-[Pipeline] // stage
-[Pipeline] stage
-[Pipeline] { (Security Scan)
-[Pipeline] echo
-Running GitLeaks secret scan
-[Pipeline] script
-[Pipeline] {
-[Pipeline] sh
-+ curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o gitleaks.tar.gz
-+ tar -xzf gitleaks.tar.gz
-+ chmod +x gitleaks
-[Pipeline] sh
-+ ./gitleaks detect --source=. --config=gitleaks.toml --log-opts=origin/main..HEAD --report-format=json --report-path=gitleaks-report.json --exit-code=1
-
-    ○
-    │╲
-    │ ○
-    ○ ░
-    ░    gitleaks
-
-[90m2:50AM[0m [32mINF[0m 0 commits scanned.
-[90m2:50AM[0m [32mINF[0m scan completed in 4.22ms
-[90m2:50AM[0m [32mINF[0m no leaks found
+library/src/main/java/com/yas/commonlibrary/kafka/cdc/config/BaseKafkaListenerConfig.java:[56,24] org.springframework.kafka.support.serializer.JsonDeserializer in org.springframework.kafka.support.serializer has been deprecated and marked for removal
+[WARNING] /var/jenkins_home/workspace/YAS-CI-Pipeline_main/common-library/src/main/java/com/yas/commonlibrary/kafka/cdc/config/BaseKafkaListenerConfig.java:[56,24] org.springframework.kafka.support.serializer.JsonDeserializer in org.springframework.kafka.support.serializer has been deprecated and marked for removal
+[WARNING] /var/jenkins_home/workspace/YAS-CI-Pipeline_main/common-library/src/main/java/com/yas/commonlibrary/kafka/cdc/config/BaseKafkaListenerConfig.java:[56,24] org.springframework.kafka.support.serializer.JsonDeserializer in org.springframework.kafka.support.serializer has been deprecated and marked for removal
+[WARNING] /var/jenkins_home/workspace/YAS-CI-Pipeline_main/common-library/src/main/java/com/yas/commonlibrary/kafka/cdc/config/BaseKafkaListenerConfig.java:[57,36] org.springframework.kafka.support.serializer.JsonDeserializer in org.springframework.kafka.support.serializer has been deprecated and marked for removal
+[INFO] /var/jenkins_home/workspace/YAS-CI-Pipeline_main/common-library/src/main/java/com/yas/commonlibrary/csv/CsvExporter.java: /var/jenkins_home/workspace/YAS-CI-Pipeline_main/common-library/src/main/java/com/yas/commonlibrary/csv/CsvExporter.java uses unchecked or unsafe operations.
+[INFO] /var/jenkins_home/workspace/YAS-CI-Pipeline_main/common-library/src/main/java/com/yas/commonlibrary/csv/CsvExporter.java: Recompile with -Xlint:unchecked for details.
+[INFO] 
+[INFO] --- build-helper-maven-plugin:3.6.0:add-test-source (add-test-source) @ common-library ---
+[INFO] Test Source directory: /var/jenkins_home/workspace/YAS-CI-Pipeline_main/common-library/src/it/java added.
+[INFO] 
+[INFO] --- build-helper-maven-plugin:3.6.0:add-test-resource (add-integration-test-resources) @ common-library ---
+[INFO] 
+[INFO] --- maven-resources-plugin:3.3.1:testResources (default-testResources) @ common-library ---
+[INFO] Copying 2 resources from src/test/resources to target/test-classes
+[INFO] skip non existing resourceDirectory /var/jenkins_home/workspace/YAS-CI-Pipeline_main/common-library/src/it/resources
+[INFO] 
+[INFO] --- maven-compiler-plugin:3.14.1:testCompile (default-testCompile) @ common-library ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 5 source files with javac [debug parameters release 21] to target/test-classes
+[WARNING] /var/jenkins_home/workspace/YAS-CI-Pipeline_main/common-library/src/it/java/common/kafka/CdcConsumerTest.java:[162,63] org.springframework.kafka.support.serializer.JsonSerializer in org.springframework.kafka.support.serializer has been deprecated and marked for removal
+[WARNING] /var/jenkins_home/workspace/YAS-CI-Pipeline_main/common-library/src/it/java/common/kafka/CdcConsumerTest.java:[163,65] org.springframework.kafka.support.serializer.JsonSerializer in org.springframework.kafka.support.serializer has been deprecated and marked for removal
+[INFO] /var/jenkins_home/workspace/YAS-CI-Pipeline_main/common-library/src/it/java/common/kafka/CdcConsumerTest.java: Some input files use or override a deprecated API.
+[INFO] /var/jenkins_home/workspace/YAS-CI-Pipeline_main/common-library/src/it/java/common/kafka/CdcConsumerTest.java: Recompile with -Xlint:deprecation for details.
+[INFO] /var/jenkins_home/workspace/YAS-CI-Pipeline_main/common-library/src/it/java/common/kafka/CdcConsumerTest.java: Some input files use unchecked or unsafe operations.
+[INFO] /var/jenkins_home/workspace/YAS-CI-Pipeline_main/common-library/src/it/java/common/kafka/CdcConsumerTest.java: Recompile with -Xlint:unchecked for details.
+[INFO] 
+[INFO] --- maven-surefire-plugin:3.5.5:test (default-test) @ common-library ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- maven-jar-plugin:3.4.2:jar (default-jar) @ common-library ---
+[INFO] Building jar: /var/jenkins_home/workspace/YAS-CI-Pipeline_main/common-library/target/common-library-1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] --- maven-jar-plugin:3.4.2:test-jar (default) @ common-library ---
+[INFO] Building jar: /var/jenkins_home/workspace/YAS-CI-Pipeline_main/common-library/target/common-library-1.0-SNAPSHOT-tests.jar
+[INFO] 
+[INFO] --------------------------< com.yas:webhook >---------------------------
+[INFO] Building webhook 1.0-SNAPSHOT                                      [3/3]
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- maven-clean-plugin:3.5.0:clean (default-clean) @ webhook ---
+[INFO] 
+[INFO] --- jacoco-maven-plugin:0.8.14:prepare-agent (default) @ webhook ---
+[INFO] argLine set to -javaagent:/root/.m2/repository/org/jacoco/org.jacoco.agent/0.8.14/org.jacoco.agent-0.8.14-runtime.jar=destfile=/var/jenkins_home/workspace/YAS-CI-Pipeline_main/webhook/target/jacoco.exec,excludes=com/yas/**/*Application.class:com/yas/**/config/**:com/yas/**/exception/**:com/yas/**/constants/**
+[INFO] 
+[INFO] --- maven-resources-plugin:3.3.1:resources (default-resources) @ webhook ---
+[INFO] Copying 1 resource from src/main/resources to target/classes
+[INFO] Copying 6 resources from src/main/resources to target/classes
+[INFO] 
+[INFO] --- flatten-maven-plugin:1.6.0:flatten (flatten) @ webhook ---
+[INFO] Generating flattened POM of project com.yas:webhook:jar:1.0-SNAPSHOT...
+[INFO] 
+[INFO] --- maven-compiler-plugin:3.14.1:compile (default-compile) @ webhook ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 43 source files with javac [debug parameters release 21] to target/classes
+[INFO] /var/jenkins_home/workspace/YAS-CI-Pipeline_main/webhook/src/main/java/com/yas/webhook/service/OrderEventService.java: Some input files use or override a deprecated API.
+[INFO] /var/jenkins_home/workspace/YAS-CI-Pipeline_main/webhook/src/main/java/com/yas/webhook/service/OrderEventService.java: Recompile with -Xlint:deprecation for details.
+[INFO] 
+[INFO] --- build-helper-maven-plugin:3.6.0:add-test-source (add-test-source) @ webhook ---
+[INFO] Test Source directory: /var/jenkins_home/workspace/YAS-CI-Pipeline_main/webhook/src/it/java added.
+[INFO] 
+[INFO] --- build-helper-maven-plugin:3.6.0:add-test-resource (add-integration-test-resources) @ webhook ---
+[INFO] 
+[INFO] --- maven-resources-plugin:3.3.1:testResources (default-testResources) @ webhook ---
+[INFO] Copying 1 resource from src/test/resources to target/test-classes
+[INFO] Copying 3 resources from src/it/resources to target/test-classes
+[INFO] 
+[INFO] --- maven-compiler-plugin:3.14.1:testCompile (default-testCompile) @ webhook ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 10 source files with javac [debug parameters release 21] to target/test-classes
+[INFO] 
+[INFO] --- maven-surefire-plugin:3.5.5:test (default-test) @ webhook ---
+[INFO] Tests are skipped.
+[INFO] 
+[INFO] --- maven-jar-plugin:3.4.2:jar (default-jar) @ webhook ---
+[INFO] Building jar: /var/jenkins_home/workspace/YAS-CI-Pipeline_main/webhook/target/webhook-1.0-SNAPSHOT.jar
+[INFO] 
+[INFO] --- spring-boot-maven-plugin:4.0.6:repackage (repackage) @ webhook ---
+[INFO] Replacing main artifact /var/jenkins_home/workspace/YAS-CI-Pipeline_main/webhook/target/webhook-1.0-SNAPSHOT.jar with repackaged archive, adding nested dependencies in BOOT-INF/.
+[INFO] The original artifact has been renamed to /var/jenkins_home/workspace/YAS-CI-Pipeline_main/webhook/target/webhook-1.0-SNAPSHOT.jar.original
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for yas 1.0-SNAPSHOT:
+[INFO] 
+[INFO] yas ................................................ SUCCESS [  3.474 s]
+[INFO] Common Library ..................................... SUCCESS [  8.033 s]
+[INFO] webhook ............................................ SUCCESS [  7.938 s]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  20.362 s
+[INFO] Finished at: 2026-06-17T03:25:45Z
+[INFO] ------------------------------------------------------------------------
 [Pipeline] }
 [Pipeline] // script
 Post stage
+[Pipeline] script
+[Pipeline] {
+[Pipeline] fileExists
 [Pipeline] archiveArtifacts
 Archiving artifacts
-Recording fingerprints
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] fileExists
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] fileExists
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] }
+[Pipeline] // script
 [Pipeline] }
 [Pipeline] // stage
 [Pipeline] stage
 [Pipeline] { (Docker Build & Push)
-[Pipeline] script
-[Pipeline] {
-[Pipeline] sh
-+ git rev-parse --short HEAD
-[Pipeline] echo
-Su dung tag commit ID cho Docker image: 23d1b814
-[Pipeline] withCredentials
-Masking supported pattern matches of $DOCKER_PASS
-[Pipeline] {
-[Pipeline] sh
-+ echo ****
-+ docker login -u chubedan4605 --password-stdin
-
-WARNING! Your credentials are stored unencrypted in '/root/.docker/config.json'.
-Configure a credential helper to remove this warning. See
-https://docs.docker.com/go/credential-store/
-
-Login Succeeded
-[Pipeline] fileExists
-[Pipeline] echo
-Building Docker image cho: customer
-[Pipeline] sh
-+ docker build -t luc1fe4/customer:23d1b814 ./customer
-DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
-            Install the buildx component to build images with BuildKit:
-            https://docs.docker.com/go/buildx/
-
-Sending build context to Docker daemon    254kB
-
-Step 1/3 : FROM eclipse-temurin:25-jre-alpine
-25-jre-alpine: Pulling from library/eclipse-temurin
-133579281145: Pulling fs layer
-5e109dd04942: Pulling fs layer
-53473754426f: Pulling fs layer
-f20ccdd0c7bb: Pulling fs layer
-f20ccdd0c7bb: Download complete
-5e109dd04942: Download complete
-133579281145: Download complete
-ffaa0bc44dd7: Download complete
-0a170dbc39f3: Download complete
-133579281145: Pull complete
-53473754426f: Download complete
-53473754426f: Pull complete
-f20ccdd0c7bb: Pull complete
-5e109dd04942: Pull complete
-Digest: sha256:c707c0d18cb9e8556380719f80d96a7529d0746fbb42143893949b98ed2f8943
-Status: Downloaded newer image for eclipse-temurin:25-jre-alpine
- ---> c707c0d18cb9
-Step 2/3 : COPY target/customer*.jar app.jar
-COPY failed: no source files were specified
-[Pipeline] }
-[Pipeline] // withCredentials
-[Pipeline] }
-[Pipeline] // script
+Stage "Docker Build & Push" skipped due to when conditional
+[Pipeline] getContext
 [Pipeline] }
 [Pipeline] // stage
 [Pipeline] stage
@@ -185,7 +173,7 @@ COPY failed: no source files were specified
 [Pipeline] }
 [Pipeline] // script
 [Pipeline] echo
-CI Pipeline FAILED - Check logs above for details.
+CI Pipeline PASSED - All stages completed successfully.
 [Pipeline] }
 [Pipeline] // stage
 [Pipeline] }
@@ -193,8 +181,7 @@ CI Pipeline FAILED - Check logs above for details.
 [Pipeline] }
 [Pipeline] // node
 [Pipeline] End of Pipeline
-ERROR: script returned exit code 1
 
 GitHub has been notified of this commit’s build result
 
-Finished: FAILURE
+Finished: SUCCESS
