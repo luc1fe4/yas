@@ -1,8 +1,7 @@
-Push event to branch main
 Started by user Kan Quang
 
-20:26:02 Connecting to https://api.github.com using chubedan4605/******
-Obtained Jenkinsfile from cd97bb46ad57ba6fa0bb1eb87a55eaf158e03754
+02:50:12 Connecting to https://api.github.com using chubedan4605/******
+Obtained Jenkinsfile from 23d1b8146910c878dfac02cc34eb4b27712820d8
 [Pipeline] Start of Pipeline
 [Pipeline] node
 Running on Jenkins
@@ -18,7 +17,7 @@ Running on Jenkins
 [WS-CLEANUP] done
 [Pipeline] checkout
 The recommended git tool is: NONE
-using credential dockerhub-credentials
+using credential github-credentials
 Cloning the remote Git repository
 Cloning with configured refspecs honoured and without tags
 Cloning repository https://github.com/chubedan4605/another_yas2.git
@@ -31,11 +30,11 @@ using GIT_ASKPASS to set credentials
  > git config remote.origin.url https://github.com/chubedan4605/another_yas2.git # timeout=10
  > git config --add remote.origin.fetch +refs/heads/main:refs/remotes/origin/main # timeout=10
 Avoid second fetch
-Checking out Revision cd97bb46ad57ba6fa0bb1eb87a55eaf158e03754 (main)
+Checking out Revision 23d1b8146910c878dfac02cc34eb4b27712820d8 (main)
  > git config core.sparsecheckout # timeout=10
- > git checkout -f cd97bb46ad57ba6fa0bb1eb87a55eaf158e03754 # timeout=10
+ > git checkout -f 23d1b8146910c878dfac02cc34eb4b27712820d8 # timeout=10
 Commit message: "Test Jenkins CI"
- > git rev-list --no-walk f4443c443220d812a44d24b67bddbd3ef794343b # timeout=10
+ > git rev-list --no-walk 23d1b8146910c878dfac02cc34eb4b27712820d8 # timeout=10
 [Pipeline] sh
 + chmod +x mvnw
 [Pipeline] }
@@ -61,15 +60,11 @@ fatal: could not read Username for 'https://github.com': No such device or addre
 + echo No changes found vs origin/main, falling back to last commit diff
 No changes found vs origin/main, falling back to last commit diff
 + git diff --name-only HEAD~1..HEAD
-+ FILES=CI_console.txt
-customer/src/main/java/com/yas/customer/CustomerApplication.java
-+ [ -z CI_console.txt
-customer/src/main/java/com/yas/customer/CustomerApplication.java ]
-+ echo CI_console.txt
-customer/src/main/java/com/yas/customer/CustomerApplication.java
++ FILES=customer/src/main/java/com/yas/customer/CustomerApplication.java
++ [ -z customer/src/main/java/com/yas/customer/CustomerApplication.java ]
++ echo customer/src/main/java/com/yas/customer/CustomerApplication.java
 [Pipeline] echo
 Changed files:
-CI_console.txt
 customer/src/main/java/com/yas/customer/CustomerApplication.java
 [Pipeline] echo
 Affected services detected: [customer]
@@ -110,9 +105,9 @@ Running GitLeaks secret scan
     ○ ░
     ░    gitleaks
 
-[90m8:26PM[0m [32mINF[0m 0 commits scanned.
-[90m8:26PM[0m [32mINF[0m scan completed in 5.33ms
-[90m8:26PM[0m [32mINF[0m no leaks found
+[90m2:50AM[0m [32mINF[0m 0 commits scanned.
+[90m2:50AM[0m [32mINF[0m scan completed in 4.22ms
+[90m2:50AM[0m [32mINF[0m no leaks found
 [Pipeline] }
 [Pipeline] // script
 Post stage
@@ -122,21 +117,61 @@ Recording fingerprints
 [Pipeline] }
 [Pipeline] // stage
 [Pipeline] stage
-[Pipeline] { (Snyk Dependency Scan)
-[Pipeline] withCredentials
-[Pipeline] // withCredentials
-Post stage
-[Pipeline] archiveArtifacts
-Archiving artifacts
-Recording fingerprints
-[Pipeline] archiveArtifacts
-Archiving artifacts
-[Pipeline] }
-[Pipeline] // stage
-[Pipeline] stage
 [Pipeline] { (Docker Build & Push)
-Stage "Docker Build & Push" skipped due to earlier failure(s)
-[Pipeline] getContext
+[Pipeline] script
+[Pipeline] {
+[Pipeline] sh
++ git rev-parse --short HEAD
+[Pipeline] echo
+Su dung tag commit ID cho Docker image: 23d1b814
+[Pipeline] withCredentials
+Masking supported pattern matches of $DOCKER_PASS
+[Pipeline] {
+[Pipeline] sh
++ echo ****
++ docker login -u chubedan4605 --password-stdin
+
+WARNING! Your credentials are stored unencrypted in '/root/.docker/config.json'.
+Configure a credential helper to remove this warning. See
+https://docs.docker.com/go/credential-store/
+
+Login Succeeded
+[Pipeline] fileExists
+[Pipeline] echo
+Building Docker image cho: customer
+[Pipeline] sh
++ docker build -t luc1fe4/customer:23d1b814 ./customer
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            Install the buildx component to build images with BuildKit:
+            https://docs.docker.com/go/buildx/
+
+Sending build context to Docker daemon    254kB
+
+Step 1/3 : FROM eclipse-temurin:25-jre-alpine
+25-jre-alpine: Pulling from library/eclipse-temurin
+133579281145: Pulling fs layer
+5e109dd04942: Pulling fs layer
+53473754426f: Pulling fs layer
+f20ccdd0c7bb: Pulling fs layer
+f20ccdd0c7bb: Download complete
+5e109dd04942: Download complete
+133579281145: Download complete
+ffaa0bc44dd7: Download complete
+0a170dbc39f3: Download complete
+133579281145: Pull complete
+53473754426f: Download complete
+53473754426f: Pull complete
+f20ccdd0c7bb: Pull complete
+5e109dd04942: Pull complete
+Digest: sha256:c707c0d18cb9e8556380719f80d96a7529d0746fbb42143893949b98ed2f8943
+Status: Downloaded newer image for eclipse-temurin:25-jre-alpine
+ ---> c707c0d18cb9
+Step 2/3 : COPY target/customer*.jar app.jar
+COPY failed: no source files were specified
+[Pipeline] }
+[Pipeline] // withCredentials
+[Pipeline] }
+[Pipeline] // script
 [Pipeline] }
 [Pipeline] // stage
 [Pipeline] stage
@@ -158,7 +193,7 @@ CI Pipeline FAILED - Check logs above for details.
 [Pipeline] }
 [Pipeline] // node
 [Pipeline] End of Pipeline
-ERROR: Could not find credentials entry with ID 'snyk-token'
+ERROR: script returned exit code 1
 
 GitHub has been notified of this commit’s build result
 

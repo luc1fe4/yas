@@ -479,68 +479,68 @@ pipeline {
         //     }
         // }
 
-        // stage('Build Phase') {
-        //     steps {
-        //         script {
-        //             def fe = ['backoffice', 'storefront']
-        //             def allBackendServices = [
-        //                 'cart', 'customer', 'delivery', 'inventory', 'location',
-        //                 'media', 'order', 'payment', 'payment-paypal', 'product',
-        //                 'promotion', 'rating', 'recommendation', 'search', 'tax',
-        //                 'backoffice-bff', 'storefront-bff', 'identity',
-        //                 'sampledata', 'webhook'
-        //             ]
+        stage('Build Phase') {
+            steps {
+                script {
+                    def fe = ['backoffice', 'storefront']
+                    def allBackendServices = [
+                        'cart', 'customer', 'delivery', 'inventory', 'location',
+                        'media', 'order', 'payment', 'payment-paypal', 'product',
+                        'promotion', 'rating', 'recommendation', 'search', 'tax',
+                        'backoffice-bff', 'storefront-bff', 'identity',
+                        'sampledata', 'webhook'
+                    ]
 
-        //             def backendServices
-        //             if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
-        //                 echo 'No specific service changes detected. Building ALL backend services (main branch full build).'
-        //                 backendServices = allBackendServices
-        //             } else {
-        //                 backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
-        //             }
+                    def backendServices
+                    if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+                        echo 'No specific service changes detected. Building ALL backend services (main branch full build).'
+                        backendServices = allBackendServices
+                    } else {
+                        backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+                    }
 
-        //             if (backendServices.isEmpty()) {
-        //                 echo 'No backend services to build (only frontend changes). Skipping.'
-        //                 return
-        //             }
+                    if (backendServices.isEmpty()) {
+                        echo 'No backend services to build (only frontend changes). Skipping.'
+                        return
+                    }
 
-        //             backendServices.each { svc ->
-        //                 if (fileExists("${svc}/pom.xml")) {
-        //                     echo "Building: ${svc}"
-        //                     sh "./mvnw clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
-        //                 }
-        //             }
-        //         }
-        //     }
-        //     post {
-        //         success {
-        //             script {
-        //                 def fe = ['backoffice', 'storefront']
-        //                 def allBackendServices = [
-        //                     'cart', 'customer', 'delivery', 'inventory', 'location',
-        //                     'media', 'order', 'payment', 'payment-paypal', 'product',
-        //                     'promotion', 'rating', 'recommendation', 'search', 'tax',
-        //                     'backoffice-bff', 'storefront-bff', 'identity',
-        //                     'sampledata', 'webhook'
-        //                 ]
+                    backendServices.each { svc ->
+                        if (fileExists("${svc}/pom.xml")) {
+                            echo "Building: ${svc}"
+                            sh "./mvnw clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                        }
+                    }
+                }
+            }
+            post {
+                success {
+                    script {
+                        def fe = ['backoffice', 'storefront']
+                        def allBackendServices = [
+                            'cart', 'customer', 'delivery', 'inventory', 'location',
+                            'media', 'order', 'payment', 'payment-paypal', 'product',
+                            'promotion', 'rating', 'recommendation', 'search', 'tax',
+                            'backoffice-bff', 'storefront-bff', 'identity',
+                            'sampledata', 'webhook'
+                        ]
 
-        //                 def backendServices
-        //                 if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
-        //                     backendServices = allBackendServices
-        //                 } else {
-        //                     backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
-        //                 }
+                        def backendServices
+                        if (env.CHANGED_SERVICES == 'none' || !env.CHANGED_SERVICES?.trim()) {
+                            backendServices = allBackendServices
+                        } else {
+                            backendServices = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }.findAll { !fe.contains(it) }
+                        }
 
-        //                 backendServices.each { svc ->
-        //                     if (fileExists("${svc}/target")) {
-        //                         archiveArtifacts artifacts: "${svc}/target/*.jar",
-        //                                          allowEmptyArchive: true
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
+                        backendServices.each { svc ->
+                            if (fileExists("${svc}/target")) {
+                                archiveArtifacts artifacts: "${svc}/target/*.jar",
+                                                 allowEmptyArchive: true
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         stage('Docker Build & Push') {     
             when {
