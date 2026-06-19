@@ -1,23 +1,23 @@
-# YAS Local Kubernetes Deployment and Configuration Guide
+# Hướng dẫn Triển khai và Cấu hình Kubernetes Local cho YAS
 
-This guide describes how to configure, deploy, and verify the YAS microservices on a local Kubernetes cluster (Docker Desktop, Minikube, or WSL2) and access them using NodePorts and custom domain names.
+Tài liệu này hướng dẫn chi tiết cách cấu hình, triển khai và kiểm thử các microservices của YAS trên một cluster Kubernetes local (Docker Desktop, Minikube, hoặc WSL2) và cách truy cập thông qua cơ chế NodePort kết hợp phân giải tên miền (DNS).
 
 ---
 
-## 1. Prerequisites and Setup
+## 1. Yêu cầu chuẩn bị và Thiết lập môi trường
 
-Before running the deployment, ensure the following are installed:
-- **Docker Desktop** (or WSL2 Docker)
-- **kubectl** (installed automatically with Docker Desktop or available at `C:\Program Files\Docker\Docker\resources\bin\kubectl.exe`)
-- **Helm v3** (if deploying locally via Helm commands)
+Trước khi bắt đầu, hãy đảm bảo bạn đã cài đặt các công cụ sau:
+- **Docker Desktop** (hoặc Docker chạy trong WSL2)
+- **kubectl** (được cài đặt tự động cùng Docker Desktop hoặc nằm tại đường dẫn `C:\Program Files\Docker\Docker\resources\bin\kubectl.exe`)
+- **Helm v3** (để quản lý và cài đặt các chart)
 
-### A. Resource Requirements
-Running the complete YAS stack (including databases, message brokers, observability tools, and 16+ Spring Boot apps) requires:
-- **Memory**: Minimum 16 GB RAM allocated to your WSL/Minikube VM.
-- **CPU**: Minimum 4 Cores.
-- **Disk**: 40 GB free space.
+### A. Yêu cầu tài nguyên hệ thống
+Để chạy toàn bộ hệ thống YAS (bao gồm các cơ sở dữ liệu, broker tin nhắn, công cụ giám sát observability và hơn 16 microservices Spring Boot), máy của bạn cần đáp ứng:
+- **RAM**: Tối thiểu 16 GB cấp phát cho máy ảo WSL / Minikube.
+- **CPU**: Tối thiểu 4 Cores.
+- **Ổ cứng**: Còn trống tối thiểu 40 GB.
 
-*Note: Since default local WSL VMs might be allocated less RAM (e.g. 4GB), you must increase the memory limit in your `%USERPROFILE%\.wslconfig` file before booting up your cluster:*
+*Lưu ý: Mặc định WSL2 chỉ được cấp phát một phần nhỏ RAM của máy host (thường là 4GB). Bạn cần tăng giới hạn RAM bằng cách chỉnh sửa hoặc tạo file `%USERPROFILE%\.wslconfig` trên Windows:*
 ```text
 [wsl2]
 memory=16GB
@@ -26,24 +26,24 @@ processors=4
 
 ---
 
-## 2. Deploying Keycloak and Key Services
+## 2. Triển khai Keycloak và các dịch vụ bổ trợ hạ tầng
 
-To start the infrastructure services (PostgreSQL, Kafka, Elasticsearch, Redis, Keycloak, etc.):
-1. Navigate to the `k8s/deploy/` directory.
-2. Initialize Keycloak (Identity and Access Management server):
+Để khởi động các dịch vụ nền tảng (PostgreSQL, Kafka, Elasticsearch, Redis, Keycloak, v.v.):
+1. Di chuyển vào thư mục `k8s/deploy/`.
+2. Khởi tạo Keycloak (Hệ thống quản lý định danh và phân quyền):
    ```bash
    ./setup-keycloak.sh
    ```
-3. Set up Redis:
+3. Khởi tạo Redis:
    ```bash
    ./setup-redis.sh
    ```
-4. Set up the remaining cluster services (Postgres, Elasticsearch, Kafka, Debezium):
+4. Cài đặt các dịch vụ còn lại (Postgres, Elasticsearch, Kafka, Debezium):
    ```bash
    ./setup-cluster.sh
    ```
 
-Verify all infrastructure servers are in the `Running` state:
+Xác nhận toàn bộ các pod hạ tầng đã ở trạng thái `Running`:
 ```bash
 kubectl get pods -n postgres
 kubectl get pods -n elasticsearch
@@ -53,21 +53,21 @@ kubectl get pods -n keycloak
 
 ---
 
-## 3. Deploying YAS Applications
+## 3. Triển khai các ứng dụng YAS
 
-Once the base cluster services are healthy, run the application deployment script:
+Sau khi các dịch vụ hạ tầng đã chạy ổn định và khỏe mạnh, tiến hành cài đặt ứng dụng:
 ```bash
 ./deploy-yas-applications.sh dev
 ```
-This script builds dependencies and deploys storefront, backoffice, and 16 backend microservices to the `dev` namespace.
+Script này sẽ tự động build dependencies và cài đặt storefront, backoffice bff, và 16 backend microservices vào namespace `dev`.
 
 ---
 
-## 4. NodePort Access Reference Table
+## 4. Bảng tra cứu cổng NodePort truy cập trực tiếp
 
-We have configured the main entrypoints with custom static **NodePorts** between `30000` and `32767` for reliable local routing without requiring external load balancers or full ingress controllers.
+Chúng tôi đã cấu hình các cổng **NodePort** tĩnh trong phạm vi từ `30000` đến `32767` cho các dịch vụ cổng vào (entrypoints) để lập trình viên kiểm thử trực tiếp mà không cần cài đặt các bộ Ingress Controller hay LoadBalancer phức tạp.
 
-| Service Name | Local Domain Mapping | Port Type | Target Port | NodePort | Access URL |
+| Tên dịch vụ | Ánh xạ tên miền Local | Loại cổng | Cổng dịch vụ | NodePort | URL Truy Cập |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Storefront UI** | `storefront-ui.dev.yas.local.com` | HTTP | 3000 | **`30080`** | `http://storefront-ui.dev.yas.local.com:30080` |
 | **Backoffice UI** | `backoffice-ui.dev.yas.local.com` | HTTP | 3000 | **`30081`** | `http://backoffice-ui.dev.yas.local.com:30081` |
@@ -78,15 +78,15 @@ We have configured the main entrypoints with custom static **NodePorts** between
 
 ---
 
-## 5. DNS / Hosts Resolution Mapping
+## 5. Cấu hình phân giải file hosts (DNS)
 
-Add the following mappings to your local operating system's `hosts` file to resolve these domain names:
-- **Windows File Path**: `C:\Windows\System32\drivers\etc\hosts` (Open Notepad as Administrator to edit)
-- **Linux/macOS File Path**: `/etc/hosts` (Edit using `sudo nano /etc/hosts`)
+Thêm các bản ghi dưới đây vào file `hosts` trên hệ điều hành của bạn để có thể gọi tên miền thay vì IP thô:
+- **Windows**: `C:\Windows\System32\drivers\etc\hosts` (Mở Notepad dưới quyền Administrator để sửa)
+- **Linux/macOS**: `/etc/hosts` (Sửa bằng lệnh `sudo nano /etc/hosts`)
 
-Replace `<WORKER_NODE_IP>` with your cluster IP (e.g. `127.0.0.1` for Docker Desktop, or the output of `minikube ip`):
+Thay thế `<WORKER_NODE_IP>` bằng IP của cluster (ví dụ `127.0.0.1` nếu dùng Docker Desktop, hoặc dùng lệnh `minikube ip` để lấy IP máy ảo):
 ```text
-# --- YAS Local Kubernetes NodePort Domain Mappings ---
+# --- Cấu hình ánh xạ tên miền YAS Local NodePort ---
 <WORKER_NODE_IP> storefront-ui.dev.yas.local.com
 <WORKER_NODE_IP> backoffice-ui.dev.yas.local.com
 <WORKER_NODE_IP> swagger-ui.dev.yas.local.com
@@ -97,27 +97,27 @@ Replace `<WORKER_NODE_IP>` with your cluster IP (e.g. `127.0.0.1` for Docker Des
 
 ---
 
-## 6. Verification and Troubleshooting Checklist
+## 6. Kiểm tra và Khắc phục sự cố
 
-### A. Retrieve Service NodePorts
-Check the actual services status and port mapping:
+### A. Kiểm tra cổng NodePort đã tạo thành công
+Chạy lệnh sau để liệt kê các dịch vụ và cổng được ánh xạ:
 ```bash
 kubectl get svc -n dev
 ```
-*Expected: Look for `storefront-ui`, `backoffice-ui`, and `swagger-ui` in the list, showing type `NodePort` with ports mapped to `30080`, `30081`, and `30082` respectively.*
+*Kết quả mong đợi: Bạn sẽ thấy `storefront-ui`, `backoffice-ui` và `swagger-ui` hiển thị loại service là `NodePort` kèm các cổng tương ứng là `30080`, `30081`, và `30082`.*
 
-### B. Verify Connectivity
-Test DNS resolution and HTTP handshake via `curl`:
+### B. Kiểm tra kết nối dịch vụ
+Sử dụng công cụ `curl` trên máy để gửi request thử nghiệm:
 ```bash
-curl -v http://storefront-ui.dev.yas.local.com:30080
+curl -I http://storefront-ui.dev.yas.local.com:30080
 ```
-*Expected response: HTTP 200 OK or appropriate routing redirect to Keycloak.*
+*Kết quả mong đợi: Trả về header phản hồi HTTP 200 OK hoặc mã điều hướng đăng nhập của Keycloak.*
 
-### C. Troubleshooting Keycloak Redirects
-If you are redirected to the incorrect URL during sign-in:
-1. Access the Keycloak admin panel at `http://identity.dev.yas.local.com:30084/auth/`
-2. Log in using credentials from `keycloak-credentials` secret:
+### C. Lỗi điều hướng (Redirect URI) trên Keycloak
+Nếu sau khi đăng nhập bạn bị điều hướng sai địa chỉ:
+1. Truy cập trang quản trị Keycloak tại `http://identity.dev.yas.local.com:30084/auth/`
+2. Lấy mật khẩu admin tạm thời bằng lệnh:
    ```bash
    kubectl get secret keycloak-credentials -n keycloak -o jsonpath="{.data.password}" | base64 --decode
    ```
-3. Navigate to **Clients** and make sure the Valid Redirect URIs match your NodePort URLs.
+3. Đăng nhập và vào mục **Clients**, chỉnh sửa **Valid Redirect URIs** để trỏ chính xác về các địa chỉ NodePort của bạn (ví dụ: `http://storefront-ui.dev.yas.local.com:30080/*`).
