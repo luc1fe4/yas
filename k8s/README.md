@@ -25,7 +25,36 @@ Tài liệu này cung cấp toàn bộ hướng dẫn cần thiết để xây d
   processors=4
   ```
 
-### Các bước khởi động cluster local (bằng Minikube):
+### Các bước khởi động cluster local:
+
+#### Lựa chọn 1: Sử dụng k3d (Khuyên dùng - Nhẹ, tiết kiệm RAM)
+Để tiết kiệm RAM (phù hợp với hệ thống 16GB RAM) và tối ưu hóa hiệu năng, chúng tôi khuyên dùng **k3d** thay vì Minikube:
+
+* **Trên Windows Host (Sử dụng k3d.exe có sẵn ở root dự án)**:
+  Mở CMD hoặc PowerShell tại thư mục dự án và chạy:
+  ```powershell
+  .\k3d.exe cluster create yas-cluster --api-port 6550 -p "30080:30080@server:0" -p "30081:30081@server:0" -p "30082:30082@server:0" -p "30084:30084@server:0" -p "30085:30085@server:0" -p "30086:30086@server:0" -p "30088:30088@server:0" -p "30089:30089@server:0" --agents 1
+  ```
+  Xuất file kubeconfig cho WSL sử dụng:
+  ```powershell
+  .\k3d.exe kubeconfig get yas-cluster > yas-kubeconfig.yaml
+  ```
+  Và trên WSL copy cấu hình này vào thư mục:
+  ```bash
+  mkdir -p ~/.kube && cp yas-kubeconfig.yaml ~/.kube/config && chmod 600 ~/.kube/config
+  ```
+
+* **Trên WSL2 (Linux)**:
+  Cài đặt k3d nếu chưa có:
+  ```bash
+  curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | TAG=v5.6.0 bash
+  ```
+  Khởi tạo cụm:
+  ```bash
+  k3d cluster create yas-cluster --api-port 6550 -p "30080:30080@server:0" -p "30081:30081@server:0" -p "30082:30082@server:0" -p "30084:30084@server:0" -p "30085:30085@server:0" -p "30086:30086@server:0" -p "30088:30088@server:0" -p "30089:30089@server:0" --agents 1
+  ```
+
+#### Lựa chọn 2: Sử dụng Minikube (Yêu cầu RAM tối thiểu 24GB)
 ```bash
 # Khởi động cụm cluster với cấu hình tài nguyên đủ mạnh
 minikube start --disk-size='40000mb' --memory='16g'

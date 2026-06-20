@@ -26,6 +26,44 @@ processors=4
 
 ---
 
+## 1.5. Khởi tạo cụm Kubernetes (Khuyên dùng k3d)
+
+Để tiết kiệm RAM (phù hợp với máy 16GB RAM) và tối ưu hóa hiệu năng, chúng tôi khuyên dùng **k3d** (chạy cụm k3s nhẹ trong Docker) thay vì Minikube nặng nề.
+
+### A. Khởi tạo cụm k3d
+Chạy lệnh khởi tạo cụm `yas-cluster` với các cổng NodePort được map sẵn ra ngoài Windows host:
+
+* **Trên Windows Host (Sử dụng file k3d.exe có sẵn ở root dự án)**:
+  Mở CMD hoặc PowerShell tại thư mục dự án và chạy:
+  ```powershell
+  .\k3d.exe cluster create yas-cluster --api-port 6550 -p "30080:30080@server:0" -p "30081:30081@server:0" -p "30082:30082@server:0" -p "30084:30084@server:0" -p "30085:30085@server:0" -p "30086:30086@server:0" -p "30088:30088@server:0" -p "30089:30089@server:0" --agents 1
+  ```
+
+* **Trên WSL2 (Linux)**:
+  Cài đặt k3d nếu chưa có:
+  ```bash
+  curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | TAG=v5.6.0 bash
+  ```
+  Khởi tạo cụm:
+  ```bash
+  k3d cluster create yas-cluster --api-port 6550 -p "30080:30080@server:0" -p "30081:30081@server:0" -p "30082:30082@server:0" -p "30084:30084@server:0" -p "30085:30085@server:0" -p "30086:30086@server:0" -p "30088:30088@server:0" -p "30089:30089@server:0" --agents 1
+  ```
+
+### B. Đồng bộ Kubeconfig cho WSL
+Để các script chạy trong WSL nhận diện được cụm K8s vừa tạo từ Windows:
+1. Trên **Windows host**, xuất cấu hình ra file tạm trong thư mục dự án:
+   ```powershell
+   .\k3d.exe kubeconfig get yas-cluster > yas-kubeconfig.yaml
+   ```
+2. Trên **WSL**, copy file cấu hình này vào thư mục cấu hình mặc định của kubectl:
+   ```bash
+   mkdir -p ~/.kube
+   cp yas-kubeconfig.yaml ~/.kube/config
+   chmod 600 ~/.kube/config
+   ```
+
+---
+
 ## 2. Triển khai Keycloak và các dịch vụ bổ trợ hạ tầng
 
 Để khởi động các dịch vụ nền tảng (PostgreSQL, Kafka, Elasticsearch, Redis, Keycloak, v.v.):
