@@ -38,11 +38,21 @@ minikube addons enable ingress
 
 ## 3. Cấu hình file hosts cục bộ
 
-Thêm các bản ghi sau vào file `hosts` của bạn để phân giải tên miền thay vì truy cập bằng IP thô:
-* **Windows**: `C:\Windows\System32\drivers\etc\hosts` (Sửa bằng Notepad mở dưới quyền Administrator)
-* **Linux/macOS**: `/etc/hosts` (Sửa bằng `sudo nano /etc/hosts`)
+Để gọi tên miền thay vì IP thô khi chạy cục bộ, bạn cần cấu hình file `hosts` của máy tính.
 
-*(Thay thế `<WORKER_NODE_IP>` bằng IP của cluster, ví dụ `127.0.0.1` nếu dùng Docker Desktop, hoặc dùng lệnh `minikube ip` để lấy IP máy ảo)*
+### A. Tự động cấu hình trên Windows (Khuyên dùng)
+Chúng tôi đã chuẩn bị sẵn một script PowerShell để tự động kiểm tra và thêm các bản ghi DNS cần thiết vào file hosts của bạn.
+1. Mở **Windows PowerShell** dưới quyền quản trị viên (**Run as Administrator**).
+2. Di chuyển vào thư mục dự án và chạy script:
+   ```powershell
+   Set-ExecutionPolicy Bypass -Scope Process -Force
+   .\scripts\update-hosts.ps1
+   ```
+
+### B. Cấu hình thủ công
+Nếu bạn dùng hệ điều hành khác hoặc muốn sửa thủ công, hãy thêm các dòng dưới đây vào file hosts (`C:\Windows\System32\drivers\etc\hosts` trên Windows hoặc `/etc/hosts` trên Linux/macOS):
+
+*(Thay thế `<WORKER_NODE_IP>` bằng IP của cluster, ví dụ `127.0.0.1` nếu dùng Docker Desktop/k3d, hoặc dùng lệnh `minikube ip` để lấy IP máy ảo)*
 ```text
 # --- Cấu hình ánh xạ tên miền YAS Local NodePort ---
 <WORKER_NODE_IP> storefront-ui.dev.yas.local.com
