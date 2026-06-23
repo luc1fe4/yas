@@ -18,3 +18,6 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 USER jenkins
+
+# Cài đặt plugin cấu hình JCasC và Job DSL
+RUN jenkins-plugin-cli --plugins configuration-as-code job-dsl
