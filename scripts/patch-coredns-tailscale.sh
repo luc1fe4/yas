@@ -14,6 +14,7 @@
 # =============================================================
 set -e
 
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 DOMAIN="yas.local.com"
 
 echo "================================================================"
@@ -48,14 +49,21 @@ NEW_HOST_ENTRY="$KEYCLOAK_IP identity.$DOMAIN"
 echo ""
 echo "==> Patching CoreDNS ConfigMap..."
 CURRENT_NODEHOSTS=$(kubectl get configmap coredns -n kube-system \
-    -o jsonpath='{.data.NodeHosts}' | \
-    grep -v "identity\.$DOMAIN")
+    -o jsonpath='{.data.NodeHosts}' 2>/dev/null | \
+    grep -v "identity\.$DOMAIN" || true)
 
-kubectl patch configmap coredns -n kube-system --type=merge -p "{
-  \"data\": {
-    \"NodeHosts\": \"${CURRENT_NODEHOSTS}\n${KEYCLOAK_IP} identity.${DOMAIN}\"
-  }
-}"
+# Use yq to merge the updated NodeHosts cleanly, avoiding JSON newline issues
+export NEW_NODEHOSTS="${CURRENT_NODEHOSTS}
+${KEYCLOAK_IP} identity.${DOMAIN}"
+
+# Step 1: Read the current config map
+kubectl get configmap coredns -n kube-system -o yaml > /tmp/coredns-patch.yaml
+
+# Step 2: Modify it in-place using yq
+yq -i '.data.NodeHosts = env(NEW_NODEHOSTS)' /tmp/coredns-patch.yaml
+
+# Step 3: Apply the modified config map back
+kubectl apply -f /tmp/coredns-patch.yaml
 
 echo "    Added: $NEW_HOST_ENTRY"
 
