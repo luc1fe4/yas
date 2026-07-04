@@ -117,8 +117,8 @@ deploy_yas() {
     fi
 
     # Run the same Helm deploy logic (mirrors run-yas-setup.ps1)
-    cd "$(dirname "$0")/.." || exit 1
-    bash k8s/deploy/setup-cluster.sh
+    cd "$(dirname "$0")/../k8s/deploy" || exit 1
+    bash setup-cluster.sh
     log "YAS deployment complete! Run: kubectl get pods -A"
 }
 
@@ -139,6 +139,7 @@ update_hosts() {
     echo "$MASTER_IP  akhq.yas.local.com"
     echo "$MASTER_IP  kibana.yas.local.com"
     echo "$MASTER_IP  pgadmin.yas.local.com"
+    echo "$MASTER_IP  grafana.yas.local.com"
 }
 
 # ── Main ─────────────────────────────────────────────────────────────────
