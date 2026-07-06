@@ -204,6 +204,14 @@ gatewayRoutesConfig:
             uri: ${UI_HOST}
             predicates:
               - Path=/**
+        server:
+          webflux:
+            routes:
+              - id: api
+                uri: http://localhost:9999
+                predicates:
+                  - Path=/api/disabled-default-route/**
+
 
 
 backofficeBffExtraConfig:
