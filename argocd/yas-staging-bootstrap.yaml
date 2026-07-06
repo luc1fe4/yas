@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/luc1fe4/yas.git'
-    targetRevision: feature/k8s-infra-setup
+    targetRevision: main
     path: argocd/apps/staging
   destination:
     server: https://kubernetes.default.svc
@@ -20,3 +20,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+

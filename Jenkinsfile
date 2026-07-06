@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         MAVEN_OPTS = '-Xmx384m -XX:+UseG1GC'
-        DOCKER_USERNAME = 'chubedan4605'
+        DOCKER_USERNAME = 'besukem'
     }
 
     parameters {
@@ -15,7 +15,7 @@ pipeline {
         skipDefaultCheckout()
     }
 
-    stages {
+    stages { 
 
         stage('Checkout') {
             steps {
@@ -71,13 +71,9 @@ pipeline {
                     echo "Changed files:\n${changedFiles}"
 
                     def services = [
-                        'cart', 'customer', 'delivery', 'inventory', 'location',
-                        'media', 'order', 'payment', 'payment-paypal', 'product',
-                        'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        'backoffice-bff', 'storefront-bff', 'identity',
-                        'sampledata', 'webhook',
-                        'backoffice',
-                        'storefront'
+                        'cart', 'customer', 'inventory', 'media', 'order',
+                        'product', 'search', 'tax', 'backoffice-bff', 'storefront-bff',
+                        'sampledata', 'backoffice', 'storefront'
                     ]
 
                     def affected = services.findAll { svc ->
@@ -484,11 +480,9 @@ pipeline {
                 script {
                     def fe = ['backoffice', 'storefront']
                     def allBackendServices = [
-                        'cart', 'customer', 'delivery', 'inventory', 'location',
-                        'media', 'order', 'payment', 'payment-paypal', 'product',
-                        'promotion', 'rating', 'recommendation', 'search', 'tax',
-                        'backoffice-bff', 'storefront-bff', 'identity',
-                        'sampledata', 'webhook'
+                        'cart', 'customer', 'inventory', 'media', 'order',
+                        'product', 'search', 'tax', 'backoffice-bff', 'storefront-bff',
+                        'sampledata'
                     ]
 
                     def backendServices
@@ -517,11 +511,9 @@ pipeline {
                     script {
                         def fe = ['backoffice', 'storefront']
                         def allBackendServices = [
-                            'cart', 'customer', 'delivery', 'inventory', 'location',
-                            'media', 'order', 'payment', 'payment-paypal', 'product',
-                            'promotion', 'rating', 'recommendation', 'search', 'tax',
-                            'backoffice-bff', 'storefront-bff', 'identity',
-                            'sampledata', 'webhook'
+                            'cart', 'customer', 'inventory', 'media', 'order',
+                            'product', 'search', 'tax', 'backoffice-bff', 'storefront-bff',
+                            'sampledata'
                         ]
 
                         def backendServices

@@ -9,8 +9,12 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/luc1fe4/yas.git'
-    targetRevision: 'feature/k8s-infra-setup'
+    targetRevision: 'main'
     path: k8s/charts/backoffice-bff
+    helm:
+      parameters:
+        - name: backend.service.nodePort
+          value: "30196"
   destination:
     server: https://kubernetes.default.svc
     namespace: staging

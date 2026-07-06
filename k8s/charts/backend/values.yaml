@@ -105,7 +105,7 @@ readinessProbe:
     port: metric
 
 serviceMonitor:
-  enabled: true
+  enabled: false
 
 service:
   type: ClusterIP
@@ -113,7 +113,7 @@ service:
 
 ingress:
   enabled: false
-  className: "nginx"
+  className: "traefik"
   annotations: {}
   host: chart-example.local
   path: /
@@ -141,7 +141,8 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
 
-nodeSelector: {}
+nodeSelector:
+  type: heavy
 
 tolerations: []
 
