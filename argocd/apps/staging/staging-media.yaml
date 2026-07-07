@@ -9,8 +9,14 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/luc1fe4/yas.git'
-    targetRevision: 'main'
+    targetRevision: 'v1.0.0'
     path: k8s/charts/media
+    helm:
+      parameters:
+        - name: backend.image.tag
+          value: 'v1.0.0'
+        - name: backend.image.repository
+          value: 'besukem/media'
   destination:
     server: https://kubernetes.default.svc
     namespace: staging

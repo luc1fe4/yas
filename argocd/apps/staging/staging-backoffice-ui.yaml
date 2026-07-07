@@ -9,10 +9,14 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/luc1fe4/yas.git'
-    targetRevision: 'main'
+    targetRevision: 'v1.0.0'
     path: k8s/charts/backoffice-ui
     helm:
       parameters:
+        - name: ui.image.repository
+          value: 'besukem/backoffice'
+        - name: ui.image.tag
+          value: 'v1.0.0'
         - name: ui.service.nodePort
           value: "30191"
   destination:
