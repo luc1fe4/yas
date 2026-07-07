@@ -116,6 +116,10 @@ pipeline {
                     echo "🔄 UPDATING GITOPS MANIFESTS FOR STAGING (RELEASE: ${releaseTag})"
                     echo "=========================================================="
 
+                    // Chuyển sang nhánh gitops-staging để cập nhật manifest và push lên nhánh này
+                    sh "git fetch origin gitops-staging"
+                    sh "git checkout gitops-staging"
+
                     // Update services with release tags
                     services.each { svc ->
                         def chartName = svc
@@ -153,7 +157,7 @@ pipeline {
                         passwordVariable: 'GIT_TOKEN'
                     )]) {
                         sh "git remote set-url origin https://${GIT_USER}:${GIT_TOKEN}@github.com/luc1fe4/yas.git"
-                        sh "git push origin HEAD:main"
+                        sh "git push origin HEAD:gitops-staging"
                     }
 
                     echo "=========================================================="

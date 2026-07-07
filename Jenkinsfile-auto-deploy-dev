@@ -141,6 +141,10 @@ pipeline {
                     echo "Services to update: ${env.CHANGED_SERVICES}"
                     echo "=========================================================="
 
+                    // Chuyển sang nhánh gitops-dev để cập nhật manifest và push lên nhánh này
+                    sh "git fetch origin gitops-dev"
+                    sh "git checkout gitops-dev"
+
                     services.each { svc ->
                         def chartName = svc
                         if (svc == 'storefront') {
@@ -153,7 +157,7 @@ pipeline {
                         def yamlFile = "argocd/apps/dev/dev-${chartName}.yaml"
 
                         echo "📝 Updating tag in GitOps manifest: ${yamlFile} -> tag=${commitTag}, repo=${imageRepo}"
-                        sh "python3 scripts/update-gitops-tag.py ${yamlFile} ${commitTag} ${imageRepo} main"
+                        sh "python3 scripts/update-gitops-tag.py ${yamlFile} ${commitTag} ${imageRepo} gitops-dev"
                     }
 
                     echo "----------------------------------------------------------"
@@ -171,7 +175,7 @@ pipeline {
                         passwordVariable: 'GIT_TOKEN'
                     )]) {
                         sh "git remote set-url origin https://${GIT_USER}:${GIT_TOKEN}@github.com/luc1fe4/yas.git"
-                        sh "git push origin HEAD:main"
+                        sh "git push origin HEAD:gitops-dev"
                     }
 
                     echo "=========================================================="
