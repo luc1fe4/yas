@@ -4,6 +4,7 @@ pipeline {
     environment {
         MAVEN_OPTS = '-Xmx384m -XX:+UseG1GC'
         DOCKER_USERNAME = 'besukem'
+        MAVEN_REPO = '/var/jenkins_home/.m2/repository'
     }
 
     parameters {
@@ -130,6 +131,7 @@ pipeline {
                             cd ${svc};
                             echo "Current directory: \$(pwd)"
                             ls -la
+                            export npm_config_cache=/var/jenkins_home/.npm-cache
                             npm install;
                             npm run build;
                             npm run start -- -p ${port} > ../${svc}-start.log 2>&1 &
@@ -182,15 +184,15 @@ pipeline {
                             chmod +x mvnw || true
                         '''
                         echo "--- Pre-installing Maven Parent and Common-library ---"
-                        sh "./mvnw install -N -DskipTests -Drevision=1.0-SNAPSHOT"
-                        sh "./mvnw install -pl common-library -am -DskipTests -Drevision=1.0-SNAPSHOT"
+                        sh "./mvnw install -N -DskipTests -Drevision=1.0-SNAPSHOT -Dmaven.repo.local=${env.MAVEN_REPO}"
+                        sh "./mvnw install -pl common-library -am -DskipTests -Drevision=1.0-SNAPSHOT -Dmaven.repo.local=${env.MAVEN_REPO}"
 
                         def services = (env.CHANGED_SERVICES ?: '').split(',').findAll { it?.trim() }
                         services.each { svc ->
                             echo "--- Executing Snyk Scan for: ${svc} ---"
                             def reportFile = "${env.WORKSPACE}/snyk-${svc}-report.json"
                             if (fileExists("${svc}/pom.xml")) {
-                                sh "./snyk test --file=${svc}/pom.xml --severity-threshold=high --command=./mvnw --json-file-output=${reportFile} || true"
+                                sh "./snyk test --file=${svc}/pom.xml --severity-threshold=high --command=./mvnw --json-file-output=${reportFile} -Dmaven.repo.local=${env.MAVEN_REPO} || true"
                             } else if (fileExists("${svc}/package.json")) {
                                 dir("${svc}") {
                                     sh "npm install || true"
@@ -239,7 +241,7 @@ pipeline {
                     backendServices.each { svc ->
                         if (fileExists("${svc}/pom.xml")) {
                             echo "Running Maven tests for: ${svc}"
-                            sh "./mvnw verify jacoco:report -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                            sh "./mvnw verify jacoco:report -DskipITs -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT -Dmaven.repo.local=${env.MAVEN_REPO}"
                         } else if (fileExists("${svc}/package.json")) {
                             echo "Running Node.js tests for: ${svc}"
                             dir("${svc}") {
@@ -438,7 +440,8 @@ pipeline {
                                         -Dsonar.scanner.connectTimeout=600 \\
                                         -Dsonar.scanner.socketTimeout=600 \\
                                         -Dsonar.scanner.responseTimeout=600 \\
-                                        -Dsonar.scanner.internal.useHttp2=false
+                                        -Dsonar.scanner.internal.useHttp2=false \
+                                        -Dmaven.repo.local=${env.MAVEN_REPO}
                                 """
                             }
 
@@ -501,7 +504,7 @@ pipeline {
                     backendServices.each { svc ->
                         if (fileExists("${svc}/pom.xml")) {
                             echo "Building: ${svc}"
-                            sh "./mvnw clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
+                            sh "./mvnw clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT -Dmaven.repo.local=${env.MAVEN_REPO}"
                         }
                     }
                 }
@@ -553,11 +556,15 @@ pipeline {
                                 echo "Building Docker image cho: ${svc}"
                                 def imageName = "${env.DOCKER_USERNAME}/${svc}:${commitId}"
                                 
-                                sh "docker build -t ${imageName} ./${svc}"
+                                sh """
+                                    docker pull ${env.DOCKER_USERNAME}/${svc}:latest || true
+                                    docker build --cache-from ${env.DOCKER_USERNAME}/${svc}:latest -t ${imageName} ./${svc}
+                                """
                                 
                                 echo "Pushing Docker image len Docker Hub: ${imageName}"
                                 sh "docker push ${imageName}"
-                                
+                                sh "docker tag ${imageName} ${env.DOCKER_USERNAME}/${svc}:latest"
+                                sh "docker push ${env.DOCKER_USERNAME}/${svc}:latest"
                                 sh "docker rmi ${imageName} || true"
                             } else {
                                 echo "Bo qua ${svc}: Khong tim thay Dockerfile."
