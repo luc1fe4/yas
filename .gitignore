@@ -29,3 +29,15 @@ hs_err_pid*
 .settings*
 .vscode
 *.iml
+
+# LaTeX report and auxiliary files
+report/
+*.aux
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.toc
+*.lof
+*.lot
+*.out
+

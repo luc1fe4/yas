@@ -95,4 +95,13 @@ public class TaxClassService {
             taxClassPage.isLast()
         );
     }
+    public double calculateTaxAmount(double originalPrice, double taxRatePercent) {
+        if (originalPrice < 0) {
+            throw new IllegalArgumentException("Original price must not be negative");
+        }
+        if (taxRatePercent < 0 || taxRatePercent > 100) {
+            throw new IllegalArgumentException("Tax rate percent must be between 0 and 100");
+        }
+        return originalPrice * taxRatePercent / 100.0;
+    }
 }

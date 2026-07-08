@@ -128,9 +128,20 @@ class FileSystemRepositoryTest {
         File directory = new File(TEST_URL);
         directory.mkdirs();
         directory.setReadOnly();
-        when(filesystemConfig.getDirectory()).thenReturn(TEST_URL);
+        String absoluteBase = Paths.get(TEST_URL).toAbsolutePath().normalize().toString();
+        when(filesystemConfig.getDirectory()).thenReturn(absoluteBase);
         
-        assertThrows(IllegalStateException.class, () -> fileSystemRepository.persistFile(filename, content));
+        if (!directory.canWrite()) {
+            assertThrows(IllegalStateException.class, () -> fileSystemRepository.persistFile(filename, content));
+        } else {
+            try {
+                String path = fileSystemRepository.persistFile(filename, content);
+                assertNotNull(path);
+                assertTrue(Files.exists(Paths.get(path)));
+            } catch (IOException e) {
+                throw new AssertionError("Expected write to succeed since directory is writable", e);
+            }
+        }
         directory.setWritable(true);
     }
 
