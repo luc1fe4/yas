@@ -1,4 +1,4 @@
-﻿apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: staging-sampledata
@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/luc1fe4/yas.git'
-    targetRevision: 'v1.0.0'
+    targetRevision: 'fix-grafana'
     path: k8s/charts/sampledata
     helm:
       parameters:
