@@ -8,7 +8,7 @@ spec:
     matchLabels:
       security.istio.io/tlsMode: istio
   mtls:
-    mode: STRICT
+    mode: PERMISSIVE
   portLevelMtls:
     8090:
       mode: PERMISSIVE
@@ -23,7 +23,7 @@ spec:
     matchLabels:
       security.istio.io/tlsMode: istio
   mtls:
-    mode: STRICT
+    mode: PERMISSIVE
   portLevelMtls:
     8090:
       mode: PERMISSIVE
