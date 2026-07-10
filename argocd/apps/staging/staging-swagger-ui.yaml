@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/luc1fe4/yas.git'
-    targetRevision: 'fix-grafana'
+    targetRevision: 'v2.0.0'
     path: k8s/charts/swagger-ui
     helm:
       parameters:

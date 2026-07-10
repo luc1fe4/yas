@@ -9,14 +9,14 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/luc1fe4/yas.git'
-    targetRevision: 'fix-grafana'
+    targetRevision: 'v2.0.0'
     path: k8s/charts/storefront-ui
     helm:
       parameters:
         - name: ui.image.repository
           value: 'besukem/storefront'
         - name: ui.image.tag
-          value: 'v1.0.0'
+          value: 'v2.0.0'
         - name: ui.service.nodePort
           value: "30190"
   destination:

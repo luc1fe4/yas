@@ -9,12 +9,12 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/luc1fe4/yas.git'
-    targetRevision: 'fix-grafana'
+    targetRevision: 'v2.0.0'
     path: k8s/charts/product
     helm:
       parameters:
         - name: backend.image.tag
-          value: 'v1.0.0'
+          value: 'v2.0.0'
         - name: backend.image.repository
           value: 'besukem/product'
   destination:
