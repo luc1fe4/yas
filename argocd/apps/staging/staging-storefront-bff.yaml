@@ -9,14 +9,14 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/luc1fe4/yas.git'
-    targetRevision: 'v3.0.2'
+    targetRevision: 'v3.0.4'
     path: k8s/charts/storefront-bff
     helm:
       parameters:
         - name: backend.image.repository
           value: 'besukem/storefront-bff'
         - name: backend.image.tag
-          value: 'v3.0.2'
+          value: 'v3.0.4'
         - name: backend.service.nodePort
           value: "30195"
   destination:

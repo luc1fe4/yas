@@ -9,14 +9,14 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/luc1fe4/yas.git'
-    targetRevision: 'v3.0.2'
+    targetRevision: 'v3.0.4'
     path: k8s/charts/storefront-ui
     helm:
       parameters:
         - name: ui.image.repository
           value: 'besukem/storefront'
         - name: ui.image.tag
-          value: 'v3.0.2'
+          value: 'v3.0.4'
         - name: ui.service.nodePort
           value: "30190"
   destination:
