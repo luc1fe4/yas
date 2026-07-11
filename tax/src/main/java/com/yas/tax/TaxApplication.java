@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 @SpringBootApplication(scanBasePackages = {"com.yas.tax", "com.yas.commonlibrary"})
 @EnableConfigurationProperties({ServiceUrlConfig.class, CorsConfig.class})
 public class TaxApplication {
-    // test // te // test
+    // test // te // test // test
     public static void main(String[] args) {
         SpringApplication.run(TaxApplication.class, args);
     }

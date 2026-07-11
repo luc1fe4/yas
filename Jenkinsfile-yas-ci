@@ -96,8 +96,7 @@ pipeline {
                         } else if (fileExists("${svc}/pom.xml")) {
                             echo "Building backend service: ${svc}"
                             // -pl ${svc} -am: build module và các dependency
-                            // spring-boot:repackage đảm bảo JAR có Main-Class manifest
-                            sh "./mvnw clean package spring-boot:repackage -DskipTests -f pom.xml -pl ${svc} -am -Drevision=1.0-SNAPSHOT"
+                            sh "./mvnw clean package -DskipTests -f pom.xml -pl ${svc} -am -U -Drevision=1.0-SNAPSHOT"
                         } else {
                             echo "Skipping ${svc}: no recognized build file found."
                         }
