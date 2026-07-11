@@ -1,28 +1,67 @@
 jenkins:
   systemMessage: "YAS Jenkins Automation - Configuration as Code (JCasC)"
 
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - string:
+              scope: GLOBAL
+              id: "snyk-token"
+              secret: "dummy-snyk-token"
+              description: "Snyk API Token"
+          - string:
+              scope: GLOBAL
+              id: "sonar-token"
+              secret: "dummy-sonar-token"
+              description: "SonarQube API Token"
+          - usernamePassword:
+              scope: GLOBAL
+              id: "dockerhub-credentials"
+              username: "dummy-username"
+              password: "dummy-password"
+              description: "DockerHub Credentials"
+
+tool:
+  jdk:
+    installations:
+      - name: "jdk21"
+        home: "/opt/java/openjdk"
+  maven:
+    installations:
+      - name: "Maven-3.9"
+        properties:
+          - installSource:
+              installers:
+                - maven:
+                    id: "3.9.6"
+  nodejs:
+    installations:
+      - name: "nodejs"
+        home: "/usr"
+
 jobs:
   - script: >
       pipelineJob('developer_build') {
-        description('Pipeline triển khai tự động các service dựa theo tham số branch của nhà phát triển.')
+        description('Pipeline triển khai tự động các service dựa theo tham số tag của nhà phát triển.')
         parameters {
           stringParam('NAMESPACE', 'dev', 'K8s Namespace triển khai (Ví dụ: dev, staging, qa)')
           booleanParam('DRY_RUN', false, 'Chạy mô phỏng (Dry Run) trước. Bỏ check để deploy THỰC TẾ lên K8s.')
           
-          stringParam('BRANCH_cart', 'main', 'Nhánh git để deploy cho dịch vụ cart')
-          stringParam('BRANCH_customer', 'main', 'Nhánh git để deploy cho dịch vụ customer')
-          stringParam('BRANCH_inventory', 'main', 'Nhánh git để deploy cho dịch vụ inventory')
-          stringParam('BRANCH_media', 'main', 'Nhánh git để deploy cho dịch vụ media')
-          stringParam('BRANCH_order', 'main', 'Nhánh git để deploy cho dịch vụ order')
-          stringParam('BRANCH_product', 'main', 'Nhánh git để deploy cho dịch vụ product')
-          stringParam('BRANCH_search', 'main', 'Nhánh git để deploy cho dịch vụ search')
-          stringParam('BRANCH_tax', 'main', 'Nhánh git để deploy cho dịch vụ tax')
-          stringParam('BRANCH_sampledata', 'main', 'Nhánh git để deploy cho dịch vụ sampledata')
+          stringParam('TAG_cart', 'latest', 'Commit ID / Tag Docker image cho cart')
+          stringParam('TAG_customer', 'latest', 'Commit ID / Tag Docker image cho customer')
+          stringParam('TAG_inventory', 'latest', 'Commit ID / Tag Docker image cho inventory')
+          stringParam('TAG_media', 'latest', 'Commit ID / Tag Docker image cho media')
+          stringParam('TAG_order', 'latest', 'Commit ID / Tag Docker image cho order')
+          stringParam('TAG_product', 'latest', 'Commit ID / Tag Docker image cho product')
+          stringParam('TAG_search', 'latest', 'Commit ID / Tag Docker image cho search')
+          stringParam('TAG_tax', 'latest', 'Commit ID / Tag Docker image cho tax')
+          stringParam('TAG_sampledata', 'latest', 'Commit ID / Tag Docker image cho sampledata')
           
-          stringParam('BRANCH_backoffice_bff', 'main', 'Nhánh git để deploy cho backoffice-bff')
-          stringParam('BRANCH_storefront_bff', 'main', 'Nhánh git để deploy cho storefront-bff')
-          stringParam('BRANCH_backoffice_ui', 'main', 'Nhánh git để deploy cho backoffice-ui (Frontend)')
-          stringParam('BRANCH_storefront_ui', 'main', 'Nhánh git để deploy cho storefront-ui (Frontend)')
+          stringParam('TAG_backoffice_bff', 'latest', 'Commit ID / Tag Docker image cho backoffice-bff')
+          stringParam('TAG_storefront_bff', 'latest', 'Commit ID / Tag Docker image cho storefront-bff')
+          stringParam('TAG_backoffice_ui', 'latest', 'Commit ID / Tag Docker image cho backoffice-ui')
+          stringParam('TAG_storefront_ui', 'latest', 'Commit ID / Tag Docker image cho storefront-ui')
         }
         definition {
           cpsScm {
@@ -30,7 +69,6 @@ jobs:
               git {
                 remote {
                   url('https://github.com/luc1fe4/yas.git')
-                  credentials('github-credentials')
                 }
                 branch('main')
               }
@@ -44,7 +82,7 @@ jobs:
         description('Xóa toàn bộ Helm releases của developer_build khỏi namespace trên K8s.')
         parameters {
           stringParam('NAMESPACE', 'dev', 'Namespace cần dọn dẹp (xóa toàn bộ Helm releases)')
-          booleanParam('DRY_RUN', true, 'Chạy thử trước. Bỏ check để xóa THẠT.')
+          booleanParam('DRY_RUN', true, 'Chạy thử trước. Bỏ check để xóa THẬT.')
         }
         definition {
           cpsScm {
@@ -52,7 +90,6 @@ jobs:
               git {
                 remote {
                   url('https://github.com/luc1fe4/yas.git')
-                  credentials('github-credentials')
                 }
                 branch('main')
               }
@@ -70,7 +107,6 @@ jobs:
               git {
                 remote {
                   url('https://github.com/luc1fe4/yas.git')
-                  credentials('github-credentials')
                 }
                 branch('main')
               }
@@ -94,7 +130,6 @@ jobs:
               git {
                 remote {
                   url('https://github.com/luc1fe4/yas.git')
-                  credentials('github-credentials')
                 }
                 branch('main')
               }
@@ -112,7 +147,6 @@ jobs:
               git {
                 id('yas-ci-git')
                 remote('https://github.com/luc1fe4/yas.git')
-                credentialsId('github-credentials')
                 traits {
                   gitBranchDiscovery()
                 }
@@ -120,14 +154,9 @@ jobs:
             }
           }
         }
-        factory {
-          workflowBranchProjectFactory {
-            scriptPath('Jenkinsfile-yas-ci')
-          }
-        }
         orphanedItemStrategy {
           discardOldItems {
-            numToKeep(10)
+            numToKeep(100)
           }
         }
       }
