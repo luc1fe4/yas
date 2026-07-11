@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/luc1fe4/yas.git'
-    targetRevision: 'v3.0.4'
+    targetRevision: 'v3.0.5'
     path: k8s/charts/swagger-ui
     helm:
       parameters:

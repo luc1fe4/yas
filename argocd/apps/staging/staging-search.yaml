@@ -9,12 +9,12 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/luc1fe4/yas.git'
-    targetRevision: 'v3.0.4'
+    targetRevision: 'v3.0.5'
     path: k8s/charts/search
     helm:
       parameters:
         - name: backend.image.tag
-          value: 'v3.0.4'
+          value: 'v3.0.5'
         - name: backend.image.repository
           value: 'besukem/search'
   destination:
