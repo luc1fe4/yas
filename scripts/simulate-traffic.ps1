@@ -1,4 +1,3 @@
-# f:\Devops\yas\scripts\simulate-traffic.ps1
 param(
     [int]$DurationSeconds = 120,
     [string]$Namespace = "dev"
