@@ -1,10 +1,10 @@
 #!/bin/bash
 # =============================================================
-# YAS — Patch CoreDNS after migrating to k3s + Tailscale
+# YAS â€” Patch CoreDNS after migrating to k3s + Tailscale
 # Run this on ANY laptop that has kubectl access to the cluster
 #
 # Why needed:
-#   CoreDNS custom hosts map identity.yas.local.com → ClusterIP of keycloak-service
+#   CoreDNS custom hosts map identity.yas.local.com â†’ ClusterIP of keycloak-service
 #   This ClusterIP changes between clusters (k3d vs real k3s)
 #   This script auto-detects the new ClusterIP and patches CoreDNS
 #
@@ -21,7 +21,7 @@ echo "================================================================"
 echo "  Patching CoreDNS for k3s + Tailscale cluster"
 echo "================================================================"
 
-# ── Detect keycloak-service ClusterIP ─────────────────────────
+# â”€â”€ Detect keycloak-service ClusterIP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 echo ""
 echo "==> Detecting Keycloak service ClusterIP..."
 KEYCLOAK_IP=$(kubectl get svc keycloak-service -n keycloak -o jsonpath='{.spec.clusterIP}' 2>/dev/null)
@@ -32,12 +32,12 @@ if [ -z "$KEYCLOAK_IP" ]; then
 fi
 echo "    keycloak-service ClusterIP: $KEYCLOAK_IP"
 
-# ── Get current CoreDNS ConfigMap ─────────────────────────────
+# â”€â”€ Get current CoreDNS ConfigMap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 echo ""
 echo "==> Reading current CoreDNS ConfigMap..."
 kubectl get configmap coredns -n kube-system -o yaml > /tmp/coredns-current.yaml
 
-# ── Build new NodeHosts entry ─────────────────────────────────
+# â”€â”€ Build new NodeHosts entry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Remove old identity.yas.local.com entries, add new one
 NODE_HOSTS=$(kubectl get configmap coredns -n kube-system \
     -o jsonpath='{.data.NodeHosts}' 2>/dev/null | \
@@ -45,7 +45,7 @@ NODE_HOSTS=$(kubectl get configmap coredns -n kube-system \
 
 NEW_HOST_ENTRY="$KEYCLOAK_IP identity.$DOMAIN"
 
-# ── Apply patch ───────────────────────────────────────────────
+# â”€â”€ Apply patch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 echo ""
 echo "==> Patching CoreDNS ConfigMap..."
 CURRENT_NODEHOSTS=$(kubectl get configmap coredns -n kube-system \
@@ -67,14 +67,14 @@ kubectl apply -f /tmp/coredns-patched.json
 
 echo "    Added: $NEW_HOST_ENTRY"
 
-# ── Restart CoreDNS to pick up changes ────────────────────────
+# â”€â”€ Restart CoreDNS to pick up changes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 echo ""
 echo "==> Restarting CoreDNS..."
 kubectl rollout restart deployment/coredns -n kube-system 2>/dev/null || \
 kubectl delete pod -n kube-system -l k8s-app=kube-dns 2>/dev/null || true
 sleep 10
 
-# ── Verify DNS resolution ─────────────────────────────────────
+# â”€â”€ Verify DNS resolution â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 echo ""
 echo "==> Verifying DNS resolution from inside cluster..."
 TEST_RESULT=$(kubectl run dns-verify --image=busybox:1.28 \
@@ -82,7 +82,7 @@ TEST_RESULT=$(kubectl run dns-verify --image=busybox:1.28 \
     --command -- nslookup "identity.$DOMAIN" 2>&1 || true)
 
 if echo "$TEST_RESULT" | grep -q "$KEYCLOAK_IP"; then
-    echo "    OK: identity.$DOMAIN → $KEYCLOAK_IP (DNS resolution working)"
+    echo "    OK: identity.$DOMAIN â†’ $KEYCLOAK_IP (DNS resolution working)"
 else
     echo "    WARN: DNS verification inconclusive. Check manually:"
     echo "    kubectl run dns-test --image=busybox:1.28 --rm -it -- nslookup identity.$DOMAIN"

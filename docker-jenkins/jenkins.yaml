@@ -113,8 +113,16 @@ jobs:
                 id('yas-ci-git')
                 remote('https://github.com/luc1fe4/yas.git')
                 credentialsId('github-credentials')
+                traits {
+                  gitBranchDiscovery()
+                }
               }
             }
+          }
+        }
+        factory {
+          workflowBranchProjectFactory {
+            scriptPath('Jenkinsfile-yas-ci')
           }
         }
         orphanedItemStrategy {
