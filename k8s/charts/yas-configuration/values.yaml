@@ -37,6 +37,8 @@ applicationConfig:
     metrics:
       tags:
         application: ${spring.application.name}
+        service_name: ${spring.application.name}
+        service_namespace: yas-msa
     endpoints:
       web:
         exposure:
@@ -49,7 +51,7 @@ applicationConfig:
 
   logging:
     pattern:
-      level: application=${spring.application.name} traceId=%X{traceId:-} spanId=%X{spanId:-} level=%level
+      level: application=${spring.application.name} traceId=%X{trace_id:-%X{traceId:-}} spanId=%X{span_id:-%X{spanId:-}} level=%level
 
   spring:
     lifecycle:
