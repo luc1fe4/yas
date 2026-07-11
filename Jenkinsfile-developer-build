@@ -6,6 +6,7 @@ pipeline {
         DOCKER_USERNAME = 'besukem'
         DOMAIN = 'yas.local' // Tên miền base cho hệ thống (được ánh xạ qua file hosts của lập trình viên)
         HELM_TIMEOUT = '5m'
+        PATH = "${WORKSPACE}/bin:${env.PATH}"
     }
 
     parameters {
@@ -38,13 +39,19 @@ pipeline {
                 checkout scm
                 script {
                     sh '''
+                        mkdir -p bin
                         if ! command -v helm >/dev/null 2>&1; then
                             echo "Helm chưa được cài đặt. Đang tải Helm..."
                             curl -sSL https://get.helm.sh/helm-v3.14.0-linux-amd64.tar.gz -o helm.tar.gz
                             tar -xzf helm.tar.gz
-                            mkdir -p bin
                             mv linux-amd64/helm bin/helm
                             chmod +x bin/helm
+                            rm -rf helm.tar.gz linux-amd64
+                        fi
+                        if ! command -v kubectl >/dev/null 2>&1; then
+                            echo "Kubectl chưa được cài đặt. Đang tải Kubectl..."
+                            curl -sSL -o bin/kubectl "https://dl.k8s.io/release/v1.28.2/bin/linux/amd64/kubectl"
+                            chmod +x bin/kubectl
                         fi
                     '''
                 }
@@ -113,19 +120,26 @@ pipeline {
                         def hostName = svc.replace('-bff', '')
                         
                         echo "----------------------------------------------------------"
-                        if (branchValue == 'latest' || branchValue == 'main' || !branchValue) {
-                            echo "✅ [DEFAULT] ${svc}: Sử dụng nhánh mặc định '${branchValue}' -> Tag 'latest'"
-                        } else {
-                            echo "🚀 [CUSTOM] ${svc}: Sử dụng nhánh '${branchValue}' -> Tag phân giải được: '${tagValue}'"
-                        }
-
+                        
                         sh "export PATH=\$WORKSPACE/bin:\$PATH; helm dependency build helm/${svc}"
                         def helmCmd = "helm upgrade --install ${svc} helm/${svc} --namespace ${params.NAMESPACE} --create-namespace --force --set backend.image.repository=${imageRepository} --set backend.image.tag=${tagValue} --set backend.ingress.host=${hostName}.${params.NAMESPACE}.${env.DOMAIN} --timeout ${env.HELM_TIMEOUT}"
                         
                         if (params.DRY_RUN) {
                             echo "⚙️ [DRY_RUN] Sẽ thực thi lệnh: ${helmCmd}"    
                         } else {
-                            sh "export PATH=\$WORKSPACE/bin:\$PATH; ${helmCmd}"
+                            echo "🛠️ Tự động dọn dẹp các tài nguyên cũ của ${svc} (Deployment, Service, ServiceAccount, Ingress, ConfigMap, Secret)..."
+                            sh """
+                                helm uninstall ${svc} -n ${params.NAMESPACE} || true
+                                kubectl delete deployment ${svc} -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete service ${svc} -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete serviceaccount ${svc} -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete ingress ${svc} -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete configmap ${svc}-configmap -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete secret ${svc}-secret -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete configmap,secret,ingress,serviceaccount,service,deployment -l "app.kubernetes.io/name=${svc}" -n ${params.NAMESPACE} --ignore-not-found || true
+                                sleep 5
+                                ${helmCmd}
+                            """
                         }
                     }
 
@@ -134,14 +148,9 @@ pipeline {
                         def paramName = "BRANCH_${svc.replace('-', '_')}"
                         def branchValue = params."${paramName}"
                         def tagValue = resolveBranchToTag(branchValue, svc)
-                        def imageRepository = "${env.DOCKER_USERNAME}/${svc.replace('-ui', '')}" // Image thường bỏ hậu tố -ui
+                        def imageRepository = "${env.DOCKER_USERNAME}/${svc.replace('-ui', '')}"
                         
                         echo "----------------------------------------------------------"
-                        if (branchValue == 'latest' || branchValue == 'main' || !branchValue) {
-                            echo "✅ [DEFAULT] ${svc}: Sử dụng nhánh mặc định '${branchValue}' -> Tag 'latest'"
-                        } else {
-                            echo "🚀 [CUSTOM] ${svc}: Sử dụng nhánh '${branchValue}' -> Tag phân giải được: '${tagValue}'"
-                        }
 
                         sh "export PATH=\$WORKSPACE/bin:\$PATH; helm dependency build helm/${svc}"
                         def helmCmd = "helm upgrade --install ${svc} helm/${svc} --namespace ${params.NAMESPACE} --create-namespace --force --set ui.image.repository=${imageRepository} --set ui.image.tag=${tagValue} --timeout ${env.HELM_TIMEOUT}"
@@ -149,7 +158,19 @@ pipeline {
                         if (params.DRY_RUN) {
                             echo "⚙️ [DRY_RUN] Sẽ thực thi lệnh: ${helmCmd}"
                         } else {
-                            sh "export PATH=\$WORKSPACE/bin:\$PATH; ${helmCmd}"
+                            echo "🛠️ Tự động dọn dẹp các tài nguyên cũ của ${svc} (Deployment, Service, ServiceAccount, Ingress, ConfigMap, Secret)..."
+                            sh """
+                                helm uninstall ${svc} -n ${params.NAMESPACE} || true
+                                kubectl delete deployment ${svc} -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete service ${svc} -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete serviceaccount ${svc} -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete ingress ${svc} -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete configmap ${svc}-configmap -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete secret ${svc}-secret -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete configmap,secret,ingress,serviceaccount,service,deployment -l "app.kubernetes.io/name=${svc}" -n ${params.NAMESPACE} --ignore-not-found || true
+                                sleep 5
+                                ${helmCmd}
+                            """
                         }
                     }
                     
@@ -217,17 +238,17 @@ pipeline {
                         if (params.DRY_RUN) {
                             echo "⚙️ [DRY_RUN] Sẽ thực thi lệnh: ${helmCmd}"
                         } else {
-                            echo "🛠️ Tự động dọn dẹp bản cài cũ của ${svc} để giải phóng selector..."
+                            echo "🛠️ Tự động dọn dẹp các tài nguyên cũ của ${svc} (Deployment, Service, ServiceAccount, Ingress, ConfigMap, Secret)..."
                             sh """
-                                export PATH=\$WORKSPACE/bin:\$PATH
-                                
-                                # 1. Gỡ cài đặt bản cũ
                                 helm uninstall ${svc} -n ${params.NAMESPACE} || true
-                                
-                                # 2. ⏳ NGỦ 10 GIÂY ĐỂ KUBERNETES KỊP XÓA SẠCH SERVICEACCOUNT CŨ TRÊN CLUSTER
-                                sleep 10
-                                
-                                # 3. Tiến hành cài đặt mới hoàn toàn
+                                kubectl delete deployment ${svc} -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete service ${svc} -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete serviceaccount ${svc} -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete ingress ${svc} -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete configmap ${svc}-configmap -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete secret ${svc}-secret -n ${params.NAMESPACE} --ignore-not-found || true
+                                kubectl delete configmap,secret,ingress,serviceaccount,service,deployment -l "app.kubernetes.io/name=${svc}" -n ${params.NAMESPACE} --ignore-not-found || true
+                                sleep 5
                                 ${helmCmd}
                             """
                         }
