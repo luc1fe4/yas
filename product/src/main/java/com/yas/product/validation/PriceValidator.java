@@ -14,5 +14,4 @@ public class PriceValidator implements ConstraintValidator<ValidateProductPrice,
     public boolean isValid(Double productPrice, ConstraintValidatorContext constraintValidatorContext) {
         return productPrice >= 0;
     }
-    // test 
 }
