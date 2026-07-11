@@ -89,8 +89,12 @@ pipeline {
                                 sh "rm -f ${svc}/target/*-tests.jar || true"
                             }
                             echo "🔨 Building: ${imageName}:${releaseTag}"
-                            sh "docker build -t ${imageName}:${releaseTag} ${svc}/"
-                            sh "docker push ${imageName}:${releaseTag}"
+                            retry(10) {
+                                sh "docker build -t ${imageName}:${releaseTag} ${svc}/"
+                            }
+                            retry(10) {
+                                sh "docker push ${imageName}:${releaseTag}"
+                            }
                             echo "✅ Pushed: ${imageName}:${releaseTag}"
                         } else {
                             echo "⚠️ Bỏ qua ${svc}: Không tìm thấy Dockerfile"

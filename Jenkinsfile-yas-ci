@@ -135,10 +135,14 @@ pipeline {
                                 //   order-1.0-SNAPSHOT.jar          → executable (có Main-Class)
                                 //   order-1.0-SNAPSHOT.jar.original → plain JAR (không có Main-Class)
                                 // Dockerfile dùng COPY target/order*.jar sẽ chỉ match executable JAR
-                                sh "docker build -t ${imageName} ./${buildDir}"
+                                retry(10) {
+                                    sh "docker build -t ${imageName} ./${buildDir}"
+                                }
 
                                 echo "Pushing Docker image lên Docker Hub: ${imageName}"
-                                sh "docker push ${imageName}"
+                                retry(10) {
+                                    sh "docker push ${imageName}"
+                                }
 
                                 sh "docker rmi ${imageName} || true"
                             } else {
