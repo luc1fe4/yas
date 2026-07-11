@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         MAVEN_OPTS = '-Xmx384m -XX:+UseG1GC'
-        DOCKER_USERNAME = 'besukem'
+        DOCKER_USERNAME = 'lcphuc'
         MAVEN_REPO = '/var/jenkins_home/.m2/repository'
     }
 
@@ -556,15 +556,10 @@ pipeline {
                                 echo "Building Docker image cho: ${svc}"
                                 def imageName = "${env.DOCKER_USERNAME}/${svc}:${commitId}"
                                 
-                                sh """
-                                    docker pull ${env.DOCKER_USERNAME}/${svc}:latest || true
-                                    docker build --cache-from ${env.DOCKER_USERNAME}/${svc}:latest -t ${imageName} ./${svc}
-                                """
+                                sh "docker build -t ${imageName} ./${svc}"
                                 
                                 echo "Pushing Docker image len Docker Hub: ${imageName}"
                                 sh "docker push ${imageName}"
-                                sh "docker tag ${imageName} ${env.DOCKER_USERNAME}/${svc}:latest"
-                                sh "docker push ${env.DOCKER_USERNAME}/${svc}:latest"
                                 sh "docker rmi ${imageName} || true"
                             } else {
                                 echo "Bo qua ${svc}: Khong tim thay Dockerfile."
