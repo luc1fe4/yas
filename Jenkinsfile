@@ -210,6 +210,7 @@ pipeline {
                     archiveArtifacts artifacts: 'gitleaks-report.json', fingerprint: true, allowEmptyArchive: true
                     archiveArtifacts artifacts: 'snyk-*-report.json', fingerprint: true, allowEmptyArchive: true
                 }
+                // failFast true
             }
         }
 
