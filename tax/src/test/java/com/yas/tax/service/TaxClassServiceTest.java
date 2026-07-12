@@ -141,4 +141,27 @@ class TaxClassServiceTest {
 
         assertThat(result.totalElements()).isEqualTo(1);
     }
+
+    @Test
+    void calculateTaxAmount_whenValidInput_returnCorrectAmount() {
+        double result = taxClassService.calculateTaxAmount(100.0, 10.0);
+        assertThat(result).isEqualTo(10.0);
+    }
+    @Test
+    void calculateTaxAmount_whenZeroPrice_returnZero() {
+        double result = taxClassService.calculateTaxAmount(0.0, 10.0);
+        assertThat(result).isEqualTo(0.0);
+    }
+    @Test
+    void calculateTaxAmount_whenNegativePrice_throwIllegalArgumentException() {
+        assertThatThrownBy(() -> taxClassService.calculateTaxAmount(-1.0, 10.0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("negative");
+    }
+    @Test
+    void calculateTaxAmount_whenInvalidTaxRate_throwIllegalArgumentException() {
+        assertThatThrownBy(() -> taxClassService.calculateTaxAmount(100.0, 150.0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("between 0 and 100");
+    }
 }

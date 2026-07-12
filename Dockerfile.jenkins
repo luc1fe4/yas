@@ -1,7 +1,7 @@
 FROM jenkins/jenkins:lts-jdk21
 USER root
 
-# Install Docker CLI
+# Install Docker CLI so Jenkins can build/push images via host docker.sock
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -18,4 +18,23 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Install Node.js and npm so frontend services can run npm test/build in pipeline.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+        | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" \
+        > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends nodejs \
+    && node -v \
+    && npm -v \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 USER jenkins
+
+# Install plugins for JCasC, Job DSL, Git, Pipelines, and NodeJS
+RUN jenkins-plugin-cli --plugins configuration-as-code job-dsl workflow-aggregator git nodejs jacoco
+
